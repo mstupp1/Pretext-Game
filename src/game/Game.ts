@@ -7,7 +7,7 @@ import { scoreWord, type ScoreResult, getLetterValue } from './Scoring'
 import { generateLevel, type LevelConfig } from './Levels'
 import { ParticleSystem } from '../effects/ParticleSystem'
 import { GAME_WIDTH, GAME_HEIGHT, LANE_COUNT, LANE_HEIGHT, LANE_Y_START, COLORS, CANVAS_FONTS, ROMAN_NUMERALS, MAX_COLLECTED_LETTERS, TIME_BONUS } from '../utils/constants'
-import { renderText, measureTextWidth, renderCurvedText } from '../text/TextEngine'
+import { renderText, measureTextWidth, renderCurvedText, measureCharsInLine } from '../text/TextEngine'
 import { getPageCurvatureOffset } from '../text/TextStream'
 
 export type GameState = 'title' | 'countdown' | 'playing' | 'paused' | 'gameover'
@@ -719,8 +719,59 @@ export class Game {
       ctx.save()
       ctx.globalAlpha = sec1.alpha
       ctx.translate(0, sec1.slideY)
-      renderText(ctx, 'Lexicon Crossing', centerX, titleY + getOffset(centerX),
-        CANVAS_FONTS.title(52), COLORS.espresso, 'center')
+
+      // Title - Animated character by character
+      const titleText = 'Lexicon Crossing'
+      const titleFont = CANVAS_FONTS.title(52)
+      const titleChars = measureCharsInLine(titleText, titleFont)
+
+      let titleWidth = 0
+      for (const ch of titleChars) titleWidth += ch.width
+      const startX = centerX - titleWidth / 2
+
+      ctx.font = titleFont
+      ctx.textBaseline = 'middle'
+      ctx.textAlign = 'center'
+
+      // Time variables for effects
+      const waveSpeed = 1.5
+      const shimmerDuration = 2.0 // seconds to sweep
+      const shimmerCycle = 4.0    // total cycle time
+      const shimmerTime = this.titleTime % shimmerCycle
+      const shimmerProgress = shimmerTime / shimmerDuration
+      // Move from -100 to titleWidth + 100 to ensure full fade in/out
+      const shimmerPos = shimmerProgress * (titleWidth + 200) - 100
+
+      for (let i = 0; i < titleChars.length; i++) {
+        const ch = titleChars[i]
+        const charX = startX + ch.x + ch.width / 2
+
+        // 1. Sine wave oscillation
+        const wave = Math.sin(this.titleTime * waveSpeed + i * 0.4) * 3.0
+
+        // Use getOffset(charX) to curve it along the spine correctly
+        const charY = titleY + getOffset(charX) + wave
+
+        // 2. Shimmer blend
+        const dist = Math.abs((ch.x + ch.width / 2) - shimmerPos)
+        // Shimmer affects chars within a ~40px radius
+        const blend = Math.max(0, 1 - dist / 40)
+
+        // Draw base text (espresso)
+        ctx.fillStyle = COLORS.espresso
+        ctx.fillText(ch.char, charX, charY)
+
+        // Draw shimmer highlight (goldLight) over top if applicable
+        if (blend > 0) {
+          ctx.save()
+          ctx.globalAlpha = sec1.alpha * blend * 0.85
+          ctx.fillStyle = COLORS.goldLight
+          ctx.fillText(ch.char, charX, charY)
+          ctx.restore()
+        }
+      }
+      ctx.textAlign = 'left' // Reset
+
       renderText(ctx, 'A   TYPOGRAPHIC   SCRAMBLE', centerX, titleY + 48 + getOffset(centerX),
         CANVAS_FONTS.uiSmallCaps(12), COLORS.muted, 'center')
       ctx.restore()
@@ -970,7 +1021,6 @@ export class Game {
     ctx.translate(centerX, centerY + offset)
     
     // Smooth scaling / fading based on timer (1.0 -> 0.0)
-    const prog = 1.0 - this.countdownTimer
     const scale = 0.5 + Math.pow(this.countdownTimer, 0.5) * 2.5
     const alpha = Math.min(1, this.countdownTimer * 2.5)
 
@@ -987,13 +1037,6 @@ export class Game {
   }
 
   // ── DOM UI updates ──
-
-  private toggleUI(visible: boolean): void {
-    const hud = document.getElementById('hud')
-    const tray = document.getElementById('word-tray')
-    if (hud) hud.style.display = visible ? 'flex' : 'none'
-    if (tray) tray.style.display = visible ? 'flex' : 'none'
-  }
 
   /** Hide/show only the text content inside the HUD (chapter, score, timer, progress bar)
    *  while keeping the HUD bar itself visible as layout chrome. */
