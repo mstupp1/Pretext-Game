@@ -370,7 +370,7 @@ html, body {
   display: flex;
   align-items: center;
 }
-
+#word-feedback {
   min-height: 14px;
   position: absolute;
   bottom: 8px;
