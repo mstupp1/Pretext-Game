@@ -15,7 +15,32 @@ EXTRAS.split(/\s+/).forEach(w => {
   if (w.length >= 3) WORD_SET.add(w.toUpperCase())
 })
 
-export function isValidWord(word: string): boolean {
+// Async check using free dictionary API with local cache
+export async function checkWordValidity(word: string): Promise<boolean> {
+  const upper = word.toUpperCase()
+  
+  // Fast path: already in our local set
+  if (WORD_SET.has(upper)) return true
+
+  try {
+    const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`)
+    
+    // 200 OK means the dictionary found it
+    if (response.ok) {
+      WORD_SET.add(upper) // Cache for future lookups
+      return true
+    }
+    
+    // 404 means word not found
+    return false
+  } catch (error) {
+    console.error('Dictionary API error:', error)
+    // If the API fails (e.g., no internet), we just fall back to whatever is in the local set
+    return false
+  }
+}
+
+export function isValidWordLocal(word: string): boolean {
   return WORD_SET.has(word.toUpperCase())
 }
 

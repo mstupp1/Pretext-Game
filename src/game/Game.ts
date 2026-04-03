@@ -64,6 +64,7 @@ export class Game {
 
   // Manage collecting cooldown
   private collectCooldown: number = 0
+  private isSubmitting: boolean = false
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
@@ -252,8 +253,9 @@ export class Game {
     }
   }
 
-  submitWord(): void {
+  async submitWord(): Promise<void> {
     if (this.state !== 'playing') return
+    if (this.isSubmitting) return
 
     const selectedLetters = this.collectedLetters
       .filter(l => l.selected)
@@ -264,7 +266,15 @@ export class Game {
       return
     }
 
-    const result = scoreWord(selectedLetters)
+    this.isSubmitting = true
+    this.showFeedback('Checking lexicon...', true) // Setting to success=true temporarily just for styling
+    
+    // Set a very long timer for the check so it doesn't disappear in the middle of a slow API call
+    if (this.feedback) this.feedback.timer = 10
+
+    const result = await scoreWord(selectedLetters)
+
+    this.isSubmitting = false
 
     if (result.valid) {
       this.score += result.totalScore

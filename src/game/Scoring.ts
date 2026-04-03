@@ -1,7 +1,7 @@
 // ── Scoring — Scrabble-style word scoring ──
 
 import { LETTER_VALUES, WORD_LENGTH_BONUS } from '../utils/constants'
-import { isValidWord } from '../utils/dictionary'
+import { checkWordValidity } from '../utils/dictionary'
 
 export interface ScoreResult {
   valid: boolean
@@ -12,7 +12,7 @@ export interface ScoreResult {
   message: string
 }
 
-export function scoreWord(letters: string[]): ScoreResult {
+export async function scoreWord(letters: string[]): Promise<ScoreResult> {
   const word = letters.join('').toUpperCase()
 
   if (word.length < 3) {
@@ -26,7 +26,8 @@ export function scoreWord(letters: string[]): ScoreResult {
     }
   }
 
-  if (!isValidWord(word)) {
+  const isValid = await checkWordValidity(word)
+  if (!isValid) {
     return {
       valid: false,
       word,
