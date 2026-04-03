@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lexicon Crossing — A Typographic Frogger</title>
+  <meta name="description" content="Navigate streams of flowing prose, collect letters, and spell words in this Frogger-meets-Scrabble game powered by Pretext typography." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Cormorant:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/index.css" />
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+    <div id="ui-overlay">
+      <div id="hud">
+        <div id="hud-left">
+          <span id="score-label">SCORE</span>
+          <span id="score-value">0</span>
+        </div>
+        <div id="hud-center">
+          <span id="level-label">CHAPTER</span>
+          <span id="level-value">I</span>
+        </div>
+        <div id="hud-right">
+          <span id="timer-value">1:30</span>
+        </div>
+      </div>
+      <div id="word-tray">
+        <div id="tray-letters"></div>
+        <div id="tray-controls">
+          <button id="submit-word" title="Submit Word (Enter)">Submit</button>
+          <button id="clear-word" title="Clear (Backspace)">Clear</button>
+        </div>
+        <div id="word-feedback"></div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "name": "lexicon-crossing",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A Frogger-meets-Scrabble game powered by Pretext typography",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "keywords": ["game", "pretext", "typography", "frogger", "scrabble"],
+  "author": "Myles",
+  "license": "MIT",
+  "dependencies": {
+    "@chenglou/pretext": "^0.0.4"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.2",
+    "vite": "^8.0.3"
+  }
+}
