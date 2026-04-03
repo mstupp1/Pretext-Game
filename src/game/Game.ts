@@ -432,7 +432,8 @@ export class Game {
       ctx.fillStyle = COLORS.gold
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText(fs.text, fs.x, fs.y)
+      const offset = getPageCurvatureOffset(fs.x, GAME_WIDTH)
+      ctx.fillText(fs.text, fs.x, fs.y + offset)
       ctx.restore()
     }
 
