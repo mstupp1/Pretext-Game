@@ -1,7 +1,7 @@
 // ── Lane — A single text stream lane in the game ──
 // Enhanced with ambient typography, rotation, scaling, ripple waves, and lens effects
 
-import { TextStream, type StreamChar } from '../text/TextStream'
+import { TextStream, type StreamChar, getPageCurvatureOffset } from '../text/TextStream'
 import { COLORS, CANVAS_FONTS, GAME_WIDTH, LANE_HEIGHT, SAFE_ZONE_INDICES, ORNAMENTS, FLOURISHES } from '../utils/constants'
 import { renderText } from '../text/TextEngine'
 
@@ -85,10 +85,16 @@ export class Lane {
       ctx.strokeStyle = COLORS.rule
       ctx.lineWidth = 0.5
       ctx.beginPath()
-      ctx.moveTo(30, this.y + 2)
-      ctx.lineTo(GAME_WIDTH - 30, this.y + 2)
-      ctx.moveTo(30, this.y + this.height - 2)
-      ctx.lineTo(GAME_WIDTH - 30, this.y + this.height - 2)
+      for (let x = 30; x <= GAME_WIDTH - 30; x += 10) {
+        const offset = getPageCurvatureOffset(x, GAME_WIDTH)
+        if (x === 30) ctx.moveTo(x, this.y + 2 + offset)
+        else ctx.lineTo(x, this.y + 2 + offset)
+      }
+      for (let x = 30; x <= GAME_WIDTH - 30; x += 10) {
+        const offset = getPageCurvatureOffset(x, GAME_WIDTH)
+        if (x === 30) ctx.moveTo(x, this.y + this.height - 2 + offset)
+        else ctx.lineTo(x, this.y + this.height - 2 + offset)
+      }
       ctx.stroke()
     }
 
@@ -117,10 +123,11 @@ export class Lane {
         const edgeScale = this.stream.getEdgeScale(screenX, GAME_WIDTH)
         const inkAlpha = this.stream.getInkAlpha(ch)
         const rippleOffset = this.stream.getRippleOffset(ch)
+        const pageCurvature = this.stream.getPageCurvatureOffset(screenX, GAME_WIDTH)
 
         // Combine displacements: interactive + ambient
         const totalDx = ch.dx + shimmer + wordPulse
-        const totalDy = ch.dy + undulation + rippleOffset
+        const totalDy = ch.dy + undulation + rippleOffset + pageCurvature
 
         const charCenterX = screenX + ch.width / 2 + totalDx
         const charCenterY = centerY + totalDy
@@ -251,8 +258,11 @@ export class Lane {
     ctx.strokeStyle = COLORS.rule
     ctx.lineWidth = 0.5
     ctx.beginPath()
-    ctx.moveTo(0, this.y + this.height)
-    ctx.lineTo(GAME_WIDTH, this.y + this.height)
+    for (let x = 0; x <= GAME_WIDTH; x += 10) {
+      const offset = getPageCurvatureOffset(x, GAME_WIDTH)
+      if (x === 0) ctx.moveTo(x, this.y + this.height + offset)
+      else ctx.lineTo(x, this.y + this.height + offset)
+    }
     ctx.stroke()
   }
 

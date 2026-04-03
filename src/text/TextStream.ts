@@ -5,6 +5,21 @@ import { measureCharsInLine, type MeasuredChar } from './TextEngine'
 import { getRandomPassage } from './passages'
 import { ICONS } from '../utils/constants'
 
+export function getPageCurvatureOffset(screenX: number, viewportWidth: number): number {
+  const center = viewportWidth / 2
+  const distFromCenter = screenX - center
+  const normalizedDist = distFromCenter / center // -1 to 1
+
+  // arch goes from 0 at the spine (normalizedDist=0) to 1 at the middle of the page (normalizedDist=0.5) to 0 at the edges
+  const arch = Math.sin(Math.abs(normalizedDist) * Math.PI)
+  
+  // spineDip adds a sharp dip right at the center spine (y increases = downwards visually)
+  const spineDip = Math.max(0, 1 - Math.abs(normalizedDist * 8)) * 6
+  
+  // Pages rise (negative y) by 5px at their peaks, and dip (positive y) at the spine
+  return -arch * 5 + spineDip
+}
+
 export interface StreamChar {
   char: string
   x: number       // current world x position
@@ -292,6 +307,11 @@ export class TextStream {
     // Each word boundary pulses at a slightly different rate
     const pulse = Math.sin(this.globalTime * 1.2 + ch.wordIndex * 1.7) * 1.5
     return pulse
+  }
+
+  // Get the curve offset of the pages (middle falls into the spine, edges curve up and then down)
+  getPageCurvatureOffset(screenX: number, viewportWidth: number): number {
+    return getPageCurvatureOffset(screenX, viewportWidth)
   }
 
   // ── Enhanced effects system ──

@@ -7,6 +7,7 @@ import { generateLevel, type LevelConfig } from './Levels'
 import { ParticleSystem } from '../effects/ParticleSystem'
 import { GAME_WIDTH, GAME_HEIGHT, LANE_COUNT, LANE_HEIGHT, LANE_Y_START, COLORS, CANVAS_FONTS, ROMAN_NUMERALS, MAX_COLLECTED_LETTERS, TIME_BONUS } from '../utils/constants'
 import { renderText, measureTextWidth } from '../text/TextEngine'
+import { getPageCurvatureOffset } from '../text/TextStream'
 
 export type GameState = 'title' | 'playing' | 'gameover'
 
@@ -448,8 +449,11 @@ export class Game {
     const endY = LANE_Y_START + (LANE_COUNT * LANE_HEIGHT)
     for (let y = LANE_Y_START; y <= endY; y += 22) {
       ctx.beginPath()
-      ctx.moveTo(0, y)
-      ctx.lineTo(GAME_WIDTH, y)
+      for (let x = 0; x <= GAME_WIDTH; x += 10) {
+        const offset = getPageCurvatureOffset(x, GAME_WIDTH)
+        if (x === 0) ctx.moveTo(x, y + offset)
+        else ctx.lineTo(x, y + offset)
+      }
       ctx.stroke()
     }
 
@@ -462,6 +466,29 @@ export class Game {
     gradient.addColorStop(1, 'rgba(200, 190, 170, 0.15)')
     ctx.fillStyle = gradient
     ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT)
+    
+    // Book spine crease (center)
+    const spineGradient = ctx.createLinearGradient(GAME_WIDTH / 2 - 40, 0, GAME_WIDTH / 2 + 40, 0)
+    spineGradient.addColorStop(0, 'rgba(0, 0, 0, 0)')
+    spineGradient.addColorStop(0.3, 'rgba(0, 0, 0, 0.05)')
+    spineGradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.12)')
+    spineGradient.addColorStop(0.7, 'rgba(0, 0, 0, 0.05)')
+    spineGradient.addColorStop(1, 'rgba(0, 0, 0, 0)')
+    ctx.fillStyle = spineGradient
+    ctx.fillRect(GAME_WIDTH / 2 - 40, 0, 80, GAME_HEIGHT)
+
+    // Book page edges (left and right shadows)
+    const edgeGradientLeft = ctx.createLinearGradient(0, 0, 30, 0)
+    edgeGradientLeft.addColorStop(0, 'rgba(0, 0, 0, 0.06)')
+    edgeGradientLeft.addColorStop(1, 'rgba(0, 0, 0, 0)')
+    ctx.fillStyle = edgeGradientLeft
+    ctx.fillRect(0, 0, 30, GAME_HEIGHT)
+
+    const edgeGradientRight = ctx.createLinearGradient(GAME_WIDTH - 30, 0, GAME_WIDTH, 0)
+    edgeGradientRight.addColorStop(0, 'rgba(0, 0, 0, 0)')
+    edgeGradientRight.addColorStop(1, 'rgba(0, 0, 0, 0.06)')
+    ctx.fillStyle = edgeGradientRight
+    ctx.fillRect(GAME_WIDTH - 30, 0, 30, GAME_HEIGHT)
   }
 
   private renderBoundaryDecoration(ctx: CanvasRenderingContext2D): void {
@@ -469,15 +496,21 @@ export class Game {
     ctx.strokeStyle = COLORS.rule
     ctx.lineWidth = 1
     ctx.beginPath()
-    ctx.moveTo(30, LANE_Y_START)
-    ctx.lineTo(GAME_WIDTH - 30, LANE_Y_START)
+    for (let x = 30; x <= GAME_WIDTH - 30; x += 10) {
+      const offset = getPageCurvatureOffset(x, GAME_WIDTH)
+      if (x === 30) ctx.moveTo(x, LANE_Y_START + offset)
+      else ctx.lineTo(x, LANE_Y_START + offset)
+    }
     ctx.stroke()
 
     // Bottom decorative line
     const bottomY = LANE_Y_START + LANE_COUNT * LANE_HEIGHT
     ctx.beginPath()
-    ctx.moveTo(30, bottomY)
-    ctx.lineTo(GAME_WIDTH - 30, bottomY)
+    for (let x = 30; x <= GAME_WIDTH - 30; x += 10) {
+      const offset = getPageCurvatureOffset(x, GAME_WIDTH)
+      if (x === 30) ctx.moveTo(x, bottomY + offset)
+      else ctx.lineTo(x, bottomY + offset)
+    }
     ctx.stroke()
   }
 
