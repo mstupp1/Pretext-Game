@@ -130,6 +130,17 @@ export class Lane {
             ctx.scale(totalScale, totalScale)
           }
 
+          // Depth illusion for the pill
+          if (ch.scale > 1.05) {
+            const depth = (ch.scale - 1) * 15
+            ctx.shadowColor = COLORS.shadow
+            ctx.shadowBlur = depth * 1.5
+            ctx.shadowOffsetX = 0
+            ctx.shadowOffsetY = depth
+          } else {
+            ctx.shadowColor = 'transparent' // Reset just in case
+          }
+
           // Pill background
           const padding = 2
           const pillH = this.config.fontSize + 4
@@ -137,6 +148,9 @@ export class Lane {
           ctx.beginPath()
           ctx.roundRect(-ch.width / 2 - padding, -pillH / 2, ch.width + padding * 2, pillH, 3)
           ctx.fill()
+
+          // Reset shadow for the rest of the drawing
+          ctx.shadowColor = 'transparent'
 
           // Gold underline
           ctx.strokeStyle = COLORS.gold
@@ -167,8 +181,20 @@ export class Lane {
             ctx.scale(totalScale, totalScale)
           }
 
+          // Depth illusion — drop shadow increases as characters lift off the page
+          if (ch.scale > 1.05) {
+            const depth = (ch.scale - 1) * 15
+            ctx.shadowColor = COLORS.shadow
+            ctx.shadowBlur = depth * 1.5
+            ctx.shadowOffsetX = 0
+            ctx.shadowOffsetY = depth
+          }
+
           // Alpha: combine interactive alpha, proximity brightening, and ink density
-          const proximityAlpha = 0.55 + (ch.scale - 1) * 1.0
+          // We make lifted characters entirely opaque
+          const isLifted = ch.scale > 1.05
+          const proximityAlpha = isLifted ? 1.0 : (0.55 + (ch.scale - 1) * 1.0)
+          
           ctx.globalAlpha = Math.min(1, ch.alpha * proximityAlpha * inkAlpha)
           ctx.font = this.font
           ctx.fillStyle = COLORS.sepia

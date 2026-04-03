@@ -269,6 +269,8 @@ export class TextStream {
   }
 
   // ── Enhanced effects system ──
+  // "Coming off the page" — characters magnify dramatically and slow down
+  // as they pass through the cursor's lens zone, like a portal to another dimension
 
   // Apply all proximity effects from player position
   applyPlayerEffects(playerX: number, playerY: number, laneY: number, laneWidth: number, isPlayerLane: boolean): void {
@@ -284,51 +286,66 @@ export class TextStream {
       const dist = Math.abs(dx)
 
       if (isPlayerLane) {
-        // ── PLAYER'S LANE: Full effects ──
+        // ── PLAYER'S LANE: Portal/magnification effect ──
+        // Characters feel like they're rising off a page under a magnifying glass
 
-        const repulsionRadius = 80
-        const lensRadius = 150
-        const rotationRadius = 120
+        const portalRadius = 180    // wide zone of influence
+        const coreRadius = 60       // innermost zone — peak magnification
+        const slowdownRadius = 140  // zone where speed dampening occurs
 
-        // 1. REPULSION — push characters apart (vertical + horizontal)
-        if (dist < repulsionRadius) {
-          const force = (1 - dist / repulsionRadius)
-          const pushForce = force * force // quadratic for snappier feel
-          ch.targetDy = dx > 0 ? pushForce * 16 : -pushForce * 16
-          ch.targetDx = (dx > 0 ? 1 : -1) * pushForce * 8
-        } else {
-          ch.targetDy = 0
-          ch.targetDx = 0
-        }
-
-        // 2. LENS EFFECT — scale up near cursor like a magnifying glass
-        if (dist < lensRadius) {
-          const t = 1 - dist / lensRadius
-          // Smooth bell curve for natural lens feel
+        // 1. MAGNIFICATION — dramatic scale-up, like coming off the page
+        if (dist < portalRadius) {
+          const t = 1 - dist / portalRadius
+          // Smooth bell curve peaks at center
           const lensPower = t * t * (3 - 2 * t) // smoothstep
-          ch.targetScale = 1 + lensPower * 0.4 // up to 1.4x scale
+          // Up to 2.5x scale at dead center — dramatic "looming" feel
+          ch.targetScale = 1 + lensPower * 1.5
         } else {
           ch.targetScale = 1
         }
 
-        // 3. MAGNETIC ROTATION — characters rotate to "look at" the cursor
-        if (dist < rotationRadius) {
-          const angle = Math.atan2(laneY - playerY, dx)
-          const t = 1 - dist / rotationRadius
-          ch.targetRotation = angle * t * 0.35 // subtle lean
+        // 2. NO ROTATION — characters stay perfectly upright
+        // This reinforces the "lifting toward the viewer" feel
+        ch.targetRotation = 0
+
+        // 3. SPEED DAMPENING — counteract scroll to simulate slower movement
+        // Characters appear to slow down as they enter the lens, as if
+        // they're traveling through a denser medium / different depth plane
+        if (dist < slowdownRadius) {
+          const t = 1 - dist / slowdownRadius
+          const dampenPower = t * t // quadratic — strong at center
+          // Push characters AGAINST their scroll direction
+          // This creates the illusion they're moving slower through the lens
+          const scrollDirection = this.direction
+          const dampenForce = dampenPower * 25 // strength of the slowdown
+          ch.targetDx = -scrollDirection * dampenForce
         } else {
-          ch.targetRotation = 0
+          ch.targetDx = 0
         }
+
+        // 4. GENTLE VERTICAL LIFT — characters rise slightly in the core
+        // Like they're floating up off the page surface
+        if (dist < coreRadius) {
+          const t = 1 - dist / coreRadius
+          const liftPower = t * t
+          ch.targetDy = -liftPower * 6 // subtle upward float
+        } else {
+          ch.targetDy = 0
+        }
+
       } else if (laneProximity > 0.2) {
-        // ── ADJACENT LANES: Subtle gravitational pull ──
-        const softRadius = 120
+        // ── ADJACENT LANES: Sympathetic lift ──
+        // Nearby lanes feel the gravitational pull but more subtly
+        const softRadius = 140
         if (dist < softRadius) {
           const t = (1 - dist / softRadius) * laneProximity
+          const liftT = t * t * (3 - 2 * t) // smoothstep for smooth falloff
           // Gentle vertical sway toward player
-          ch.targetDy = (playerY < laneY ? -1 : 1) * t * 6
-          // Very subtle lean
-          ch.targetRotation = (dx > 0 ? 0.05 : -0.05) * t
-          ch.targetScale = 1 + t * 0.1
+          ch.targetDy = (playerY < laneY ? -1 : 1) * liftT * 8
+          // No rotation — keep that clean upright feel
+          ch.targetRotation = 0
+          // Subtle sympathetic magnification
+          ch.targetScale = 1 + liftT * 0.25
           ch.targetDx = 0
         } else {
           ch.targetDy = 0
