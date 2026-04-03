@@ -81,9 +81,6 @@ export class Game {
     window.addEventListener('keydown', (e) => this.onKeyDown(e))
     window.addEventListener('keyup', (e) => this.onKeyUp(e))
 
-    // Button handlers
-    document.getElementById('submit-word')?.addEventListener('click', () => this.submitWord())
-
     // Hide UI initially (title screen)
     this.toggleUI(false)
   }
@@ -676,9 +673,8 @@ export class Game {
     if (!wordsEl) return
 
     wordsEl.innerHTML = ''
-    // Show most recent words first
-    const recentWords = [...this.wordsFound].reverse()
-    for (const word of recentWords) {
+    // Show words in chronological order (left to right)
+    for (const word of this.wordsFound) {
       const wordContainer = document.createElement('div')
       wordContainer.className = 'completed-word'
       
