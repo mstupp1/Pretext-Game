@@ -1,5 +1,5 @@
 // ── Lane — A single text stream lane in the game ──
-// Enhanced with rotation, scaling, ripple waves, and lens effects
+// Enhanced with ambient typography, rotation, scaling, ripple waves, and lens effects
 
 import { TextStream, type StreamChar } from '../text/TextStream'
 import { COLORS, CANVAS_FONTS, GAME_WIDTH, LANE_HEIGHT, SAFE_ZONE_INDICES, ORNAMENTS, FLOURISHES } from '../utils/constants'
@@ -90,9 +90,23 @@ export class Lane {
       for (const { char: ch, screenX } of visible) {
         if (ch.alpha <= 0) continue
 
-        const charCenterX = screenX + ch.width / 2 + ch.dx
+        // ── Compute all ambient offsets ──
+        const undulation = this.stream.getUndulationOffset(ch, screenX)
+        const shimmer = this.stream.getShimmerOffset(ch)
+        const wordPulse = this.stream.getWordPulseOffset(ch)
+        const edgeScale = this.stream.getEdgeScale(screenX, GAME_WIDTH)
+        const inkAlpha = this.stream.getInkAlpha(ch)
         const rippleOffset = this.stream.getRippleOffset(ch)
-        const charCenterY = centerY + ch.dy + rippleOffset
+
+        // Combine displacements: interactive + ambient
+        const totalDx = ch.dx + shimmer + wordPulse
+        const totalDy = ch.dy + undulation + rippleOffset
+
+        const charCenterX = screenX + ch.width / 2 + totalDx
+        const charCenterY = centerY + totalDy
+
+        // Combined scale: interactive × ambient edge warp
+        const totalScale = ch.scale * edgeScale
 
         if (ch.isCollected) {
           // Dissolving — spiral upward with spin
@@ -100,7 +114,7 @@ export class Lane {
           ctx.globalAlpha = ch.alpha
           ctx.translate(charCenterX, charCenterY)
           ctx.rotate(ch.rotation)
-          ctx.scale(ch.scale, ch.scale)
+          ctx.scale(totalScale, totalScale)
           ctx.font = this.font
           ctx.fillStyle = COLORS.gold
           ctx.fillText(ch.char, -ch.width / 2, 0)
@@ -111,12 +125,12 @@ export class Lane {
           ctx.translate(charCenterX, charCenterY)
 
           // Apply rotation and scale
-          if (ch.rotation !== 0 || ch.scale !== 1) {
+          if (ch.rotation !== 0 || totalScale !== 1) {
             ctx.rotate(ch.rotation)
-            ctx.scale(ch.scale, ch.scale)
+            ctx.scale(totalScale, totalScale)
           }
 
-          // Pill background (unrotated — draw before transform for clean look)
+          // Pill background
           const padding = 2
           const pillH = this.config.fontSize + 4
           ctx.fillStyle = COLORS.goldFaint
@@ -143,19 +157,19 @@ export class Lane {
           ctx.fillText(ch.char, 0, 0)
           ctx.restore()
         } else {
-          // Normal text — with rotation, scale, and proximity effects
+          // ── Normal text — the showcase for ambient effects ──
           ctx.save()
           ctx.translate(charCenterX, charCenterY)
 
-          // Rotation and scale
-          if (ch.rotation !== 0 || ch.scale !== 1) {
+          // Interactive rotation + scale
+          if (ch.rotation !== 0 || totalScale !== 1) {
             ctx.rotate(ch.rotation)
-            ctx.scale(ch.scale, ch.scale)
+            ctx.scale(totalScale, totalScale)
           }
 
-          // Variable alpha based on proximity (lens effect makes closer chars more visible)
-          const proximityAlpha = 0.55 + (ch.scale - 1) * 1.0 // brighter when magnified
-          ctx.globalAlpha = Math.min(1, ch.alpha * proximityAlpha)
+          // Alpha: combine interactive alpha, proximity brightening, and ink density
+          const proximityAlpha = 0.55 + (ch.scale - 1) * 1.0
+          ctx.globalAlpha = Math.min(1, ch.alpha * proximityAlpha * inkAlpha)
           ctx.font = this.font
           ctx.fillStyle = COLORS.sepia
           ctx.textAlign = 'center'
