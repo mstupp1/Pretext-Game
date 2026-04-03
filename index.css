@@ -103,7 +103,7 @@ html, body {
 }
 
 #hud .ui-container {
-  padding: 0 30px 0 480px; /* Top Right Bottom Left (Right-page shift) */
+  padding: 0 32px;
 }
 
 #hud-left, #hud-center, #hud-right {

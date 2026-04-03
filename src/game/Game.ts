@@ -604,7 +604,7 @@ export class Game {
     // Use the standard book background
     this.renderBackground(ctx)
 
-    const centerX = GAME_WIDTH * 0.75
+    const centerX = GAME_WIDTH / 2
     const getOffset = (x: number) => getPageCurvatureOffset(x, GAME_WIDTH)
     const centerY = GAME_HEIGHT * 0.25
 
