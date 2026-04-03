@@ -239,16 +239,25 @@ export class TextStream {
   getVisibleChars(viewportWidth: number): { char: StreamChar; screenX: number }[] {
     const visible: { char: StreamChar; screenX: number }[] = []
     const offset = this.scrollOffset
+    const padding = 100 // Load further offscreen to prevent popping
 
     for (const ch of this.chars) {
-      // Calculate screen position (with wrapping)
-      let screenX = ch.x - offset
-      // Wrap for continuous scroll
-      while (screenX < -ch.width) screenX += this.totalWidth
-      while (screenX > this.totalWidth) screenX -= this.totalWidth
+      // Calculate base wrapped screen position to be nominally within [0, totalWidth)
+      let screenX = (ch.x - offset) % this.totalWidth
+      if (screenX < 0) screenX += this.totalWidth
 
-      if (screenX >= -ch.width && screenX <= viewportWidth + ch.width) {
-        visible.push({ char: ch, screenX })
+      // Check the primary position and its immediate wrapped clones
+      // This ensures characters smoothly enter/exit across screen boundaries without popping or gaps
+      const positions = [
+        screenX - this.totalWidth,
+        screenX,
+        screenX + this.totalWidth
+      ]
+
+      for (const px of positions) {
+        if (px >= -ch.width - padding && px <= viewportWidth + padding) {
+          visible.push({ char: ch, screenX: px })
+        }
       }
     }
 
@@ -295,9 +304,20 @@ export class TextStream {
     const edgeDistance = Math.min(screenX, viewportWidth - screenX)
     const edgeZone = 80 // pixels from edge where effect kicks in
     if (edgeDistance > edgeZone) return 1
-    const t = edgeDistance / edgeZone // 0 at edge, 1 at boundary
+    const t = Math.max(0, edgeDistance / edgeZone) // 0 at edge, 1 at boundary
     // Subtle horizontal squash at edges (0.92 to 1.0)
     return 0.92 + t * 0.08
+  }
+
+  // Get edge-based fade
+  // Characters smoothly fade in/out as they enter/exit the screen
+  getEdgeFade(screenX: number, viewportWidth: number): number {
+    // Offset screenX to start fading slightly inside the viewport bounds
+    const edgeDistance = Math.min(screenX + 20, viewportWidth - screenX + 20)
+    const fadeZone = 40 // Fade duration in pixels
+    if (edgeDistance > fadeZone) return 1
+    const t = Math.max(0, edgeDistance / fadeZone)
+    return t * t // Ease-in interpolation
   }
 
   // Get word-pulse spacing offset for spaces between words

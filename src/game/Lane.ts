@@ -134,8 +134,9 @@ export class Lane {
 
         // Combined scale: interactive × ambient edge warp
         const totalScale = ch.scale * edgeScale
+        const edgeFade = this.stream.getEdgeFade(screenX, GAME_WIDTH)
         
-        const renderData = { ch, charCenterX, charCenterY, totalScale, inkAlpha }
+        const renderData = { ch, charCenterX, charCenterY, totalScale, inkAlpha, edgeFade }
         
         if (ch.isCollected || ch.isHighlighted) {
            topRenderChars.push(renderData)
@@ -145,7 +146,7 @@ export class Lane {
       }
 
       // First Pass: Normal background text
-      for (const { ch, charCenterX, charCenterY, totalScale, inkAlpha } of normalRenderChars) {
+      for (const { ch, charCenterX, charCenterY, totalScale, inkAlpha, edgeFade } of normalRenderChars) {
         ctx.save()
         ctx.translate(charCenterX, charCenterY)
 
@@ -165,7 +166,7 @@ export class Lane {
         const isLifted = ch.scale > 1.05
         const proximityAlpha = isLifted ? 1.0 : (0.55 + (ch.scale - 1) * 1.0)
         
-        ctx.globalAlpha = Math.min(1, ch.alpha * proximityAlpha * inkAlpha)
+        ctx.globalAlpha = Math.min(1, ch.alpha * proximityAlpha * inkAlpha * edgeFade)
         
         ctx.font = this.font
         ctx.fillStyle = COLORS.sepia
@@ -175,10 +176,10 @@ export class Lane {
       }
 
       // Second Pass: Highlighted and Collected text
-      for (const { ch, charCenterX, charCenterY, totalScale, inkAlpha } of topRenderChars) {
+      for (const { ch, charCenterX, charCenterY, totalScale, inkAlpha, edgeFade } of topRenderChars) {
         if (ch.isCollected) {
           ctx.save()
-          ctx.globalAlpha = ch.alpha
+          ctx.globalAlpha = ch.alpha * edgeFade
           ctx.translate(charCenterX, charCenterY)
           ctx.rotate(ch.rotation)
           ctx.scale(totalScale, totalScale)
@@ -193,7 +194,7 @@ export class Lane {
           const isLifted = ch.scale > 1.05
           // High baseline (0.75) helps player search for letters across the board
           const proximityAlpha = isLifted ? 1.0 : Math.min(1, 0.75 + (ch.scale - 1) * 1.0)
-          const baseAlpha = Math.min(1, ch.alpha * proximityAlpha)
+          const baseAlpha = Math.min(1, ch.alpha * proximityAlpha) * edgeFade
           
           ctx.globalAlpha = baseAlpha
 
