@@ -2,8 +2,9 @@
 // Enhanced with ambient typography, rotation, scaling, ripple waves, and lens effects
 
 import { TextStream, type StreamChar, getPageCurvatureOffset } from '../text/TextStream'
-import { COLORS, CANVAS_FONTS, GAME_WIDTH, LANE_HEIGHT, SAFE_ZONE_INDICES, ORNAMENTS, FLOURISHES } from '../utils/constants'
+import { COLORS, CANVAS_FONTS, FONTS, GAME_WIDTH, LANE_HEIGHT, SAFE_ZONE_INDICES, ORNAMENTS, FLOURISHES } from '../utils/constants'
 import { renderText } from '../text/TextEngine'
+import { getLetterValue } from './Scoring'
 
 export interface LaneConfig {
   index: number
@@ -214,7 +215,6 @@ export class Lane {
           ctx.translate(charCenterX, charCenterY)
           
           const isLifted = ch.scale > 1.05
-          // High baseline (0.75) helps player search for letters across the board
           const proximityAlpha = isLifted ? 1.0 : Math.min(1, 0.75 + (ch.scale - 1) * 1.0)
           const baseAlpha = Math.min(1, ch.alpha * proximityAlpha) * edgeFade
           
@@ -233,42 +233,81 @@ export class Lane {
             ctx.shadowOffsetY = depth
           }
 
-          const padding = 3
-          const pillH = this.config.fontSize + 6
-          
-          // Interpolate visual strength based on cursor proximity (scale 1.0 -> 2.5)
+          // Compute tile dimensions
           const interactionStrength = Math.min(1, Math.max(0, (ch.scale - 1) / 1.5))
+          const padding = 4 + interactionStrength * 2
+          const tileW = ch.width + padding * 2
+          const tileH = this.config.fontSize + padding * 2
+          const borderRadius = 4
           
-          // Background mask smoothly transitions from semi-transparent (0.4) to fully opaque (1.0)
-          ctx.globalAlpha = Math.min(1, baseAlpha * (0.4 + interactionStrength * 0.6))
-          ctx.fillStyle = COLORS.ivory
+          // 1. Draw Tile Shadow
+          if (ch.scale > 1.1) {
+            ctx.shadowColor = COLORS.shadow
+            ctx.shadowBlur = 4 + (ch.scale - 1) * 10
+            ctx.shadowOffsetY = 2 + (ch.scale - 1) * 4
+          }
+          
+          // 2. Draw Tile Background
+          // transition background from faint gold to solid gold based on focus
+          const bgAlpha = Math.min(1, 0.4 + interactionStrength * 0.6)
+          ctx.fillStyle = `rgba(184, 134, 11, ${bgAlpha * baseAlpha})`
           ctx.beginPath()
-          ctx.roundRect(-ch.width / 2 - padding, -pillH / 2, ch.width + padding * 2, pillH, 3)
+          ctx.roundRect(-tileW / 2, -tileH / 2, tileW, tileH, borderRadius)
+          ctx.fill()
+          
+          // 3. Draw Tile Border (3D effect)
+          ctx.shadowBlur = 0
+          ctx.shadowOffsetY = 0
+          
+          // Bottom "depth" part of the tile — consistent 3px depth regardless of scale
+          const visualDepth = 3
+          const depth = visualDepth / totalScale
+          ctx.fillStyle = 'rgba(100, 70, 20, 0.4)' // darker gold/brown for depth
+          ctx.beginPath()
+          ctx.roundRect(-tileW / 2, tileH / 2 - depth, tileW, depth, [0, 0, borderRadius, borderRadius])
           ctx.fill()
 
-          // Gold tint smoothly increases in intensity
-          ctx.fillStyle = `rgba(184, 134, 11, ${0.1 + interactionStrength * 0.25})`
-          ctx.fill()
-
-          ctx.shadowColor = 'transparent'
-
-          // Gold underline smoothly transitions
-          ctx.strokeStyle = COLORS.gold
-          ctx.lineWidth = 1.5 + interactionStrength * 0.5 // slightly thicker at peak
-          ctx.globalAlpha = Math.min(1, baseAlpha * (0.6 + interactionStrength * 0.4))
+          ctx.strokeStyle = `rgba(154, 114, 9, ${baseAlpha})` // #9A7209 approx
+          ctx.lineWidth = 1
           ctx.beginPath()
-          ctx.moveTo(-ch.width / 2 - 1, pillH / 2 - 1)
-          ctx.lineTo(ch.width / 2 + 1, pillH / 2 - 1)
+          ctx.roundRect(-tileW / 2, -tileH / 2, tileW, tileH, borderRadius)
           ctx.stroke()
 
-          // Text with glow
-          ctx.globalAlpha = baseAlpha
-          ctx.shadowColor = COLORS.gold
-          ctx.shadowBlur = 6 + (ch.scale - 1) * 12
+          // 4. Draw Tile Surface Shine (Subtle)
+          const shineGradient = ctx.createLinearGradient(-tileW/2, -tileH/2, tileW/2, tileH/2)
+          shineGradient.addColorStop(0, 'rgba(255, 255, 255, 0.15)')
+          shineGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0)')
+          shineGradient.addColorStop(1, 'rgba(0, 0, 0, 0.05)')
+          ctx.fillStyle = shineGradient
+          ctx.fill()
+
+          // 5. Draw the main Character
+          // Transition character color gradually from gold to ivory based on focus
+          const colorT = Math.min(1, interactionStrength * 1.2)
+          const r = Math.round(184 + colorT * (245 - 184))
+          const g = Math.round(134 + colorT * (241 - 134))
+          const b = Math.round(11 + colorT * (232 - 11))
+          const charColor = `rgb(${r}, ${g}, ${b})`
+          
           ctx.font = this.font
-          ctx.fillStyle = COLORS.gold
+          ctx.fillStyle = charColor
           ctx.textAlign = 'center'
-          ctx.fillText(ch.char, 0, 0)
+          ctx.textBaseline = 'middle'
+          ctx.fillText(ch.char, 0, -1) // nudge up slightly for 3D feel
+
+          // 6. Draw the Point Value (Bottom-Right)
+          const points = getLetterValue(ch.char)
+          if (points > 0) {
+            const pointsFontSize = Math.max(9, this.config.fontSize * 0.4)
+            ctx.font = `800 ${pointsFontSize}px ${FONTS.ui}`
+            ctx.textAlign = 'right'
+            ctx.textBaseline = 'bottom'
+            // Points fade in with focus
+            ctx.globalAlpha = baseAlpha * Math.min(1, interactionStrength * 2)
+            ctx.fillStyle = charColor
+            ctx.fillText(String(points), tileW / 2 - 3, tileH / 2 - 2)
+          }
+
           ctx.restore()
         }
       }
