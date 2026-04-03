@@ -192,7 +192,12 @@ export class Lane {
         ctx.globalAlpha = Math.min(1, ch.alpha * proximityAlpha * inkAlpha * edgeFade)
 
         ctx.font = this.font
-        ctx.fillStyle = COLORS.sepia
+        let textColor: string = COLORS.sepia
+        if (ch.multiplierType === 'DoubleLetter') textColor = 'rgb(255, 255, 255)' // white
+        else if (ch.multiplierType === 'TripleLetter') textColor = 'rgb(23, 124, 114)'
+        else if (ch.multiplierType === 'DoubleWord') textColor = 'rgb(255, 255, 255)' // white
+        else if (ch.multiplierType === 'TripleWord') textColor = 'rgb(115, 45, 145)' // twPurple border roughly
+        ctx.fillStyle = textColor
         ctx.textAlign = 'center'
         ctx.fillText(ch.char, 0, 0)
         ctx.restore()
@@ -212,7 +217,7 @@ export class Lane {
           if (ch.multiplierType === 'DoubleLetter') footprintColor = COLORS.dlLight
           else if (ch.multiplierType === 'TripleLetter') footprintColor = COLORS.tlBlue
           else if (ch.multiplierType === 'DoubleWord') footprintColor = COLORS.dwCoral
-          else if (ch.multiplierType === 'TripleWord') footprintColor = COLORS.twRed
+          else if (ch.multiplierType === 'TripleWord') footprintColor = COLORS.twPurple
 
           ctx.fillStyle = footprintColor
           ctx.fillText(ch.char, -ch.width / 2, 0)
@@ -269,12 +274,12 @@ export class Lane {
           let charColor = `rgb(${r}, ${g}, ${b})`
 
           if (ch.multiplierType === 'DoubleLetter') {
-            baseColor = `rgba(160, 196, 255, ${bgAlpha * baseAlpha})` // dlLight
-            borderColor = `rgba(122, 162, 221, ${baseAlpha})`
-            depthColor = 'rgba(100, 140, 200, 0.4)'
-            const cr = Math.round(122 + colorT * (44 - 122))
-            const cg = Math.round(162 + colorT * (24 - 162))
-            const cb = Math.round(221 + colorT * (16 - 221))
+            baseColor = `rgba(91, 155, 213, ${bgAlpha * baseAlpha})` // dlLight (Medium Blue)
+            borderColor = `rgba(63, 107, 168, ${baseAlpha})`
+            depthColor = 'rgba(50, 85, 140, 0.4)'
+            const cr = Math.round(63 + colorT * (255 - 63))
+            const cg = Math.round(107 + colorT * (255 - 107))
+            const cb = Math.round(168 + colorT * (255 - 168))
             charColor = `rgb(${cr}, ${cg}, ${cb})`
           } else if (ch.multiplierType === 'TripleLetter') {
             baseColor = `rgba(34, 166, 153, ${bgAlpha * baseAlpha})` // tlBlue (Greenish)
@@ -285,20 +290,20 @@ export class Lane {
             const cb = Math.round(114 + colorT * (232 - 114))
             charColor = `rgb(${cr}, ${cg}, ${cb})`
           } else if (ch.multiplierType === 'DoubleWord') {
-            baseColor = `rgba(255, 154, 162, ${bgAlpha * baseAlpha})` // dwCoral
-            borderColor = `rgba(221, 120, 128, ${baseAlpha})`
-            depthColor = 'rgba(200, 100, 110, 0.4)'
-            const cr = Math.round(221 + colorT * (44 - 221))
-            const cg = Math.round(120 + colorT * (24 - 120))
-            const cb = Math.round(128 + colorT * (16 - 128))
+            baseColor = `rgba(231, 76, 60, ${bgAlpha * baseAlpha})` // dwCoral (Medium Red)
+            borderColor = `rgba(184, 61, 47, ${baseAlpha})`
+            depthColor = 'rgba(150, 50, 40, 0.4)'
+            const cr = Math.round(184 + colorT * (255 - 184))
+            const cg = Math.round(61 + colorT * (255 - 61))
+            const cb = Math.round(47 + colorT * (255 - 47))
             charColor = `rgb(${cr}, ${cg}, ${cb})`
           } else if (ch.multiplierType === 'TripleWord') {
-            baseColor = `rgba(216, 27, 96, ${bgAlpha * baseAlpha})` // twRed (Pinkish)
-            borderColor = `rgba(163, 18, 72, ${baseAlpha})`
-            depthColor = 'rgba(150, 15, 65, 0.4)'
-            const cr = Math.round(163 + colorT * (245 - 163))
-            const cg = Math.round(18 + colorT * (241 - 18))
-            const cb = Math.round(72 + colorT * (232 - 72))
+            baseColor = `rgba(142, 68, 173, ${bgAlpha * baseAlpha})` // twPurple
+            borderColor = `rgba(115, 45, 145, ${baseAlpha})`
+            depthColor = 'rgba(90, 30, 120, 0.4)'
+            const cr = Math.round(115 + colorT * (245 - 115))
+            const cg = Math.round(45 + colorT * (241 - 45))
+            const cb = Math.round(145 + colorT * (232 - 145))
             charColor = `rgb(${cr}, ${cg}, ${cb})`
           }
 

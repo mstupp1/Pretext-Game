@@ -343,9 +343,9 @@ html, body {
 
 /* ── Multiplier Styles ── */
 .multiplier-DoubleLetter {
-  background: #A0C4FF !important;
-  color: var(--text-espresso) !important;
-  border-color: #7AA2DD !important;
+  background: #5B9BD5 !important;
+  color: white !important;
+  border-color: #3F6BA8 !important;
 }
 .multiplier-TripleLetter {
   background: #22A699 !important; /* Greenish Blue */
@@ -353,14 +353,14 @@ html, body {
   border-color: #177C72 !important;
 }
 .multiplier-DoubleWord {
-  background: #FF9AA2 !important;
-  color: var(--text-espresso) !important;
-  border-color: #DD7880 !important;
+  background: #E74C3C !important;
+  color: white !important;
+  border-color: #B83D2F !important;
 }
 .multiplier-TripleWord {
-  background: #D81B60 !important; /* Pinkish Red */
+  background: #8E44AD !important; /* Purple */
   color: var(--bg-ivory) !important;
-  border-color: #A31248 !important;
+  border-color: #732D91 !important;
 }
 .multiplier-DoubleLetter .tile-points, .multiplier-DoubleWord .tile-points {
   color: rgba(44, 24, 16, 0.8) !important;
