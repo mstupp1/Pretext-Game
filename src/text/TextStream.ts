@@ -87,6 +87,7 @@ export class TextStream {
     // Track word boundaries
     let wordIndex = 0
     let inWord = false
+    let highlightCooldown = 0
 
     for (let i = 0; i < measured.length; i++) {
       const mc = measured[i]
@@ -103,11 +104,21 @@ export class TextStream {
       }
 
       let isHighlighted = false
-      if (isLetter) {
+      if (isLetter && highlightCooldown <= 0) {
         let chance = this.highlightRate
         if (vowels.has(upper)) chance *= 1.8
         else if (commonConsonants.has(upper)) chance *= 1.3
+        
         isHighlighted = Math.random() < chance
+        
+        if (isHighlighted) {
+          // Enforce a minimum gap between collectibles (e.g., 8 to 12 characters)
+          highlightCooldown = 8 + Math.floor(Math.random() * 5)
+        }
+      }
+      
+      if (highlightCooldown > 0) {
+        highlightCooldown--
       }
 
       // Per-character seeds for deterministic ambient variation

@@ -87,6 +87,9 @@ export class Lane {
 
       ctx.textBaseline = 'middle'
 
+      const normalRenderChars: any[] = []
+      const topRenderChars: any[] = []
+
       for (const { char: ch, screenX } of visible) {
         if (ch.alpha <= 0) continue
 
@@ -107,9 +110,48 @@ export class Lane {
 
         // Combined scale: interactive × ambient edge warp
         const totalScale = ch.scale * edgeScale
+        
+        const renderData = { ch, charCenterX, charCenterY, totalScale, inkAlpha }
+        
+        if (ch.isCollected || ch.isHighlighted) {
+           topRenderChars.push(renderData)
+        } else {
+           normalRenderChars.push(renderData)
+        }
+      }
 
+      // First Pass: Normal background text
+      for (const { ch, charCenterX, charCenterY, totalScale, inkAlpha } of normalRenderChars) {
+        ctx.save()
+        ctx.translate(charCenterX, charCenterY)
+
+        if (ch.rotation !== 0 || totalScale !== 1) {
+          ctx.rotate(ch.rotation)
+          ctx.scale(totalScale, totalScale)
+        }
+
+        if (ch.scale > 1.05) {
+          const depth = (ch.scale - 1) * 15
+          ctx.shadowColor = COLORS.shadow
+          ctx.shadowBlur = depth * 1.5
+          ctx.shadowOffsetX = 0
+          ctx.shadowOffsetY = depth
+        }
+
+        const isLifted = ch.scale > 1.05
+        const proximityAlpha = isLifted ? 1.0 : (0.55 + (ch.scale - 1) * 1.0)
+        
+        ctx.globalAlpha = Math.min(1, ch.alpha * proximityAlpha * inkAlpha)
+        ctx.font = this.font
+        ctx.fillStyle = COLORS.sepia
+        ctx.textAlign = 'center'
+        ctx.fillText(ch.char, 0, 0)
+        ctx.restore()
+      }
+
+      // Second Pass: Highlighted and Collected text
+      for (const { ch, charCenterX, charCenterY, totalScale } of topRenderChars) {
         if (ch.isCollected) {
-          // Dissolving — spiral upward with spin
           ctx.save()
           ctx.globalAlpha = ch.alpha
           ctx.translate(charCenterX, charCenterY)
@@ -120,17 +162,15 @@ export class Lane {
           ctx.fillText(ch.char, -ch.width / 2, 0)
           ctx.restore()
         } else if (ch.isHighlighted) {
-          // Highlighted collectible — with scale and rotation
           ctx.save()
           ctx.translate(charCenterX, charCenterY)
+          ctx.globalAlpha = 1.0 // Ensure collectibles are always 100% opaque
 
-          // Apply rotation and scale
           if (ch.rotation !== 0 || totalScale !== 1) {
             ctx.rotate(ch.rotation)
             ctx.scale(totalScale, totalScale)
           }
 
-          // Depth illusion for the pill
           if (ch.scale > 1.05) {
             const depth = (ch.scale - 1) * 15
             ctx.shadowColor = COLORS.shadow
@@ -138,21 +178,24 @@ export class Lane {
             ctx.shadowOffsetX = 0
             ctx.shadowOffsetY = depth
           } else {
-            ctx.shadowColor = 'transparent' // Reset just in case
+            ctx.shadowColor = 'transparent'
           }
 
-          // Pill background
           const padding = 2
           const pillH = this.config.fontSize + 4
-          ctx.fillStyle = COLORS.goldFaint
+          
+          // Solid background mask to ensure no transparency
+          ctx.fillStyle = COLORS.ivory
           ctx.beginPath()
           ctx.roundRect(-ch.width / 2 - padding, -pillH / 2, ch.width + padding * 2, pillH, 3)
           ctx.fill()
 
-          // Reset shadow for the rest of the drawing
+          // Selection tint on top
+          ctx.fillStyle = COLORS.goldFaint
+          ctx.fill()
+
           ctx.shadowColor = 'transparent'
 
-          // Gold underline
           ctx.strokeStyle = COLORS.gold
           ctx.lineWidth = 1.5
           ctx.globalAlpha = 0.6
@@ -161,43 +204,11 @@ export class Lane {
           ctx.lineTo(ch.width / 2, pillH / 2 - 1)
           ctx.stroke()
 
-          // Letter
           ctx.globalAlpha = 1
           ctx.shadowColor = COLORS.goldGlow
-          ctx.shadowBlur = 4 + (ch.scale - 1) * 10 // more glow when scaled up
+          ctx.shadowBlur = 4 + (ch.scale - 1) * 10
           ctx.font = this.font
           ctx.fillStyle = COLORS.gold
-          ctx.textAlign = 'center'
-          ctx.fillText(ch.char, 0, 0)
-          ctx.restore()
-        } else {
-          // ── Normal text — the showcase for ambient effects ──
-          ctx.save()
-          ctx.translate(charCenterX, charCenterY)
-
-          // Interactive rotation + scale
-          if (ch.rotation !== 0 || totalScale !== 1) {
-            ctx.rotate(ch.rotation)
-            ctx.scale(totalScale, totalScale)
-          }
-
-          // Depth illusion — drop shadow increases as characters lift off the page
-          if (ch.scale > 1.05) {
-            const depth = (ch.scale - 1) * 15
-            ctx.shadowColor = COLORS.shadow
-            ctx.shadowBlur = depth * 1.5
-            ctx.shadowOffsetX = 0
-            ctx.shadowOffsetY = depth
-          }
-
-          // Alpha: combine interactive alpha, proximity brightening, and ink density
-          // We make lifted characters entirely opaque
-          const isLifted = ch.scale > 1.05
-          const proximityAlpha = isLifted ? 1.0 : (0.55 + (ch.scale - 1) * 1.0)
-          
-          ctx.globalAlpha = Math.min(1, ch.alpha * proximityAlpha * inkAlpha)
-          ctx.font = this.font
-          ctx.fillStyle = COLORS.sepia
           ctx.textAlign = 'center'
           ctx.fillText(ch.char, 0, 0)
           ctx.restore()
