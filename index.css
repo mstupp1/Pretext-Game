@@ -234,7 +234,7 @@ html, body {
   background: linear-gradient(to top, rgba(245, 241, 232, 0.98), rgba(245, 241, 232, 0.92));
   backdrop-filter: blur(8px);
   display: flex;
-  height: 90px;
+  height: 82px;
 }
 
 #word-tray-inner {
@@ -333,11 +333,10 @@ html, body {
 #current-word-area {
   flex: 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 48px;
-  gap: 8px;
+  position: relative;
+  height: 100%;
 }
 
 #current-word {
@@ -359,14 +358,12 @@ html, body {
   align-items: center;
 }
 
-#word-feedback {
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-style: italic;
-  color: var(--text-muted);
-  text-align: center;
-  transition: opacity 0.3s ease;
-  min-height: 18px;
+  min-height: 14px;
+  position: absolute;
+  bottom: 8px;
+  left: 0;
+  right: 0;
+  pointer-events: none;
 }
 
 #word-feedback.success {
@@ -377,14 +374,6 @@ html, body {
   color: var(--accent-red);
 }
 
-/* Current word area should center its content */
-#current-word-area {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
 
 /* ── Title Screen & Game Over (rendered as canvas overlays, but some fallback) ── */
 
