@@ -366,6 +366,45 @@ html, body {
   color: rgba(44, 24, 16, 0.8) !important;
 }
 
+/* ── Multiplier Legend ── */
+
+#multiplier-legend {
+  position: absolute;
+  top: 40px;
+  right: 40px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+  pointer-events: none;
+  opacity: 0.85;
+  z-index: 5;
+}
+
+#multiplier-legend .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#multiplier-legend .legend-tile {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  border-width: 1px;
+  border-bottom-width: 2px;
+  border-style: solid;
+  box-shadow: 0 1px 3px var(--shadow-warm);
+}
+
+#multiplier-legend .legend-label {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-style: italic;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
 /* ── Current Word Display ── */
 
 #current-word-area {
