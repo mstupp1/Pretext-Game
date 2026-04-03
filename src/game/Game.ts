@@ -442,10 +442,11 @@ export class Game {
   }
 
   private renderBackground(ctx: CanvasRenderingContext2D): void {
-    // Subtle ruled lines
-    ctx.strokeStyle = 'rgba(44, 24, 16, 0.03)'
+    // Ruled lines within the lane block
+    ctx.strokeStyle = 'rgba(44, 24, 16, 0.04)'
     ctx.lineWidth = 0.5
-    for (let y = LANE_Y_START; y < GAME_HEIGHT - 60; y += 28) {
+    const endY = LANE_Y_START + (LANE_COUNT * LANE_HEIGHT)
+    for (let y = LANE_Y_START; y <= endY; y += 22) {
       ctx.beginPath()
       ctx.moveTo(0, y)
       ctx.lineTo(GAME_WIDTH, y)
@@ -468,24 +469,16 @@ export class Game {
     ctx.strokeStyle = COLORS.rule
     ctx.lineWidth = 1
     ctx.beginPath()
-    ctx.moveTo(30, LANE_Y_START - 5)
-    ctx.lineTo(GAME_WIDTH - 30, LANE_Y_START - 5)
+    ctx.moveTo(30, LANE_Y_START)
+    ctx.lineTo(GAME_WIDTH - 30, LANE_Y_START)
     ctx.stroke()
 
     // Bottom decorative line
-    const bottomY = LANE_Y_START + LANE_COUNT * LANE_HEIGHT + 5
+    const bottomY = LANE_Y_START + LANE_COUNT * LANE_HEIGHT
     ctx.beginPath()
     ctx.moveTo(30, bottomY)
     ctx.lineTo(GAME_WIDTH - 30, bottomY)
     ctx.stroke()
-
-    // "GOAL" label at top
-    renderText(ctx, '— GOAL —', GAME_WIDTH / 2, LANE_Y_START - 18,
-      CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
-
-    // Start label at bottom
-    renderText(ctx, '— START —', GAME_WIDTH / 2, bottomY + 16,
-      CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
   }
 
   private renderTitle(ctx: CanvasRenderingContext2D): void {

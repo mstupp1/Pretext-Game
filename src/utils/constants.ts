@@ -46,7 +46,7 @@ export const GAME_HEIGHT = 640
 // Lane dimensions
 export const LANE_COUNT = 9
 export const LANE_HEIGHT = 44
-export const LANE_Y_START = 60
+export const LANE_Y_START = 122
 export const SAFE_ZONE_INDICES = [0, LANE_COUNT - 1] // top and bottom safe zones
 
 // Player
