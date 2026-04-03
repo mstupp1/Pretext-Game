@@ -20,10 +20,11 @@ export function generateLevel(chapter: number): LevelConfig {
 
   for (let i = 0; i < LANE_COUNT; i++) {
     if (SAFE_ZONE_INDICES.includes(i)) {
-      // Safe zones now scroll horizontally with icons
+      // Safe zones now scroll horizontally with icons - slightly different speeds for top/bottom
+      const safeSpeed = i === 0 ? 22 : 28
       laneConfigs.push({
         index: i,
-        speed: 25, // Steady decorative speed
+        speed: safeSpeed, 
         direction: i === 0 ? 1 : -1, // Alternate directions for variety
         fontSize: 18,
         fontStyle: 'regular',
@@ -35,10 +36,14 @@ export function generateLevel(chapter: number): LevelConfig {
     // Alternate directions
     const direction: 1 | -1 = i % 2 === 0 ? 1 : -1
 
-    // Vary speeds — middle lanes are faster
+    // Vary speeds — middle lanes are faster, but add a guaranteed lane-specific offset 
+    // so that every lane is distinctly different even at the same distance from center
     const distFromCenter = Math.abs(i - LANE_COUNT / 2)
     const speedVariance = (LANE_COUNT / 2 - distFromCenter) / (LANE_COUNT / 2)
-    const speed = (40 + speedVariance * 60 + Math.random() * 20) * speedMultiplier
+    
+    // Base speed + curve + per-lane jitter + small random factor
+    const laneOffset = i * 2.5 
+    const speed = (45 + speedVariance * 55 + laneOffset + Math.random() * 10) * speedMultiplier
 
     // Vary font sizes and styles
     const fontSizeBase = 16 + Math.floor(Math.random() * 6)
