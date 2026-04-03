@@ -205,7 +205,7 @@ export class TextStream {
       } else {
         // Spring physics for all properties
         const springRate = dt * 8
-        const scaleRate = dt * 5
+        const scaleRate = dt * 15 // Faster scale response so it doesn't lag behind
         const rotRate = dt * 6
 
         ch.dy += (ch.targetDy - ch.dy) * Math.min(1, springRate)
@@ -321,8 +321,13 @@ export class TextStream {
 
         // 1. MAGNIFICATION — dramatic scale-up, like coming off the page
         if (dist < portalRadius) {
-          const t = 1 - dist / portalRadius
-          // Smooth bell curve peaks at center
+          // Flatten the top of the curve so it peaks sooner and holds the peak
+          const plateauRadius = 25
+          const effectiveDist = Math.max(0, dist - plateauRadius)
+          const effectivePortalRadius = portalRadius - plateauRadius
+
+          const t = Math.max(0, 1 - effectiveDist / effectivePortalRadius)
+          // Smooth bell curve
           const lensPower = t * t * (3 - 2 * t) // smoothstep
           // Up to 2.5x scale at dead center — dramatic "looming" feel
           ch.targetScale = 1 + lensPower * 1.5

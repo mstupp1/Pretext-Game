@@ -184,8 +184,9 @@ export class Lane {
           ctx.translate(charCenterX, charCenterY)
           
           const isLifted = ch.scale > 1.05
-          const proximityAlpha = isLifted ? 1.0 : (0.55 + (ch.scale - 1) * 1.0)
-          const baseAlpha = Math.min(1, ch.alpha * proximityAlpha * inkAlpha)
+          // High baseline (0.75) helps player search for letters across the board
+          const proximityAlpha = isLifted ? 1.0 : Math.min(1, 0.75 + (ch.scale - 1) * 1.0)
+          const baseAlpha = Math.min(1, ch.alpha * proximityAlpha)
           
           ctx.globalAlpha = baseAlpha
 
@@ -200,36 +201,40 @@ export class Lane {
             ctx.shadowBlur = depth * 1.5
             ctx.shadowOffsetX = 0
             ctx.shadowOffsetY = depth
-          } else {
-            ctx.shadowColor = 'transparent'
           }
 
-          const padding = 2
-          const pillH = this.config.fontSize + 4
+          const padding = 3
+          const pillH = this.config.fontSize + 6
           
-          // Solid background mask to ensure no transparency
+          // Interpolate visual strength based on cursor proximity (scale 1.0 -> 2.5)
+          const interactionStrength = Math.min(1, Math.max(0, (ch.scale - 1) / 1.5))
+          
+          // Background mask smoothly transitions from semi-transparent (0.4) to fully opaque (1.0)
+          ctx.globalAlpha = Math.min(1, baseAlpha * (0.4 + interactionStrength * 0.6))
           ctx.fillStyle = COLORS.ivory
           ctx.beginPath()
           ctx.roundRect(-ch.width / 2 - padding, -pillH / 2, ch.width + padding * 2, pillH, 3)
           ctx.fill()
 
-          // Selection tint on top
-          ctx.fillStyle = COLORS.goldFaint
+          // Gold tint smoothly increases in intensity
+          ctx.fillStyle = `rgba(184, 134, 11, ${0.1 + interactionStrength * 0.25})`
           ctx.fill()
 
           ctx.shadowColor = 'transparent'
 
+          // Gold underline smoothly transitions
           ctx.strokeStyle = COLORS.gold
-          ctx.lineWidth = 1.5
-          ctx.globalAlpha = baseAlpha * 0.6
+          ctx.lineWidth = 1.5 + interactionStrength * 0.5 // slightly thicker at peak
+          ctx.globalAlpha = Math.min(1, baseAlpha * (0.6 + interactionStrength * 0.4))
           ctx.beginPath()
-          ctx.moveTo(-ch.width / 2, pillH / 2 - 1)
-          ctx.lineTo(ch.width / 2, pillH / 2 - 1)
+          ctx.moveTo(-ch.width / 2 - 1, pillH / 2 - 1)
+          ctx.lineTo(ch.width / 2 + 1, pillH / 2 - 1)
           ctx.stroke()
 
+          // Text with glow
           ctx.globalAlpha = baseAlpha
-          ctx.shadowColor = COLORS.goldGlow
-          ctx.shadowBlur = 4 + (ch.scale - 1) * 10
+          ctx.shadowColor = COLORS.gold
+          ctx.shadowBlur = 6 + (ch.scale - 1) * 12
           ctx.font = this.font
           ctx.fillStyle = COLORS.gold
           ctx.textAlign = 'center'
