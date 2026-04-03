@@ -121,7 +121,12 @@ export class Game {
     this.floatingScores = []
     this.player = new Player()
     this.loadLevel(1)
-    this.toggleUI(false) // Keep UI hidden during countdown
+    
+    // Show UI as soon as countdown begins
+    this.toggleUI(true)
+    this.updateUI()
+    this.updateTrayUI()
+    this.updateWordsUI()
   }
 
   private beginPlaying(): void {
