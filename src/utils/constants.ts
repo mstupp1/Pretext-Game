@@ -36,6 +36,7 @@ export const CANVAS_FONTS = {
   title:        (size: number) => `italic 300 ${size}px ${FONTS.display}`,
   ui:           (size: number) => `${size}px ${FONTS.ui}`,
   uiSmallCaps:  (size: number) => `600 ${size}px ${FONTS.ui}`,
+  icons:        (size: number) => `900 ${size}px "Font Awesome 6 Free"`,
 } as const
 
 // Game dimensions
@@ -46,7 +47,7 @@ export const GAME_HEIGHT = 640
 export const LANE_COUNT = 9
 export const LANE_HEIGHT = 44
 export const LANE_Y_START = 60
-export const SAFE_ZONE_INDICES = [0, 4, 8] // top, middle, bottom safe zones
+export const SAFE_ZONE_INDICES = [0, LANE_COUNT - 1] // top and bottom safe zones
 
 // Player
 export const PLAYER_SIZE = 28
@@ -73,6 +74,21 @@ export const WORD_LENGTH_BONUS: Record<number, number> = {
 // Ornamental characters for safe zones
 export const ORNAMENTS = ['·', '—', '·', '—', '·', '—', '·'] as const
 export const FLOURISHES = ['❧', '✦', '※', '❦', '⁂', '☙', '✿'] as const
+
+// FontAwesome Unicode Icons for the academic/library theme
+export const ICONS = [
+  '\uf02d', // book
+  '\uf02e', // bookmark
+  '\uf52d', // feather
+  '\uf14e', // compass
+  '\uf70e', // scroll
+  '\uf084', // key
+  '\uf252', // hourglass
+  '\uf186', // moon
+  '\uf185', // sun
+  '\uf5dc', // spider
+  '\uf51f', // coins
+]
 
 // Roman numerals for chapter display
 export const ROMAN_NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'] as const

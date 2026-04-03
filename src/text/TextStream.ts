@@ -3,6 +3,7 @@
 
 import { measureCharsInLine, type MeasuredChar } from './TextEngine'
 import { getRandomPassage } from './passages'
+import { ICONS } from '../utils/constants'
 
 export interface StreamChar {
   char: string
@@ -52,12 +53,14 @@ export class TextStream {
   private undulationFrequency: number
   private undulationPhaseOffset: number
   private shimmerIntensity: number
+  private isIconStream: boolean
 
-  constructor(font: string, speed: number, direction: 1 | -1, highlightRate: number) {
+  constructor(font: string, speed: number, direction: 1 | -1, highlightRate: number, isIconStream: boolean = false) {
     this.font = font
     this.speed = speed
     this.direction = direction
     this.highlightRate = highlightRate
+    this.isIconStream = isIconStream
 
     // Each lane gets slightly different ambient parameters
     const laneVariation = Math.random()
@@ -72,8 +75,15 @@ export class TextStream {
   private buildStream(): void {
     // Combine multiple passages to create a long stream
     let text = ''
-    for (let i = 0; i < 4; i++) {
-      text += getRandomPassage() + '     '
+    
+    if (this.isIconStream) {
+      for (let i = 0; i < 60; i++) {
+        text += ICONS[Math.floor(Math.random() * ICONS.length)] + '      '
+      }
+    } else {
+      for (let i = 0; i < 4; i++) {
+        text += getRandomPassage() + '     '
+      }
     }
 
     const measured = measureCharsInLine(text, this.font)

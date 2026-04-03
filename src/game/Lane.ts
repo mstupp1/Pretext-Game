@@ -31,24 +31,35 @@ export class Lane {
     this.y = yPosition
     this.isSafeZone = SAFE_ZONE_INDICES.includes(config.index)
 
-    // Build the canvas font string
-    const fontBuilder = {
-      light: CANVAS_FONTS.laneLight,
-      regular: CANVAS_FONTS.laneRegular,
-      medium: CANVAS_FONTS.laneMedium,
-      bold: CANVAS_FONTS.laneBold,
-      italic: CANVAS_FONTS.laneItalic,
-      boldItalic: CANVAS_FONTS.laneBoldItalic,
-    }[config.fontStyle]
+    if (this.isSafeZone) {
+      // Safe zones are now continuously scrolling icon streams
+      this.font = CANVAS_FONTS.icons(18)
+      this.stream = new TextStream(
+        this.font,
+        config.speed * 0.5, // Scroll slower
+        config.direction,
+        0, // No highlight/collectibles
+        true // isIconStream
+      )
+    } else {
+      // Build the canvas font string
+      const fontBuilder = {
+        light: CANVAS_FONTS.laneLight,
+        regular: CANVAS_FONTS.laneRegular,
+        medium: CANVAS_FONTS.laneMedium,
+        bold: CANVAS_FONTS.laneBold,
+        italic: CANVAS_FONTS.laneItalic,
+        boldItalic: CANVAS_FONTS.laneBoldItalic,
+      }[config.fontStyle]
 
-    this.font = fontBuilder(config.fontSize)
+      this.font = fontBuilder(config.fontSize)
 
-    if (!this.isSafeZone) {
       this.stream = new TextStream(
         this.font,
         config.speed,
         config.direction,
         config.highlightRate,
+        false
       )
     }
   }
@@ -60,19 +71,25 @@ export class Lane {
       const isPlayerLane = Math.abs(playerY - (this.y + this.height / 2)) < this.height / 2
       this.stream.applyPlayerEffects(playerX, playerY, this.y + this.height / 2, GAME_WIDTH, isPlayerLane)
     }
-
-    // Animate ornament scroll for safe zones
-    if (this.isSafeZone) {
-      this.ornamentOffset += dt * 15
-    }
   }
 
   render(ctx: CanvasRenderingContext2D, playerLane: number, playerX: number): void {
     const centerY = this.y + this.height / 2
 
     if (this.isSafeZone) {
-      this.renderSafeZone(ctx, centerY)
-      return
+      // Subtle background for safe zones
+      ctx.fillStyle = 'rgba(232, 224, 208, 0.3)'
+      ctx.fillRect(0, this.y, GAME_WIDTH, this.height)
+
+      // Safe zone rules
+      ctx.strokeStyle = COLORS.rule
+      ctx.lineWidth = 0.5
+      ctx.beginPath()
+      ctx.moveTo(30, this.y + 2)
+      ctx.lineTo(GAME_WIDTH - 30, this.y + 2)
+      ctx.moveTo(30, this.y + this.height - 2)
+      ctx.lineTo(GAME_WIDTH - 30, this.y + this.height - 2)
+      ctx.stroke()
     }
 
     // Subtle lane background
@@ -233,45 +250,6 @@ export class Lane {
     ctx.stroke()
   }
 
-  private renderSafeZone(ctx: CanvasRenderingContext2D, centerY: number): void {
-    // Subtle background
-    ctx.fillStyle = 'rgba(232, 224, 208, 0.3)'
-    ctx.fillRect(0, this.y, GAME_WIDTH, this.height)
-
-    // Ornamental divider
-    const ornamentFont = CANVAS_FONTS.laneLight(14)
-    ctx.font = ornamentFont
-    ctx.fillStyle = COLORS.muted
-    ctx.textBaseline = 'middle'
-    ctx.textAlign = 'center'
-    ctx.globalAlpha = 0.5
-
-    // Render repeating ornament pattern
-    const pattern = this.index === 4
-      ? FLOURISHES
-      : ORNAMENTS
-
-    const spacing = 40
-    const startX = -(this.ornamentOffset % spacing)
-
-    for (let x = startX; x < GAME_WIDTH + spacing; x += spacing) {
-      const charIndex = Math.abs(Math.floor(x / spacing)) % pattern.length
-      ctx.fillText(pattern[charIndex], x, centerY)
-    }
-
-    ctx.globalAlpha = 1
-    ctx.textAlign = 'left'
-
-    // Rules
-    ctx.strokeStyle = COLORS.rule
-    ctx.lineWidth = 0.5
-    ctx.beginPath()
-    ctx.moveTo(30, this.y + 2)
-    ctx.lineTo(GAME_WIDTH - 30, this.y + 2)
-    ctx.moveTo(30, this.y + this.height - 2)
-    ctx.lineTo(GAME_WIDTH - 30, this.y + this.height - 2)
-    ctx.stroke()
-  }
 
   // Trigger ripple on this lane
   triggerRipple(playerX: number): void {

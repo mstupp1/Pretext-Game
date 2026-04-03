@@ -353,7 +353,16 @@ export class Game {
       this.timeRemaining = Math.min(this.timeRemaining + TIME_BONUS, this.level.timeLimit)
       this.score += 50  // crossing bonus
       this.showFeedback(`Crossed! +50 points, +${TIME_BONUS}s`, true)
-      this.loadLevel(this.chapter + 1)
+      this.player.reset() // Return to bottom
+    }
+
+    // Check chapter threshold (easy progression: 50 points per chapter)
+    const requiredScore = this.chapter * 50
+    if (this.score >= requiredScore) {
+      this.chapter++
+      this.level = generateLevel(this.chapter)
+      this.buildLanes()
+      this.showFeedback(`Chapter ${ROMAN_NUMERALS[Math.min(this.chapter - 1, ROMAN_NUMERALS.length - 1)]} Reached!`, true)
     }
 
     // Collected letter animations
