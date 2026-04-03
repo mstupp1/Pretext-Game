@@ -586,9 +586,9 @@ export class Game {
     renderText(ctx, 'A   TYPOGRAPHIC   FROGGER', GAME_WIDTH / 2, titleY + 48,
       CANVAS_FONTS.uiSmallCaps(12), COLORS.muted, 'center')
 
-    // Ornament
-    renderText(ctx, '❧  ✦  ❧', GAME_WIDTH / 2, titleY + 85,
-      CANVAS_FONTS.laneRegular(16), COLORS.gold, 'center')
+    // Simple Ornament
+    renderText(ctx, '✦', GAME_WIDTH / 2, titleY + 85,
+      CANVAS_FONTS.laneRegular(20), COLORS.gold, 'center')
 
     // Instructions
     const instrY = titleY + 130
@@ -625,10 +625,6 @@ export class Game {
     ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT)
 
     const centerY = GAME_HEIGHT * 0.25
-
-    // Ornament
-    renderText(ctx, '✦', GAME_WIDTH / 2, centerY - 30,
-      CANVAS_FONTS.laneRegular(20), COLORS.gold, 'center')
 
     renderText(ctx, 'Finis', GAME_WIDTH / 2, centerY,
       CANVAS_FONTS.title(48), COLORS.espresso, 'center')
@@ -722,10 +718,6 @@ export class Game {
     renderText(ctx, text, 0, 0, font, color, 'center')
     
     ctx.restore()
-
-    // Ornament below
-    renderText(ctx, '❧  ✦  ❧', GAME_WIDTH / 2, GAME_HEIGHT / 2 + 80,
-      CANVAS_FONTS.laneRegular(16), COLORS.gold, 'center')
   }
 
   // ── DOM UI updates ──
