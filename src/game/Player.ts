@@ -1,7 +1,7 @@
 // ── Player — The typographic cursor entity ──
 
 import { GAME_WIDTH, GAME_HEIGHT, PLAYER_SIZE, PLAYER_SPEED, LANE_COUNT, LANE_HEIGHT, LANE_Y_START, SAFE_ZONE_INDICES, COLORS, CANVAS_FONTS } from '../utils/constants'
-
+import { getPageCurvatureOffset } from '../text/TextStream'
 export class Player {
   public x: number
   public y: number
@@ -98,12 +98,14 @@ export class Player {
       ctx.fillStyle = COLORS.gold
       ctx.textBaseline = 'middle'
       ctx.textAlign = 'center'
-      ctx.fillText('▎', trail.x, trail.y)
+      const offset = getPageCurvatureOffset(trail.x, GAME_WIDTH)
+      ctx.fillText('▎', trail.x, trail.y + offset)
     }
     ctx.globalAlpha = 1
 
     // Player cursor
     if (this.blinkOn || this.isMoving) {
+      const offset = getPageCurvatureOffset(this.x, GAME_WIDTH)
       // Glow
       ctx.save()
       ctx.shadowColor = COLORS.goldGlow
@@ -112,7 +114,7 @@ export class Player {
       ctx.fillStyle = COLORS.gold
       ctx.textBaseline = 'middle'
       ctx.textAlign = 'center'
-      ctx.fillText('▎', this.x, this.y)
+      ctx.fillText('▎', this.x, this.y + offset)
       ctx.restore()
 
       // Solid
@@ -120,7 +122,7 @@ export class Player {
       ctx.fillStyle = COLORS.espresso
       ctx.textBaseline = 'middle'
       ctx.textAlign = 'center'
-      ctx.fillText('▎', this.x, this.y)
+      ctx.fillText('▎', this.x, this.y + offset)
     }
 
     ctx.textAlign = 'left'

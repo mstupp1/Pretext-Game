@@ -3,6 +3,7 @@
 
 import { COLORS, CANVAS_FONTS, GAME_WIDTH, GAME_HEIGHT } from '../utils/constants'
 import { measureCharsInLine } from '../text/TextEngine'
+import { getPageCurvatureOffset } from '../text/TextStream'
 
 export interface TypoParticle {
   char: string
@@ -77,7 +78,8 @@ export class ParticleSystem {
 
       ctx.save()
       ctx.globalAlpha = p.alpha
-      ctx.translate(p.x, p.y)
+      const offset = getPageCurvatureOffset(p.x, GAME_WIDTH)
+      ctx.translate(p.x, p.y + offset)
       ctx.rotate(p.rotation)
       ctx.scale(p.scale, p.scale)
       ctx.font = p.font
