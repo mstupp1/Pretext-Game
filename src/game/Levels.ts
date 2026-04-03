@@ -20,13 +20,13 @@ export function generateLevel(chapter: number): LevelConfig {
 
   for (let i = 0; i < LANE_COUNT; i++) {
     if (SAFE_ZONE_INDICES.includes(i)) {
-      // Safe zones have minimal config
+      // Safe zones now scroll horizontally with icons
       laneConfigs.push({
         index: i,
-        speed: 0,
-        direction: 1,
-        fontSize: 14,
-        fontStyle: 'light',
+        speed: 25, // Steady decorative speed
+        direction: i === 0 ? 1 : -1, // Alternate directions for variety
+        fontSize: 18,
+        fontStyle: 'regular',
         highlightRate: 0,
       })
       continue

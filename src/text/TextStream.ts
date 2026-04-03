@@ -77,8 +77,13 @@ export class TextStream {
     let text = ''
     
     if (this.isIconStream) {
-      for (let i = 0; i < 60; i++) {
-        text += ICONS[Math.floor(Math.random() * ICONS.length)] + '      '
+      // Use all icons before repeating for maximum variety
+      let pool: string[] = []
+      for (let i = 0; i < 80; i++) {
+        if (pool.length === 0) {
+          pool = [...ICONS].sort(() => Math.random() - 0.5)
+        }
+        text += pool.pop() + '       '
       }
     } else {
       for (let i = 0; i < 4; i++) {

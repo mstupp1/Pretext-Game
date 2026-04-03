@@ -78,16 +78,23 @@ export const FLOURISHES = ['❧', '✦', '※', '❦', '⁂', '☙', '✿'] as c
 // FontAwesome Unicode Icons for the academic/library theme
 export const ICONS = [
   '\uf02d', // book
+  '\uf518', // book-open
   '\uf02e', // bookmark
-  '\uf52d', // feather
-  '\uf14e', // compass
+  '\uf5ad', // pen-nib
+  '\uf56b', // feather-pointed
   '\uf70e', // scroll
+  '\uf530', // glasses
+  '\uf10d', // quote-left
+  '\uf10e', // quote-right
+  '\uf15c', // file-lines
   '\uf084', // key
   '\uf252', // hourglass
-  '\uf186', // moon
-  '\uf185', // sun
-  '\uf5dc', // spider
-  '\uf51f', // coins
+  '\uf304', // pen
+  '\uf558', // book-atlas
+  '\uf5b7', // signature
+  '\uf5bf', // stamp
+  '\uf0eb', // lightbulb
+  '\uf002', // magnifying-glass
 ]
 
 // Roman numerals for chapter display

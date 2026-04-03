@@ -36,7 +36,7 @@ export class Lane {
       this.font = CANVAS_FONTS.icons(18)
       this.stream = new TextStream(
         this.font,
-        config.speed * 0.5, // Scroll slower
+        config.speed, // Scroll at the specified decorative speed
         config.direction,
         0, // No highlight/collectibles
         true // isIconStream
@@ -159,6 +159,7 @@ export class Lane {
         const proximityAlpha = isLifted ? 1.0 : (0.55 + (ch.scale - 1) * 1.0)
         
         ctx.globalAlpha = Math.min(1, ch.alpha * proximityAlpha * inkAlpha)
+        
         ctx.font = this.font
         ctx.fillStyle = COLORS.sepia
         ctx.textAlign = 'center'
