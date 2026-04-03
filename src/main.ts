@@ -71,6 +71,8 @@ async function init(): Promise<void> {
     uiContainers.forEach(container => {
       container.style.maxWidth = `${targetUIWidth}px`
     })
+
+    game.updateWordsUI()
   }
 
   window.addEventListener('resize', resize)

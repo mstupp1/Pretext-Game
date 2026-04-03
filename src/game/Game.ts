@@ -86,8 +86,10 @@ export class Game {
     window.addEventListener('keydown', (e) => this.onKeyDown(e))
     window.addEventListener('keyup', (e) => this.onKeyUp(e))
 
-    // Hide UI initially (title screen)
-    this.toggleUI(false)
+    // Show UI bars on all screens (they stay visible as layout chrome)
+    this.updateUI()
+    this.updateTrayUI()
+    this.updateWordsUI()
   }
 
   private loadHighScores(): void {
@@ -122,8 +124,6 @@ export class Game {
     this.player = new Player()
     this.loadLevel(1)
     
-    // Show UI as soon as countdown begins
-    this.toggleUI(true)
     this.updateUI()
     this.updateTrayUI()
     this.updateWordsUI()
@@ -131,7 +131,6 @@ export class Game {
 
   private beginPlaying(): void {
     this.state = 'playing'
-    this.toggleUI(true)
     this.updateUI()
     this.updateTrayUI()
     this.updateWordsUI()
@@ -158,8 +157,9 @@ export class Game {
   private gameOver(): void {
     this.state = 'gameover'
     this.saveHighScore(this.score)
-    this.toggleUI(false)
     this.updateUI()
+    this.updateTrayUI()
+    this.updateWordsUI()
   }
 
   // ── Input handling ──
@@ -867,26 +867,45 @@ export class Game {
     }
   }
 
-  private updateWordsUI(): void {
+  public updateWordsUI(): void {
     const wordsEl = document.getElementById('completed-words-list')
     if (!wordsEl) return
 
-    wordsEl.innerHTML = ''
-    // Show words in chronological order (left to right)
-    for (const word of this.wordsFound) {
-      const wordContainer = document.createElement('div')
-      wordContainer.className = 'completed-word'
+    const renderWords = (startIndex: number) => {
+      wordsEl.innerHTML = ''
       
-      for (let i = 0; i < word.length; i++) {
-        const char = word[i].toUpperCase()
-        const value = getLetterValue(char)
-        const tile = document.createElement('div')
-        tile.className = 'tray-tile'
-        tile.innerHTML = `${char}<span class="tile-points">${value}</span>`
-        wordContainer.appendChild(tile)
+      const hiddenCount = startIndex
+      if (hiddenCount > 0) {
+        const moreIndicator = document.createElement('div')
+        moreIndicator.className = 'more-words-indicator'
+        moreIndicator.textContent = `+${hiddenCount} more`
+        wordsEl.appendChild(moreIndicator)
       }
       
-      wordsEl.appendChild(wordContainer)
+      for (let i = Math.max(0, startIndex); i < this.wordsFound.length; i++) {
+        const word = this.wordsFound[i]
+        const wordContainer = document.createElement('div')
+        wordContainer.className = 'completed-word'
+        
+        for (let j = 0; j < word.length; j++) {
+          const char = word[j].toUpperCase()
+          const value = getLetterValue(char)
+          const tile = document.createElement('div')
+          tile.className = 'tray-tile'
+          tile.innerHTML = `${char}<span class="tile-points">${value}</span>`
+          wordContainer.appendChild(tile)
+        }
+        
+        wordsEl.appendChild(wordContainer)
+      }
+    }
+
+    let startIndex = 0
+    renderWords(startIndex)
+
+    while (wordsEl.scrollWidth > wordsEl.clientWidth && startIndex < this.wordsFound.length - 1) {
+      startIndex++
+      renderWords(startIndex)
     }
   }
 }
