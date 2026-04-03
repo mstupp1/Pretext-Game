@@ -4,6 +4,7 @@ import { Player } from './Player'
 import { Lane, type LaneConfig } from './Lane'
 import { scoreWord, type ScoreResult, getLetterValue } from './Scoring'
 import { generateLevel, type LevelConfig } from './Levels'
+import { ParticleSystem } from '../effects/ParticleSystem'
 import { GAME_WIDTH, GAME_HEIGHT, LANE_COUNT, LANE_HEIGHT, LANE_Y_START, COLORS, CANVAS_FONTS, ROMAN_NUMERALS, MAX_COLLECTED_LETTERS, TIME_BONUS } from '../utils/constants'
 import { renderText, measureTextWidth } from '../text/TextEngine'
 
@@ -52,6 +53,7 @@ export class Game {
   public feedback: FeedbackMessage | null = null
   public floatingScores: FloatingScore[] = []
   public highScores: number[] = []
+  public particles: ParticleSystem = new ParticleSystem()
 
   // Input state
   private keys: Set<string> = new Set()
@@ -242,14 +244,11 @@ export class Game {
       this.collectCooldown = 0.15
       this.updateTrayUI()
 
-      // Floating score preview
-      this.floatingScores.push({
-        x: this.player.x,
-        y: this.player.y - 15,
-        text: `+${letter}`,
-        alpha: 1,
-        dy: -40,
-      })
+      // Particle burst on collection
+      this.particles.collectBurst(letter, this.player.x, this.player.y)
+
+      // Trigger ripple wave on the lane
+      lane.triggerRipple(this.player.x)
     }
   }
 
@@ -276,14 +275,12 @@ export class Game {
 
       this.showFeedback(`${result.word}: +${result.totalScore}  ${result.message}`, true)
 
-      // Floating score
-      this.floatingScores.push({
-        x: GAME_WIDTH / 2,
-        y: GAME_HEIGHT - 90,
-        text: `+${result.totalScore}`,
-        alpha: 1,
-        dy: -50,
-      })
+      // ✨ TYPOGRAPHIC EXPLOSION — the big payoff!
+      const intensity = Math.min(2, 0.8 + result.totalScore / 50)
+      this.particles.explodeWord(result.word, GAME_WIDTH / 2, GAME_HEIGHT / 2, intensity)
+
+      // Score text rises as particles
+      this.particles.waveText(`+${result.totalScore}`, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 60)
     } else {
       this.showFeedback(result.message, false)
     }
@@ -336,10 +333,9 @@ export class Game {
     // Collect cooldown
     this.collectCooldown = Math.max(0, this.collectCooldown - dt)
 
-    // Lanes
+    // Lanes — pass full player position for cross-lane effects
     for (const lane of this.lanes) {
-      const isPlayerLane = lane.index === this.player.laneIndex
-      lane.update(dt, isPlayerLane ? this.player.x : -1000)
+      lane.update(dt, this.player.x, this.player.y)
     }
 
     // Check if player crossed
@@ -361,6 +357,9 @@ export class Game {
       fs.alpha -= dt * 0.8
       return fs.alpha > 0
     })
+
+    // Particles
+    this.particles.update(dt)
 
     // Feedback timer
     if (this.feedback) {
@@ -399,11 +398,14 @@ export class Game {
 
     // Render lanes
     for (const lane of this.lanes) {
-      lane.render(ctx, this.player.laneIndex)
+      lane.render(ctx, this.player.laneIndex, this.player.x)
     }
 
     // Render player
     this.player.render(ctx)
+
+    // Render particles (on top of everything)
+    this.particles.render(ctx)
 
     // Render floating scores
     for (const fs of this.floatingScores) {

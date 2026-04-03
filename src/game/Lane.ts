@@ -1,4 +1,5 @@
 // ── Lane — A single text stream lane in the game ──
+// Enhanced with rotation, scaling, ripple waves, and lens effects
 
 import { TextStream, type StreamChar } from '../text/TextStream'
 import { COLORS, CANVAS_FONTS, GAME_WIDTH, LANE_HEIGHT, SAFE_ZONE_INDICES, ORNAMENTS, FLOURISHES } from '../utils/constants'
@@ -52,10 +53,12 @@ export class Lane {
     }
   }
 
-  update(dt: number, playerX: number): void {
+  update(dt: number, playerX: number, playerY: number): void {
     if (this.stream) {
       this.stream.update(dt)
-      this.stream.applyPlayerRepulsion(playerX, GAME_WIDTH)
+      // Use the enhanced effects system — pass full player position
+      const isPlayerLane = Math.abs(playerY - (this.y + this.height / 2)) < this.height / 2
+      this.stream.applyPlayerEffects(playerX, playerY, this.y + this.height / 2, GAME_WIDTH, isPlayerLane)
     }
 
     // Animate ornament scroll for safe zones
@@ -64,7 +67,7 @@ export class Lane {
     }
   }
 
-  render(ctx: CanvasRenderingContext2D, playerLane: number): void {
+  render(ctx: CanvasRenderingContext2D, playerLane: number, playerX: number): void {
     const centerY = this.y + this.height / 2
 
     if (this.isSafeZone) {
@@ -78,39 +81,47 @@ export class Lane {
       ctx.fillRect(0, this.y, GAME_WIDTH, this.height)
     }
 
-    // Render text stream
+    // Render text stream with full effects
     if (this.stream) {
       const visible = this.stream.getVisibleChars(GAME_WIDTH)
 
-      ctx.font = this.font
       ctx.textBaseline = 'middle'
 
       for (const { char: ch, screenX } of visible) {
         if (ch.alpha <= 0) continue
 
-        const charCenterX = screenX + ch.width / 2
-        const charCenterY = centerY + ch.dy
+        const charCenterX = screenX + ch.width / 2 + ch.dx
+        const rippleOffset = this.stream.getRippleOffset(ch)
+        const charCenterY = centerY + ch.dy + rippleOffset
 
         if (ch.isCollected) {
-          // Dissolving effect
+          // Dissolving — spiral upward with spin
           ctx.save()
           ctx.globalAlpha = ch.alpha
           ctx.translate(charCenterX, charCenterY)
+          ctx.rotate(ch.rotation)
           ctx.scale(ch.scale, ch.scale)
+          ctx.font = this.font
           ctx.fillStyle = COLORS.gold
           ctx.fillText(ch.char, -ch.width / 2, 0)
           ctx.restore()
         } else if (ch.isHighlighted) {
-          // Highlighted collectible letter — subtle gold underline + tint
+          // Highlighted collectible — with scale and rotation
           ctx.save()
+          ctx.translate(charCenterX, charCenterY)
 
-          // Small pill background
+          // Apply rotation and scale
+          if (ch.rotation !== 0 || ch.scale !== 1) {
+            ctx.rotate(ch.rotation)
+            ctx.scale(ch.scale, ch.scale)
+          }
+
+          // Pill background (unrotated — draw before transform for clean look)
           const padding = 2
           const pillH = this.config.fontSize + 4
-          const pillY = charCenterY - pillH / 2
           ctx.fillStyle = COLORS.goldFaint
           ctx.beginPath()
-          ctx.roundRect(screenX - padding, pillY, ch.width + padding * 2, pillH, 3)
+          ctx.roundRect(-ch.width / 2 - padding, -pillH / 2, ch.width + padding * 2, pillH, 3)
           ctx.fill()
 
           // Gold underline
@@ -118,29 +129,43 @@ export class Lane {
           ctx.lineWidth = 1.5
           ctx.globalAlpha = 0.6
           ctx.beginPath()
-          ctx.moveTo(screenX, charCenterY + pillH / 2 - 1)
-          ctx.lineTo(screenX + ch.width, charCenterY + pillH / 2 - 1)
+          ctx.moveTo(-ch.width / 2, pillH / 2 - 1)
+          ctx.lineTo(ch.width / 2, pillH / 2 - 1)
           ctx.stroke()
 
           // Letter
           ctx.globalAlpha = 1
           ctx.shadowColor = COLORS.goldGlow
-          ctx.shadowBlur = 4
+          ctx.shadowBlur = 4 + (ch.scale - 1) * 10 // more glow when scaled up
+          ctx.font = this.font
           ctx.fillStyle = COLORS.gold
-          ctx.fillText(ch.char, screenX, charCenterY)
+          ctx.textAlign = 'center'
+          ctx.fillText(ch.char, 0, 0)
           ctx.restore()
         } else {
-          // Normal text
+          // Normal text — with rotation, scale, and proximity effects
           ctx.save()
-          if (ch.dy !== 0) {
-            ctx.translate(0, ch.dy)
+          ctx.translate(charCenterX, charCenterY)
+
+          // Rotation and scale
+          if (ch.rotation !== 0 || ch.scale !== 1) {
+            ctx.rotate(ch.rotation)
+            ctx.scale(ch.scale, ch.scale)
           }
-          ctx.globalAlpha = ch.alpha * 0.75
+
+          // Variable alpha based on proximity (lens effect makes closer chars more visible)
+          const proximityAlpha = 0.55 + (ch.scale - 1) * 1.0 // brighter when magnified
+          ctx.globalAlpha = Math.min(1, ch.alpha * proximityAlpha)
+          ctx.font = this.font
           ctx.fillStyle = COLORS.sepia
-          ctx.fillText(ch.char, screenX, centerY)
+          ctx.textAlign = 'center'
+          ctx.fillText(ch.char, 0, 0)
           ctx.restore()
         }
       }
+
+      // Reset text align
+      ctx.textAlign = 'left'
     }
 
     // Lane separator (thin rule)
@@ -190,6 +215,13 @@ export class Lane {
     ctx.moveTo(30, this.y + this.height - 2)
     ctx.lineTo(GAME_WIDTH - 30, this.y + this.height - 2)
     ctx.stroke()
+  }
+
+  // Trigger ripple on this lane
+  triggerRipple(playerX: number): void {
+    if (this.stream) {
+      this.stream.triggerRipple(playerX, GAME_WIDTH)
+    }
   }
 
   // Find collectible character near player position
