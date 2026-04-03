@@ -89,6 +89,7 @@ export class Game {
     window.addEventListener('keyup', (e) => this.onKeyUp(e))
 
     // Show UI bars on all screens (they stay visible as layout chrome)
+    this.setHudContentVisible(false)
     this.updateUI()
     this.updateTrayUI()
     this.updateWordsUI()
@@ -163,6 +164,7 @@ export class Game {
     this.player = new Player()
     this.loadLevel(1)
 
+    this.setHudContentVisible(true)
     this.updateUI()
     this.updateTrayUI()
     this.updateWordsUI()
@@ -201,6 +203,7 @@ export class Game {
     audioManager.playTitleMusic()
     this.state = 'gameover'
     this.saveHighScore(this.score)
+    this.setHudContentVisible(false)
     this.updateUI()
     this.updateTrayUI()
     this.updateWordsUI()
@@ -213,6 +216,7 @@ export class Game {
     this.state = 'title'
     this.titleTime = 0
     audioManager.playTitleMusic()
+    this.setHudContentVisible(false)
     this.updateUI()
 
     const gameoverOverlay = document.getElementById('gameover-overlay')
@@ -685,6 +689,21 @@ export class Game {
     ctx.stroke()
   }
 
+  // Ease-out cubic for smooth entrance deceleration
+  private titleEaseOut(t: number): number {
+    const c = Math.min(1, Math.max(0, t))
+    return 1 - Math.pow(1 - c, 3)
+  }
+
+  // Compute entrance animation values: { alpha, slideY } for an element
+  // delay = seconds before this element starts animating, duration = animation length
+  private titleEntrance(delay: number, duration: number = 0.6): { alpha: number; slideY: number } {
+    const elapsed = this.titleTime - delay
+    if (elapsed <= 0) return { alpha: 0, slideY: 20 }
+    const t = this.titleEaseOut(elapsed / duration)
+    return { alpha: t, slideY: 20 * (1 - t) }
+  }
+
   private renderTitle(ctx: CanvasRenderingContext2D): void {
     // Use the standard book background (texture, spine, etc.)
     this.renderBackground(ctx)
@@ -692,20 +711,39 @@ export class Game {
     const centerX = GAME_WIDTH * 0.75 // Center of the right-hand page
     const getOffset = (x: number) => getPageCurvatureOffset(x, GAME_WIDTH)
 
-    // Title
     const titleY = GAME_HEIGHT * 0.32
-    renderText(ctx, 'Lexicon Crossing', centerX, titleY + getOffset(centerX),
-      CANVAS_FONTS.title(52), COLORS.espresso, 'center')
 
-    // Subtitle
-    renderText(ctx, 'A   TYPOGRAPHIC   SCRAMBLE', centerX, titleY + 48 + getOffset(centerX),
-      CANVAS_FONTS.uiSmallCaps(12), COLORS.muted, 'center')
+    // ── 1. Title (delay: 0.0s) ──
+    const ent0 = this.titleEntrance(0.0, 0.7)
+    if (ent0.alpha > 0) {
+      ctx.save()
+      ctx.globalAlpha = ent0.alpha
+      renderText(ctx, 'Lexicon Crossing', centerX, titleY + getOffset(centerX) + ent0.slideY,
+        CANVAS_FONTS.title(52), COLORS.espresso, 'center')
+      ctx.restore()
+    }
 
-    // Ornament
-    renderText(ctx, '✦', centerX, titleY + 85 + getOffset(centerX),
-      CANVAS_FONTS.laneRegular(20), COLORS.gold, 'center')
+    // ── 2. Subtitle (delay: 0.3s) ──
+    const ent1 = this.titleEntrance(0.3, 0.6)
+    if (ent1.alpha > 0) {
+      ctx.save()
+      ctx.globalAlpha = ent1.alpha
+      renderText(ctx, 'A   TYPOGRAPHIC   SCRAMBLE', centerX, titleY + 48 + getOffset(centerX) + ent1.slideY,
+        CANVAS_FONTS.uiSmallCaps(12), COLORS.muted, 'center')
+      ctx.restore()
+    }
 
-    // Instructions — Moved up slightly to make room
+    // ── 3. Ornament (delay: 0.6s) ──
+    const ent2 = this.titleEntrance(0.6, 0.5)
+    if (ent2.alpha > 0) {
+      ctx.save()
+      ctx.globalAlpha = ent2.alpha
+      renderText(ctx, '✦', centerX, titleY + 85 + getOffset(centerX) + ent2.slideY,
+        CANVAS_FONTS.laneRegular(20), COLORS.gold, 'center')
+      ctx.restore()
+    }
+
+    // ── 4. Instructions (delay: 0.9s, staggered per line) ──
     const instrY = titleY + 115
     const instrFont = CANVAS_FONTS.laneItalic(14)
     const lines = [
@@ -715,62 +753,84 @@ export class Game {
     ]
 
     for (let i = 0; i < lines.length; i++) {
-      renderText(ctx, lines[i], centerX, instrY + i * 24 + getOffset(centerX), instrFont, COLORS.sepia, 'center')
+      const entL = this.titleEntrance(0.9 + i * 0.15, 0.5)
+      if (entL.alpha > 0) {
+        ctx.save()
+        ctx.globalAlpha = entL.alpha
+        renderText(ctx, lines[i], centerX, instrY + i * 24 + getOffset(centerX) + entL.slideY, instrFont, COLORS.sepia, 'center')
+        ctx.restore()
+      }
     }
 
-    // Keyboard Layout Visualization — Nudged down to avoid overlap with the lines above
-    const keysY = instrY + 112
-    const colSpacing = 22
-    const rowSpacing = 22
-    const keySize = 22
+    // ── 5. Keyboard Layout (delay: 1.5s) ──
+    const ent5 = this.titleEntrance(1.5, 0.6)
+    if (ent5.alpha > 0) {
+      ctx.save()
+      ctx.globalAlpha = ent5.alpha
+      // Apply slide offset via translate so renderKey positions stay relative
+      ctx.translate(0, ent5.slideY)
 
-    // ── WASD ──
-    const wasdX = centerX - 85
-    this.renderKey(ctx, 'W', wasdX, keysY - rowSpacing, keySize, keySize)
-    this.renderKey(ctx, 'A', wasdX - colSpacing, keysY, keySize, keySize)
-    this.renderKey(ctx, 'S', wasdX, keysY, keySize, keySize)
-    this.renderKey(ctx, 'D', wasdX + colSpacing, keysY, keySize, keySize)
-    renderText(ctx, 'MOVE', wasdX, keysY + 25, CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
+      const keysY = instrY + 112
+      const colSpacing = 22
+      const rowSpacing = 22
+      const keySize = 22
 
-    // ── Arrows ──
-    const arrowsX = centerX + 85
-    this.renderKey(ctx, '↑', arrowsX, keysY - rowSpacing, keySize, keySize)
-    this.renderKey(ctx, '←', arrowsX - colSpacing, keysY, keySize, keySize)
-    this.renderKey(ctx, '↓', arrowsX, keysY, keySize, keySize)
-    this.renderKey(ctx, '→', arrowsX + colSpacing, keysY, keySize, keySize)
-    renderText(ctx, 'OR', centerX, keysY, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted, 'center')
-    renderText(ctx, 'MOVE', arrowsX, keysY + 25, CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
+      // ── WASD ──
+      const wasdX = centerX - 85
+      this.renderKey(ctx, 'W', wasdX, keysY - rowSpacing, keySize, keySize)
+      this.renderKey(ctx, 'A', wasdX - colSpacing, keysY, keySize, keySize)
+      this.renderKey(ctx, 'S', wasdX, keysY, keySize, keySize)
+      this.renderKey(ctx, 'D', wasdX + colSpacing, keysY, keySize, keySize)
+      renderText(ctx, 'MOVE', wasdX, keysY + 25, CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
 
-    // ── Actions ──
-    const actionY = keysY + 60
-    const actionSpacing = 88
-    
-    // Space
-    const spaceX = centerX - actionSpacing
-    this.renderKey(ctx, 'Space', spaceX, actionY, 52, 20)
-    renderText(ctx, 'COLLECT', spaceX, actionY + 20, CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
+      // ── Arrows ──
+      const arrowsX = centerX + 85
+      this.renderKey(ctx, '↑', arrowsX, keysY - rowSpacing, keySize, keySize)
+      this.renderKey(ctx, '←', arrowsX - colSpacing, keysY, keySize, keySize)
+      this.renderKey(ctx, '↓', arrowsX, keysY, keySize, keySize)
+      this.renderKey(ctx, '→', arrowsX + colSpacing, keysY, keySize, keySize)
+      renderText(ctx, 'OR', centerX, keysY, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted, 'center')
+      renderText(ctx, 'MOVE', arrowsX, keysY + 25, CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
 
-    // Bksp
-    const backX = centerX
-    this.renderKey(ctx, 'Bksp', backX, actionY, 52, 20)
-    renderText(ctx, 'UNDO', backX, actionY + 20, CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
+      // ── Actions ──
+      const actionY = keysY + 60
+      const actionSpacing = 88
 
-    // Enter
-    const enterX = centerX + actionSpacing
-    this.renderKey(ctx, 'Enter', enterX, actionY, 52, 20)
-    renderText(ctx, 'SUBMIT', enterX, actionY + 20, CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
-    
-    // Prompt
-    const breathe = Math.sin(this.titleTime * 2.5) * 0.3 + 0.7
-    ctx.save()
-    ctx.globalAlpha = breathe
-    renderText(ctx, 'Press SPACE or ENTER to begin', centerX, GAME_HEIGHT - 85 + getOffset(centerX),
-      CANVAS_FONTS.laneItalic(15), COLORS.sepia, 'center')
-    ctx.restore()
+      const spaceX = centerX - actionSpacing
+      this.renderKey(ctx, 'Space', spaceX, actionY, 52, 20)
+      renderText(ctx, 'COLLECT', spaceX, actionY + 20, CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
 
-    // Pretext credit
-    renderText(ctx, 'Powered by Pretext — chenglou/pretext', centerX, GAME_HEIGHT - 30 + getOffset(centerX),
-      CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
+      const backX = centerX
+      this.renderKey(ctx, 'Bksp', backX, actionY, 52, 20)
+      renderText(ctx, 'UNDO', backX, actionY + 20, CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
+
+      const enterX = centerX + actionSpacing
+      this.renderKey(ctx, 'Enter', enterX, actionY, 52, 20)
+      renderText(ctx, 'SUBMIT', enterX, actionY + 20, CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
+
+      ctx.restore()
+    }
+
+    // ── 6. Prompt (delay: 2.0s, then breathing) ──
+    const ent6 = this.titleEntrance(2.0, 0.7)
+    if (ent6.alpha > 0) {
+      const breathe = Math.sin(this.titleTime * 2.5) * 0.3 + 0.7
+      ctx.save()
+      ctx.globalAlpha = ent6.alpha * breathe
+      renderText(ctx, 'Press SPACE or ENTER to begin', centerX, GAME_HEIGHT - 85 + getOffset(centerX) + ent6.slideY,
+        CANVAS_FONTS.laneItalic(15), COLORS.sepia, 'center')
+      ctx.restore()
+    }
+
+    // ── 7. Pretext credit (delay: 2.3s) ──
+    const ent7 = this.titleEntrance(2.3, 0.5)
+    if (ent7.alpha > 0) {
+      ctx.save()
+      ctx.globalAlpha = ent7.alpha
+      renderText(ctx, 'Powered by Pretext — chenglou/pretext', centerX, GAME_HEIGHT - 30 + getOffset(centerX) + ent7.slideY,
+        CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
+      ctx.restore()
+    }
   }
 
   private renderKey(ctx: CanvasRenderingContext2D, label: string, x: number, y: number, width: number = 26, height: number = 26): void {
@@ -956,6 +1016,16 @@ export class Game {
     const tray = document.getElementById('word-tray')
     if (hud) hud.style.display = visible ? 'flex' : 'none'
     if (tray) tray.style.display = visible ? 'flex' : 'none'
+  }
+
+  /** Hide/show only the text content inside the HUD (chapter, score, timer, progress bar)
+   *  while keeping the HUD bar itself visible as layout chrome. */
+  private setHudContentVisible(visible: boolean): void {
+    const ids = ['hud-left', 'hud-center', 'hud-right', 'score-progress-bar']
+    for (const id of ids) {
+      const el = document.getElementById(id)
+      if (el) el.style.visibility = visible ? 'visible' : 'hidden'
+    }
   }
 
   private updateUI(): void {
