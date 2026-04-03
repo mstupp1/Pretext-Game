@@ -698,7 +698,7 @@ export class Game {
       CANVAS_FONTS.title(52), COLORS.espresso, 'center')
 
     // Subtitle
-    renderText(ctx, 'A   TYPOGRAPHIC   FROGGER', centerX, titleY + 48 + getOffset(centerX),
+    renderText(ctx, 'A   TYPOGRAPHIC   SCRAMBLE', centerX, titleY + 48 + getOffset(centerX),
       CANVAS_FONTS.uiSmallCaps(12), COLORS.muted, 'center')
 
     // Ornament
@@ -711,7 +711,7 @@ export class Game {
     const lines = [
       'Navigate through streams of flowing prose.',
       'Collect letters and spell words for points.',
-      'Reach score thresholds to unlock new chapters.',
+      'Score points to reach new chapters.',
     ]
 
     for (let i = 0; i < lines.length; i++) {
@@ -899,6 +899,10 @@ export class Game {
     renderCurvedText(ctx, 'Press SPACE or ENTER to play again', centerX, GAME_HEIGHT - 60,
       CANVAS_FONTS.laneItalic(15), COLORS.sepia, getOffset, 'center')
     ctx.restore()
+
+    // Return to Main Menu instruction
+    renderCurvedText(ctx, 'Press ESC to return to Main Menu', centerX, GAME_HEIGHT - 25,
+      CANVAS_FONTS.laneItalic(12), COLORS.muted, getOffset, 'center')
   }
 
   private renderCountdown(ctx: CanvasRenderingContext2D): void {
