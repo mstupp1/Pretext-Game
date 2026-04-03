@@ -451,6 +451,7 @@ export class Game {
   removeLastLetter(): void {
     if (this.collectedLetters.length > 0) {
       this.collectedLetters.pop()
+      audioManager.playBackspace()
       this.updateTrayUI()
     }
   }

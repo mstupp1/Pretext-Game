@@ -19,6 +19,7 @@ export class AudioManager {
 
   private menus1Sfx: HTMLAudioElement;
   private selectLetterSfx: HTMLAudioElement;
+  private backspaceSfx: HTMLAudioElement;
 
   private isMusicMuted: boolean = false;
   private isSfxMuted: boolean = false;
@@ -75,7 +76,7 @@ export class AudioManager {
     this.chapterSfx.volume = 0.3;
 
     this.movementSfx = new Audio(`${import.meta.env.BASE_URL}sfx/movement_1.wav`);
-    this.movementSfx.volume = 0.2;
+    this.movementSfx.volume = 0.15;
 
     this.nosubmitSfx = new Audio(`${import.meta.env.BASE_URL}sfx/nosubmit_1.wav`);
     this.nosubmitSfx.volume = 0.3;
@@ -91,6 +92,9 @@ export class AudioManager {
 
     this.selectLetterSfx = new Audio(`${import.meta.env.BASE_URL}sfx/selectletter_1.wav`);
     this.selectLetterSfx.volume = 1.0; // Full volume
+
+    this.backspaceSfx = new Audio(`${import.meta.env.BASE_URL}sfx/backspace_1.wav`);
+    this.backspaceSfx.volume = 0.2; // Soft UI sound effect volume
   }
   
   private setupInteractionListeners() {
@@ -208,6 +212,10 @@ export class AudioManager {
 
   public playSelectLetter() {
     this.playSfx(this.selectLetterSfx);
+  }
+
+  public playBackspace() {
+    this.playSfx(this.backspaceSfx);
   }
 
   public playApplause(chapter: number) {
