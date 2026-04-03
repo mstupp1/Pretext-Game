@@ -697,11 +697,11 @@ export class Game {
 
   // Compute entrance animation values: { alpha, slideY } for an element
   // delay = seconds before this element starts animating, duration = animation length
-  private titleEntrance(delay: number, duration: number = 0.6): { alpha: number; slideY: number } {
+  private titleEntrance(delay: number, duration: number = 1.5): { alpha: number; slideY: number } {
     const elapsed = this.titleTime - delay
-    if (elapsed <= 0) return { alpha: 0, slideY: 20 }
+    if (elapsed <= 0) return { alpha: 0, slideY: 30 }
     const t = this.titleEaseOut(elapsed / duration)
-    return { alpha: t, slideY: 20 * (1 - t) }
+    return { alpha: t, slideY: 30 * (1 - t) }
   }
 
   private renderTitle(ctx: CanvasRenderingContext2D): void {
@@ -713,63 +713,44 @@ export class Game {
 
     const titleY = GAME_HEIGHT * 0.32
 
-    // ── 1. Title (delay: 0.0s) ──
-    const ent0 = this.titleEntrance(0.0, 0.7)
-    if (ent0.alpha > 0) {
+    // ── Section 1: Title & Subtitle (delay: 0.0s, duration: 1.5s) ──
+    const sec1 = this.titleEntrance(0.0, 1.5)
+    if (sec1.alpha > 0) {
       ctx.save()
-      ctx.globalAlpha = ent0.alpha
-      renderText(ctx, 'Lexicon Crossing', centerX, titleY + getOffset(centerX) + ent0.slideY,
+      ctx.globalAlpha = sec1.alpha
+      ctx.translate(0, sec1.slideY)
+      renderText(ctx, 'Lexicon Crossing', centerX, titleY + getOffset(centerX),
         CANVAS_FONTS.title(52), COLORS.espresso, 'center')
-      ctx.restore()
-    }
-
-    // ── 2. Subtitle (delay: 0.3s) ──
-    const ent1 = this.titleEntrance(0.3, 0.6)
-    if (ent1.alpha > 0) {
-      ctx.save()
-      ctx.globalAlpha = ent1.alpha
-      renderText(ctx, 'A   TYPOGRAPHIC   SCRAMBLE', centerX, titleY + 48 + getOffset(centerX) + ent1.slideY,
+      renderText(ctx, 'A   TYPOGRAPHIC   SCRAMBLE', centerX, titleY + 48 + getOffset(centerX),
         CANVAS_FONTS.uiSmallCaps(12), COLORS.muted, 'center')
       ctx.restore()
     }
 
-    // ── 3. Ornament (delay: 0.6s) ──
-    const ent2 = this.titleEntrance(0.6, 0.5)
-    if (ent2.alpha > 0) {
+    // ── Section 2: Ornament, Instructions, Keyboard Layout (delay: 1.2s, duration: 1.5s) ──
+    const sec2 = this.titleEntrance(1.2, 1.5)
+    if (sec2.alpha > 0) {
       ctx.save()
-      ctx.globalAlpha = ent2.alpha
-      renderText(ctx, '✦', centerX, titleY + 85 + getOffset(centerX) + ent2.slideY,
+      ctx.globalAlpha = sec2.alpha
+      ctx.translate(0, sec2.slideY)
+
+      // Ornament
+      renderText(ctx, '✦', centerX, titleY + 85 + getOffset(centerX),
         CANVAS_FONTS.laneRegular(20), COLORS.gold, 'center')
-      ctx.restore()
-    }
 
-    // ── 4. Instructions (delay: 0.9s, staggered per line) ──
-    const instrY = titleY + 115
-    const instrFont = CANVAS_FONTS.laneItalic(14)
-    const lines = [
-      'Navigate through streams of flowing prose.',
-      'Collect letters and spell words for points.',
-      'Score points to reach new chapters.',
-    ]
+      // Instructions
+      const instrY = titleY + 115
+      const instrFont = CANVAS_FONTS.laneItalic(14)
+      const lines = [
+        'Navigate through streams of flowing prose.',
+        'Collect letters and spell words for points.',
+        'Score points to reach new chapters.',
+      ]
 
-    for (let i = 0; i < lines.length; i++) {
-      const entL = this.titleEntrance(0.9 + i * 0.15, 0.5)
-      if (entL.alpha > 0) {
-        ctx.save()
-        ctx.globalAlpha = entL.alpha
-        renderText(ctx, lines[i], centerX, instrY + i * 24 + getOffset(centerX) + entL.slideY, instrFont, COLORS.sepia, 'center')
-        ctx.restore()
+      for (let i = 0; i < lines.length; i++) {
+        renderText(ctx, lines[i], centerX, instrY + i * 24 + getOffset(centerX), instrFont, COLORS.sepia, 'center')
       }
-    }
 
-    // ── 5. Keyboard Layout (delay: 1.5s) ──
-    const ent5 = this.titleEntrance(1.5, 0.6)
-    if (ent5.alpha > 0) {
-      ctx.save()
-      ctx.globalAlpha = ent5.alpha
-      // Apply slide offset via translate so renderKey positions stay relative
-      ctx.translate(0, ent5.slideY)
-
+      // Keyboard Layout
       const keysY = instrY + 112
       const colSpacing = 22
       const rowSpacing = 22
@@ -811,26 +792,22 @@ export class Game {
       ctx.restore()
     }
 
-    // ── 6. Prompt (delay: 2.0s, then breathing) ──
-    const ent6 = this.titleEntrance(2.0, 0.7)
-    if (ent6.alpha > 0) {
+    // ── Section 3: Prompt (delay: 2.7s, duration: 1.2s, then breathing) ──
+    const sec3 = this.titleEntrance(2.7, 1.2)
+    if (sec3.alpha > 0) {
       const breathe = Math.sin(this.titleTime * 2.5) * 0.3 + 0.7
       ctx.save()
-      ctx.globalAlpha = ent6.alpha * breathe
-      renderText(ctx, 'Press SPACE or ENTER to begin', centerX, GAME_HEIGHT - 85 + getOffset(centerX) + ent6.slideY,
+      ctx.globalAlpha = sec3.alpha * breathe
+      renderText(ctx, 'Press SPACE or ENTER to begin', centerX, GAME_HEIGHT - 85 + getOffset(centerX) + sec3.slideY,
         CANVAS_FONTS.laneItalic(15), COLORS.sepia, 'center')
       ctx.restore()
     }
 
-    // ── 7. Pretext credit (delay: 2.3s) ──
-    const ent7 = this.titleEntrance(2.3, 0.5)
-    if (ent7.alpha > 0) {
-      ctx.save()
-      ctx.globalAlpha = ent7.alpha
-      renderText(ctx, 'Powered by Pretext — chenglou/pretext', centerX, GAME_HEIGHT - 30 + getOffset(centerX) + ent7.slideY,
-        CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
-      ctx.restore()
-    }
+    // ── Credits (static, always visible) ──
+    renderText(ctx, 'Created by Myles Stupp', centerX, GAME_HEIGHT - 45 + getOffset(centerX),
+      CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
+    renderText(ctx, 'Powered by Pretext — chenglou/pretext', centerX, GAME_HEIGHT - 30 + getOffset(centerX),
+      CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
   }
 
   private renderKey(ctx: CanvasRenderingContext2D, label: string, x: number, y: number, width: number = 26, height: number = 26): void {
