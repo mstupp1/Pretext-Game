@@ -1,6 +1,7 @@
 // ── Game — Core game state machine ──
 
 import { Player } from './Player'
+import { audioManager } from '../audio/AudioManager'
 import { Lane, type LaneConfig } from './Lane'
 import { scoreWord, type ScoreResult, getLetterValue } from './Scoring'
 import { generateLevel, type LevelConfig } from './Levels'
@@ -90,6 +91,8 @@ export class Game {
     this.updateUI()
     this.updateTrayUI()
     this.updateWordsUI()
+
+    audioManager.playTitleMusic()
   }
 
   private loadHighScores(): void {
@@ -111,6 +114,7 @@ export class Game {
   // ── State transitions ──
 
   startGame(): void {
+    audioManager.playGameMusic()
     this.state = 'countdown'
     this.countdownValue = 3
     this.countdownTimer = 1.0 // 1 second per number
@@ -155,6 +159,7 @@ export class Game {
   }
 
   private gameOver(): void {
+    audioManager.playTitleMusic()
     this.state = 'gameover'
     this.saveHighScore(this.score)
     this.updateUI()
