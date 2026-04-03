@@ -50,7 +50,7 @@ export class Game {
   public timeRemaining: number = 90
   public collectedLetters: CollectedLetter[] = []
   public wordsFound: string[] = []
-  public chapterWords: Set<string> = new Set()  // words used this chapter (no repeats)
+  public usedWords: Set<string> = new Set()    // words used this run (no repeats)
   public feedback: FeedbackMessage | null = null
   public floatingScores: FloatingScore[] = []
   public highScores: number[] = []
@@ -115,7 +115,7 @@ export class Game {
     this.score = 0
     this.chapter = 1
     this.wordsFound = []
-    this.chapterWords = new Set()
+    this.usedWords = new Set()
     this.collectedLetters = []
     this.feedback = null
     this.floatingScores = []
@@ -275,8 +275,8 @@ export class Game {
 
     // Check for duplicate word in this chapter
     const candidateWord = allLetters.join('').toUpperCase()
-    if (this.chapterWords.has(candidateWord)) {
-      this.showFeedback(`"${candidateWord}" already used this chapter`, false)
+    if (this.usedWords.has(candidateWord)) {
+      this.showFeedback(`"${candidateWord}" already used this run`, false)
       return
     }
 
@@ -293,7 +293,7 @@ export class Game {
     if (result.valid) {
       this.score += result.totalScore
       this.wordsFound.push(result.word)
-      this.chapterWords.add(result.word)
+      this.usedWords.add(result.word)
 
       // Clear all letters after successful submit
       this.collectedLetters = []
@@ -383,7 +383,6 @@ export class Game {
     const requiredScore = this.chapter * 75
     if (this.score >= requiredScore) {
       this.chapter++
-      this.chapterWords = new Set()  // reset per-chapter duplicate tracking
       this.level = generateLevel(this.chapter)
       this.timeRemaining += this.level.timeLimit // Add chapter allotment to current time (reward for speed)
       this.buildLanes()
@@ -716,8 +715,8 @@ export class Game {
     ctx.scale(scale, scale)
     ctx.globalAlpha = alpha
 
-    const text = this.countdownValue === 0 ? 'BEGIN' : String(this.countdownValue)
-    const font = this.countdownValue === 0 ? CANVAS_FONTS.uiSmallCaps(24) : CANVAS_FONTS.title(64)
+    const text = this.countdownValue === 0 ? 'GO' : String(this.countdownValue)
+    const font = this.countdownValue === 0 ? CANVAS_FONTS.uiSmallCaps(32) : CANVAS_FONTS.title(64)
     const color = this.countdownValue === 0 ? COLORS.gold : COLORS.espresso
 
     renderText(ctx, text, 0, 0, font, color, 'center')
