@@ -3,18 +3,21 @@
 import { Player } from './Player'
 import { audioManager } from '../audio/AudioManager'
 import { Lane, type LaneConfig } from './Lane'
-import { scoreWord, type ScoreResult, getLetterValue } from './Scoring'
+import { scoreWord, type ScoreResult, getLetterValue, type ScoredLetter } from './Scoring'
 import { generateLevel, type LevelConfig } from './Levels'
 import { ParticleSystem } from '../effects/ParticleSystem'
 import { GAME_WIDTH, GAME_HEIGHT, LANE_COUNT, LANE_HEIGHT, LANE_Y_START, COLORS, CANVAS_FONTS, ROMAN_NUMERALS, MAX_COLLECTED_LETTERS, TIME_BONUS } from '../utils/constants'
 import { renderText, measureTextWidth, renderCurvedText, measureCharsInLine } from '../text/TextEngine'
 import { getPageCurvatureOffset } from '../text/TextStream'
 
+import { MultiplierType } from '../utils/constants'
+
 export type GameState = 'title' | 'countdown' | 'playing' | 'paused' | 'gameover'
 
 interface CollectedLetter {
   letter: string
   value: number
+  multiplierType: MultiplierType
   // Animation
   floatingX: number
   floatingY: number
@@ -50,7 +53,7 @@ export class Game {
   public chapter: number = 1
   public timeRemaining: number = 90
   public collectedLetters: CollectedLetter[] = []
-  public wordsFound: string[] = []
+  public wordsFound: ScoredLetter[][] = []
   public usedWords: Set<string> = new Set()    // words used this run (no repeats)
   public feedback: FeedbackMessage | null = null
   public floatingScores: FloatingScore[] = []
@@ -370,6 +373,7 @@ export class Game {
       this.collectedLetters.push({
         letter,
         value: getLetterValue(letter),
+        multiplierType: collected.multiplierType,
         floatingX: this.player.x,
         floatingY: this.player.y,
         animProgress: 0,
@@ -390,7 +394,7 @@ export class Game {
     if (this.state !== 'playing') return
     if (this.isSubmitting) return
 
-    const allLetters = this.collectedLetters.map(l => l.letter)
+    const allLetters = this.collectedLetters.map(l => ({ letter: l.letter, multiplierType: l.multiplierType }))
 
     if (allLetters.length === 0) {
       this.showFeedback('Collect letters first', false)
@@ -399,7 +403,7 @@ export class Game {
     }
 
     // Check for duplicate word in this chapter
-    const candidateWord = allLetters.join('').toUpperCase()
+    const candidateWord = allLetters.map(l => l.letter).join('').toUpperCase()
     if (this.usedWords.has(candidateWord)) {
       this.showFeedback(`"${candidateWord}" already used this run`, false)
       audioManager.playNoSubmit()
@@ -408,7 +412,7 @@ export class Game {
 
     this.isSubmitting = true
     this.showFeedback('Checking lexicon...', true)
-    
+
     // Set a very long timer for the check so it doesn't disappear in the middle of a slow API call
     if (this.feedback) this.feedback.timer = 10
 
@@ -419,7 +423,7 @@ export class Game {
     if (result.valid) {
       audioManager.playScore(result.totalScore)
       this.score += result.totalScore
-      this.wordsFound.push(result.word)
+      this.wordsFound.push(allLetters)
       this.usedWords.add(result.word)
 
       // Clear all letters after successful submit
@@ -950,7 +954,7 @@ export class Game {
         CANVAS_FONTS.laneItalic(14), COLORS.sepia, 'center')
 
       // Show words in a flowing line
-      const wordStr = this.wordsFound.slice(-8).join('  ·  ')
+      const wordStr = this.wordsFound.slice(-8).map(w => w.map(l => l.letter).join('')).join('  ·  ')
       renderText(ctx, wordStr, centerX, centerY + 190 + getOffset(centerX),
         CANVAS_FONTS.laneItalic(13), COLORS.muted, 'center')
     }
@@ -1086,6 +1090,9 @@ export class Game {
       for (const letter of this.collectedLetters) {
         const tile = document.createElement('div')
         tile.className = 'tray-tile'
+        if (letter.multiplierType && letter.multiplierType !== 'None') {
+          tile.classList.add(`multiplier-${letter.multiplierType}`)
+        }
         tile.innerHTML = `${letter.letter}<span class="tile-points">${letter.value}</span>`
         wordDisplay.appendChild(tile)
       }
@@ -1098,7 +1105,7 @@ export class Game {
 
     const renderWords = (startIndex: number) => {
       wordsEl.innerHTML = ''
-      
+
       const hiddenCount = startIndex
       if (hiddenCount > 0) {
         const moreIndicator = document.createElement('div')
@@ -1106,21 +1113,24 @@ export class Game {
         moreIndicator.textContent = `+${hiddenCount} more`
         wordsEl.appendChild(moreIndicator)
       }
-      
+
       for (let i = Math.max(0, startIndex); i < this.wordsFound.length; i++) {
         const word = this.wordsFound[i]
         const wordContainer = document.createElement('div')
         wordContainer.className = 'completed-word'
-        
+
         for (let j = 0; j < word.length; j++) {
-          const char = word[j].toUpperCase()
+          const char = word[j].letter.toUpperCase()
           const value = getLetterValue(char)
           const tile = document.createElement('div')
           tile.className = 'tray-tile'
+          if (word[j].multiplierType && word[j].multiplierType !== 'None') {
+            tile.classList.add(`multiplier-${word[j].multiplierType}`)
+          }
           tile.innerHTML = `${char}<span class="tile-points">${value}</span>`
           wordContainer.appendChild(tile)
         }
-        
+
         wordsEl.appendChild(wordContainer)
       }
     }

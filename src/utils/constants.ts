@@ -16,7 +16,14 @@ export const COLORS = {
   green:      '#2E5A1E',
   rule:       'rgba(44, 24, 16, 0.15)',
   shadow:     'rgba(92, 64, 51, 0.12)',
+  // Multipliers
+  dlLight:    '#A0C4FF', // Light Blue (adjusted to match theme)
+  tlBlue:     '#4A90E2', // Standard Blue
+  dwCoral:    '#FF9AA2', // Light Red / Coral (adjusted to match theme)
+  twRed:      '#D00000', // Standard Red
 } as const
+
+export type MultiplierType = 'None' | 'DoubleLetter' | 'TripleLetter' | 'DoubleWord' | 'TripleWord';
 
 // Typography
 export const FONTS = {

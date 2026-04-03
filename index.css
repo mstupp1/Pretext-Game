@@ -341,6 +341,31 @@ html, body {
   right: 2px;
 }
 
+/* ── Multiplier Styles ── */
+.multiplier-DoubleLetter {
+  background: #A0C4FF !important;
+  color: var(--text-espresso) !important;
+  border-color: #7AA2DD !important;
+}
+.multiplier-TripleLetter {
+  background: #4A90E2 !important;
+  color: var(--bg-ivory) !important;
+  border-color: #357ABD !important;
+}
+.multiplier-DoubleWord {
+  background: #FF9AA2 !important;
+  color: var(--text-espresso) !important;
+  border-color: #DD7880 !important;
+}
+.multiplier-TripleWord {
+  background: #D00000 !important;
+  color: var(--bg-ivory) !important;
+  border-color: #9E0000 !important;
+}
+.multiplier-DoubleLetter .tile-points, .multiplier-DoubleWord .tile-points {
+  color: rgba(44, 24, 16, 0.8) !important;
+}
+
 /* ── Current Word Display ── */
 
 #current-word-area {

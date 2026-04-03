@@ -1,6 +1,6 @@
 // ── Scoring — Scrabble-style word scoring ──
 
-import { LETTER_VALUES, WORD_LENGTH_BONUS } from '../utils/constants'
+import { LETTER_VALUES, WORD_LENGTH_BONUS, MultiplierType } from '../utils/constants'
 import { checkWordValidity } from '../utils/dictionary'
 
 export interface ScoreResult {
@@ -12,8 +12,13 @@ export interface ScoreResult {
   message: string
 }
 
-export async function scoreWord(letters: string[]): Promise<ScoreResult> {
-  const word = letters.join('').toUpperCase()
+export interface ScoredLetter {
+  letter: string
+  multiplierType: MultiplierType
+}
+
+export async function scoreWord(letters: ScoredLetter[]): Promise<ScoreResult> {
+  const word = letters.map(l => l.letter).join('').toUpperCase()
 
   if (word.length < 3) {
     return {
@@ -40,14 +45,26 @@ export async function scoreWord(letters: string[]): Promise<ScoreResult> {
 
   // Calculate letter scores
   let letterScore = 0
-  for (const letter of word) {
-    letterScore += LETTER_VALUES[letter] || 0
+  let wordMultiplier = 1
+  for (const item of letters) {
+    const letter = item.letter.toUpperCase()
+    let val = LETTER_VALUES[letter] || 0
+    if (item.multiplierType === 'DoubleLetter') {
+      val *= 2
+    } else if (item.multiplierType === 'TripleLetter') {
+      val *= 3
+    } else if (item.multiplierType === 'DoubleWord') {
+      wordMultiplier *= 2
+    } else if (item.multiplierType === 'TripleWord') {
+      wordMultiplier *= 3
+    }
+    letterScore += val
   }
 
   // Length bonus
   const lengthBonus = WORD_LENGTH_BONUS[Math.min(word.length, 10)] || 0
 
-  const totalScore = letterScore + lengthBonus
+  const totalScore = (letterScore * wordMultiplier) + lengthBonus
 
   // Generate flavor message
   const messages = getFlavorMessage(word.length, totalScore)

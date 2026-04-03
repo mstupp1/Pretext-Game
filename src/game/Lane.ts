@@ -207,7 +207,14 @@ export class Lane {
           ctx.rotate(ch.rotation)
           ctx.scale(totalScale, totalScale)
           ctx.font = this.font
-          ctx.fillStyle = COLORS.gold
+
+          let footprintColor: string = COLORS.gold
+          if (ch.multiplierType === 'DoubleLetter') footprintColor = COLORS.dlLight
+          else if (ch.multiplierType === 'TripleLetter') footprintColor = COLORS.tlBlue
+          else if (ch.multiplierType === 'DoubleWord') footprintColor = COLORS.dwCoral
+          else if (ch.multiplierType === 'TripleWord') footprintColor = COLORS.twRed
+
+          ctx.fillStyle = footprintColor
           ctx.fillText(ch.char, -ch.width / 2, 0)
           ctx.restore()
         } else if (ch.isHighlighted) {
@@ -250,24 +257,57 @@ export class Lane {
           // 2. Draw Tile Background
           // transition background from faint gold to solid gold based on focus
           const bgAlpha = Math.min(1, 0.4 + interactionStrength * 0.6)
-          ctx.fillStyle = `rgba(184, 134, 11, ${bgAlpha * baseAlpha})`
+          let baseColor = `rgba(184, 134, 11, ${bgAlpha * baseAlpha})`
+          let borderColor = `rgba(154, 114, 9, ${baseAlpha})` // #9A7209
+          let depthColor = 'rgba(100, 70, 20, 0.4)'
+
+          const colorT = Math.min(1, Math.max(0, interactionStrength * 1.2))
+          // Interpolate standard gold to ivory for regular tiles
+          const r = Math.round(184 + colorT * (245 - 184))
+          const g = Math.round(134 + colorT * (241 - 134))
+          const b = Math.round(11 + colorT * (232 - 11))
+          let charColor = `rgb(${r}, ${g}, ${b})`
+
+          if (ch.multiplierType === 'DoubleLetter') {
+            baseColor = `rgba(160, 196, 255, ${bgAlpha * baseAlpha})` // dlLight
+            borderColor = `rgba(122, 162, 221, ${baseAlpha})`
+            depthColor = 'rgba(100, 140, 200, 0.4)'
+            charColor = `rgba(44, 24, 16, ${colorT})`
+          } else if (ch.multiplierType === 'TripleLetter') {
+            baseColor = `rgba(74, 144, 226, ${bgAlpha * baseAlpha})` // tlBlue
+            borderColor = `rgba(53, 122, 189, ${baseAlpha})`
+            depthColor = 'rgba(50, 100, 180, 0.4)'
+            charColor = `rgba(245, 241, 232, ${colorT})`
+          } else if (ch.multiplierType === 'DoubleWord') {
+            baseColor = `rgba(255, 154, 162, ${bgAlpha * baseAlpha})` // dwCoral
+            borderColor = `rgba(221, 120, 128, ${baseAlpha})`
+            depthColor = 'rgba(200, 100, 110, 0.4)'
+            charColor = `rgba(44, 24, 16, ${colorT})`
+          } else if (ch.multiplierType === 'TripleWord') {
+            baseColor = `rgba(208, 0, 0, ${bgAlpha * baseAlpha})` // twRed
+            borderColor = `rgba(158, 0, 0, ${baseAlpha})`
+            depthColor = 'rgba(150, 0, 0, 0.4)'
+            charColor = `rgba(245, 241, 232, ${colorT})`
+          }
+
+          ctx.fillStyle = baseColor
           ctx.beginPath()
           ctx.roundRect(-tileW / 2, -tileH / 2, tileW, tileH, borderRadius)
           ctx.fill()
-          
+
           // 3. Draw Tile Border (3D effect)
           ctx.shadowBlur = 0
           ctx.shadowOffsetY = 0
-          
+
           // Bottom "depth" part of the tile — consistent 3px depth regardless of scale
           const visualDepth = 3
           const depth = visualDepth / totalScale
-          ctx.fillStyle = 'rgba(100, 70, 20, 0.4)' // darker gold/brown for depth
+          ctx.fillStyle = depthColor
           ctx.beginPath()
           ctx.roundRect(-tileW / 2, tileH / 2 - depth, tileW, depth, [0, 0, borderRadius, borderRadius])
           ctx.fill()
 
-          ctx.strokeStyle = `rgba(154, 114, 9, ${baseAlpha})` // #9A7209 approx
+          ctx.strokeStyle = borderColor
           ctx.lineWidth = 1
           ctx.beginPath()
           ctx.roundRect(-tileW / 2, -tileH / 2, tileW, tileH, borderRadius)
@@ -282,13 +322,6 @@ export class Lane {
           ctx.fill()
 
           // 5. Draw the main Character
-          // Transition character color gradually from gold to ivory based on focus
-          const colorT = Math.min(1, interactionStrength * 1.2)
-          const r = Math.round(184 + colorT * (245 - 184))
-          const g = Math.round(134 + colorT * (241 - 134))
-          const b = Math.round(11 + colorT * (232 - 11))
-          const charColor = `rgb(${r}, ${g}, ${b})`
-          
           ctx.font = this.font
           ctx.fillStyle = charColor
           ctx.textAlign = 'center'

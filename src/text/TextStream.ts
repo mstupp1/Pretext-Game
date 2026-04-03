@@ -3,7 +3,7 @@
 
 import { measureCharsInLine, type MeasuredChar } from './TextEngine'
 import { getRandomPassage } from './passages'
-import { ICONS } from '../utils/constants'
+import { ICONS, MultiplierType } from '../utils/constants'
 
 export function getPageCurvatureOffset(screenX: number, viewportWidth: number): number {
   const center = viewportWidth / 2
@@ -26,6 +26,7 @@ export interface StreamChar {
   width: number
   isHighlighted: boolean  // collectible letter
   isCollected: boolean    // already taken
+  multiplierType: MultiplierType
   originalIndex: number   // index in the full text
   isSpace: boolean        // is whitespace character
   wordIndex: number       // which word this char belongs to
@@ -118,6 +119,8 @@ export class TextStream {
     let wordIndex = 0
     let inWord = false
     let highlightCooldown = 0
+    let multiplierCooldown = 0
+    let tripleMultiplierCooldown = 0
 
     for (let i = 0; i < measured.length; i++) {
       const mc = measured[i]
@@ -134,19 +137,45 @@ export class TextStream {
       }
 
       let isHighlighted = false
+      let multiplierType: MultiplierType = 'None'
+
       if (isLetter && highlightCooldown <= 0) {
         let chance = this.highlightRate
         if (vowels.has(upper)) chance *= 1.8
         else if (commonConsonants.has(upper)) chance *= 1.3
-        
+
         isHighlighted = Math.random() < chance
-        
+
         if (isHighlighted) {
           // Enforce a minimum gap between collectibles (e.g., 8 to 12 characters)
           highlightCooldown = 8 + Math.floor(Math.random() * 5)
+
+          if (multiplierCooldown <= 0) {
+            const rand = Math.random()
+            if (rand < 0.02 && tripleMultiplierCooldown <= 0) { // 2% chance
+              multiplierType = 'TripleWord'
+              multiplierCooldown = 4
+              tripleMultiplierCooldown = 15
+            } else if (rand < 0.06) { // 4% chance
+              multiplierType = 'DoubleWord'
+              multiplierCooldown = 3
+            } else if (rand < 0.12 && tripleMultiplierCooldown <= 0) { // 6% chance
+              multiplierType = 'TripleLetter'
+              multiplierCooldown = 3
+              tripleMultiplierCooldown = 10
+            } else if (rand < 0.25) { // 13% chance
+              multiplierType = 'DoubleLetter'
+              multiplierCooldown = 2
+            }
+          } else {
+            multiplierCooldown--
+          }
+          if (tripleMultiplierCooldown > 0) {
+             tripleMultiplierCooldown--
+          }
         }
       }
-      
+
       if (highlightCooldown > 0) {
         highlightCooldown--
       }
@@ -162,6 +191,7 @@ export class TextStream {
         width: mc.width,
         isHighlighted,
         isCollected: false,
+        multiplierType,
         originalIndex: i,
         isSpace,
         wordIndex,
