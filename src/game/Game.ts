@@ -574,35 +574,120 @@ export class Game {
     renderText(ctx, '✦', centerX, titleY + 85 + getOffset(centerX),
       CANVAS_FONTS.laneRegular(20), COLORS.gold, 'center')
 
-    // Instructions
-    const instrY = titleY + 130
-    const instrFont = CANVAS_FONTS.laneItalic(15)
+    // Instructions — Moved up slightly to make room
+    const instrY = titleY + 115
+    const instrFont = CANVAS_FONTS.laneItalic(14)
     const lines = [
       'Navigate through streams of flowing prose.',
       'Collect letters and spell words for points.',
       'Reach score thresholds to unlock new chapters.',
-      '',
-      '↑ ↓ ← →  or  W A S D  to move',
-      'SPACE  collect  ·  BACKSPACE  undo  ·  ENTER  submit',
     ]
 
     for (let i = 0; i < lines.length; i++) {
-      const color = i >= 4 ? COLORS.muted : COLORS.sepia
-      const font = i >= 4 ? CANVAS_FONTS.uiSmallCaps(12) : instrFont
-      renderText(ctx, lines[i], centerX, instrY + i * 26 + getOffset(centerX), font, color, 'center')
+      renderText(ctx, lines[i], centerX, instrY + i * 24 + getOffset(centerX), instrFont, COLORS.sepia, 'center')
     }
 
+    // Keyboard Layout Visualization — Nudged down to avoid overlap with the lines above
+    const keysY = instrY + 112
+    const colSpacing = 24
+    const rowSpacing = 24
+    const keySize = 22
+
+    // ── WASD ──
+    const wasdX = centerX - 85
+    this.renderKey(ctx, 'W', wasdX, keysY - rowSpacing, keySize, keySize)
+    this.renderKey(ctx, 'A', wasdX - colSpacing, keysY, keySize, keySize)
+    this.renderKey(ctx, 'S', wasdX, keysY, keySize, keySize)
+    this.renderKey(ctx, 'D', wasdX + colSpacing, keysY, keySize, keySize)
+    renderText(ctx, 'MOVE', wasdX, keysY + 25 + getOffset(wasdX), CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
+
+    // ── Arrows ──
+    const arrowsX = centerX + 85
+    this.renderKey(ctx, '↑', arrowsX, keysY - rowSpacing, keySize, keySize)
+    this.renderKey(ctx, '←', arrowsX - colSpacing, keysY, keySize, keySize)
+    this.renderKey(ctx, '↓', arrowsX, keysY, keySize, keySize)
+    this.renderKey(ctx, '→', arrowsX + colSpacing, keysY, keySize, keySize)
+    renderText(ctx, 'OR', centerX, keysY + getOffset(centerX), CANVAS_FONTS.uiSmallCaps(8), COLORS.muted, 'center')
+    renderText(ctx, 'MOVE', arrowsX, keysY + 25 + getOffset(arrowsX), CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
+
+    // ── Actions ──
+    const actionY = keysY + 60
+    const actionSpacing = 88
+    
+    // Space
+    const spaceX = centerX - actionSpacing
+    this.renderKey(ctx, 'Space', spaceX, actionY, 52, 20)
+    renderText(ctx, 'COLLECT', spaceX, actionY + 20 + getOffset(spaceX), CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
+
+    // Bksp
+    const backX = centerX
+    this.renderKey(ctx, 'Bksp', backX, actionY, 52, 20)
+    renderText(ctx, 'UNDO', backX, actionY + 20 + getOffset(backX), CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
+
+    // Enter
+    const enterX = centerX + actionSpacing
+    this.renderKey(ctx, 'Enter', enterX, actionY, 52, 20)
+    renderText(ctx, 'SUBMIT', enterX, actionY + 20 + getOffset(enterX), CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
+    
     // Prompt
     const breathe = Math.sin(this.titleTime * 2.5) * 0.3 + 0.7
     ctx.save()
     ctx.globalAlpha = breathe
-    renderText(ctx, 'Press SPACE or ENTER to begin', centerX, GAME_HEIGHT - 80 + getOffset(centerX),
-      CANVAS_FONTS.laneItalic(16), COLORS.sepia, 'center')
+    renderText(ctx, 'Press SPACE or ENTER to begin', centerX, GAME_HEIGHT - 85 + getOffset(centerX),
+      CANVAS_FONTS.laneItalic(15), COLORS.sepia, 'center')
     ctx.restore()
 
     // Pretext credit
     renderText(ctx, 'Powered by Pretext — chenglou/pretext', centerX, GAME_HEIGHT - 30 + getOffset(centerX),
       CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
+  }
+
+  private renderKey(ctx: CanvasRenderingContext2D, label: string, x: number, y: number, width: number = 26, height: number = 26): void {
+    const borderRadius = 4
+    const visualDepth = 3
+    const getOffset = (px: number) => getPageCurvatureOffset(px, GAME_WIDTH)
+    const curveOffset = getOffset(x)
+    
+    ctx.save()
+    ctx.translate(x, y + curveOffset)
+
+    // ── 1. Key Base (Side/Depth) ──
+    ctx.fillStyle = '#C0A070' // Darker parchment/gold for the depth
+    ctx.beginPath()
+    // Using simple rect since older versions of roundRect might be temperamental
+    if (ctx.roundRect) {
+      ctx.roundRect(-width / 2, -height / 2 + visualDepth, width, height, borderRadius)
+    } else {
+      ctx.rect(-width / 2, -height / 2 + visualDepth, width, height)
+    }
+    ctx.fill()
+
+    // ── 2. Key Top Face ──
+    ctx.fillStyle = COLORS.cream
+    ctx.beginPath()
+    if (ctx.roundRect) {
+      ctx.roundRect(-width / 2, -height / 2, width, height, borderRadius)
+    } else {
+      ctx.rect(-width / 2, -height / 2, width, height)
+    }
+    ctx.fill()
+
+    // ── 3. Border (Premium touch) ──
+    ctx.strokeStyle = COLORS.gold
+    ctx.lineWidth = 1
+    ctx.stroke()
+
+    // ── 4. Key Label ──
+    const isSmall = label.length > 2
+    const fontSize = isSmall ? 8 : 11
+    ctx.fillStyle = COLORS.espresso
+    ctx.font = CANVAS_FONTS.uiSmallCaps(fontSize)
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    // Nudge label up slightly for better ergonomics on top face
+    ctx.fillText(label.toUpperCase(), 0, -1)
+
+    ctx.restore()
   }
 
   private renderGameOver(ctx: CanvasRenderingContext2D): void {
