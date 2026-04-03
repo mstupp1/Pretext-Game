@@ -79,7 +79,18 @@ export class Lane {
     if (this.isSafeZone) {
       // Subtle background for safe zones
       ctx.fillStyle = 'rgba(232, 224, 208, 0.3)'
-      ctx.fillRect(0, this.y, GAME_WIDTH, this.height)
+      ctx.beginPath()
+      for (let x = 0; x <= GAME_WIDTH; x += 10) {
+        const offset = getPageCurvatureOffset(x, GAME_WIDTH)
+        if (x === 0) ctx.moveTo(x, this.y + offset)
+        else ctx.lineTo(x, this.y + offset)
+      }
+      for (let x = GAME_WIDTH; x >= 0; x -= 10) {
+        const offset = getPageCurvatureOffset(x, GAME_WIDTH)
+        ctx.lineTo(x, this.y + this.height + offset)
+      }
+      ctx.closePath()
+      ctx.fill()
 
       // Safe zone rules
       ctx.strokeStyle = COLORS.rule
@@ -101,7 +112,18 @@ export class Lane {
     // Subtle lane background
     if (this.index === playerLane) {
       ctx.fillStyle = 'rgba(184, 134, 11, 0.04)'
-      ctx.fillRect(0, this.y, GAME_WIDTH, this.height)
+      ctx.beginPath()
+      for (let x = 0; x <= GAME_WIDTH; x += 10) {
+        const offset = getPageCurvatureOffset(x, GAME_WIDTH)
+        if (x === 0) ctx.moveTo(x, this.y + offset)
+        else ctx.lineTo(x, this.y + offset)
+      }
+      for (let x = GAME_WIDTH; x >= 0; x -= 10) {
+        const offset = getPageCurvatureOffset(x, GAME_WIDTH)
+        ctx.lineTo(x, this.y + this.height + offset)
+      }
+      ctx.closePath()
+      ctx.fill()
     }
 
     // Render text stream with full effects
