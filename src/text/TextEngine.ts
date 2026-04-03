@@ -143,6 +143,42 @@ export function renderText(
   ctx.textAlign = 'left' // reset
 }
 
+/**
+ * Render text character by character, applying a vertical offset based on its screen position.
+ * Useful for making text appear to "follow" the page curvature.
+ */
+export function renderCurvedText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  centerX: number,
+  baseY: number,
+  font: string,
+  color: string,
+  offsetFn: (x: number) => number,
+  align: CanvasTextAlign = 'center'
+): void {
+  const chars = measureCharsInLine(text, font)
+  let totalWidth = 0
+  for (const c of chars) totalWidth += c.width
+  
+  let startX = centerX
+  if (align === 'center') startX = centerX - totalWidth / 2
+  else if (align === 'right') startX = centerX - totalWidth
+
+  ctx.font = font
+  ctx.fillStyle = color
+  ctx.textBaseline = 'middle'
+  ctx.textAlign = 'center' // Individual characters are centered on their positions
+
+  for (const ch of chars) {
+    const charX = startX + ch.x + ch.width / 2
+    const charY = baseY + offsetFn(charX)
+    ctx.fillText(ch.char, charX, charY)
+  }
+
+  ctx.textAlign = 'left' // Reset
+}
+
 export function clearPrepareCache(): void {
   prepareCache.clear()
 }

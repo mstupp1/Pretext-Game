@@ -6,7 +6,7 @@ import { scoreWord, type ScoreResult, getLetterValue } from './Scoring'
 import { generateLevel, type LevelConfig } from './Levels'
 import { ParticleSystem } from '../effects/ParticleSystem'
 import { GAME_WIDTH, GAME_HEIGHT, LANE_COUNT, LANE_HEIGHT, LANE_Y_START, COLORS, CANVAS_FONTS, ROMAN_NUMERALS, MAX_COLLECTED_LETTERS, TIME_BONUS } from '../utils/constants'
-import { renderText, measureTextWidth } from '../text/TextEngine'
+import { renderText, measureTextWidth, renderCurvedText } from '../text/TextEngine'
 import { getPageCurvatureOffset } from '../text/TextStream'
 
 export type GameState = 'title' | 'countdown' | 'playing' | 'gameover'
@@ -589,8 +589,8 @@ export class Game {
 
     // Keyboard Layout Visualization — Nudged down to avoid overlap with the lines above
     const keysY = instrY + 112
-    const colSpacing = 24
-    const rowSpacing = 24
+    const colSpacing = 22
+    const rowSpacing = 22
     const keySize = 22
 
     // ── WASD ──
@@ -599,7 +599,7 @@ export class Game {
     this.renderKey(ctx, 'A', wasdX - colSpacing, keysY, keySize, keySize)
     this.renderKey(ctx, 'S', wasdX, keysY, keySize, keySize)
     this.renderKey(ctx, 'D', wasdX + colSpacing, keysY, keySize, keySize)
-    renderText(ctx, 'MOVE', wasdX, keysY + 25 + getOffset(wasdX), CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
+    renderText(ctx, 'MOVE', wasdX, keysY + 25, CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
 
     // ── Arrows ──
     const arrowsX = centerX + 85
@@ -607,8 +607,8 @@ export class Game {
     this.renderKey(ctx, '←', arrowsX - colSpacing, keysY, keySize, keySize)
     this.renderKey(ctx, '↓', arrowsX, keysY, keySize, keySize)
     this.renderKey(ctx, '→', arrowsX + colSpacing, keysY, keySize, keySize)
-    renderText(ctx, 'OR', centerX, keysY + getOffset(centerX), CANVAS_FONTS.uiSmallCaps(8), COLORS.muted, 'center')
-    renderText(ctx, 'MOVE', arrowsX, keysY + 25 + getOffset(arrowsX), CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
+    renderText(ctx, 'OR', centerX, keysY, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted, 'center')
+    renderText(ctx, 'MOVE', arrowsX, keysY + 25, CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
 
     // ── Actions ──
     const actionY = keysY + 60
@@ -617,17 +617,17 @@ export class Game {
     // Space
     const spaceX = centerX - actionSpacing
     this.renderKey(ctx, 'Space', spaceX, actionY, 52, 20)
-    renderText(ctx, 'COLLECT', spaceX, actionY + 20 + getOffset(spaceX), CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
+    renderText(ctx, 'COLLECT', spaceX, actionY + 20, CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
 
     // Bksp
     const backX = centerX
     this.renderKey(ctx, 'Bksp', backX, actionY, 52, 20)
-    renderText(ctx, 'UNDO', backX, actionY + 20 + getOffset(backX), CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
+    renderText(ctx, 'UNDO', backX, actionY + 20, CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
 
     // Enter
     const enterX = centerX + actionSpacing
     this.renderKey(ctx, 'Enter', enterX, actionY, 52, 20)
-    renderText(ctx, 'SUBMIT', enterX, actionY + 20 + getOffset(enterX), CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
+    renderText(ctx, 'SUBMIT', enterX, actionY + 20, CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
     
     // Prompt
     const breathe = Math.sin(this.titleTime * 2.5) * 0.3 + 0.7
@@ -645,16 +645,30 @@ export class Game {
   private renderKey(ctx: CanvasRenderingContext2D, label: string, x: number, y: number, width: number = 26, height: number = 26): void {
     const borderRadius = 4
     const visualDepth = 3
-    const getOffset = (px: number) => getPageCurvatureOffset(px, GAME_WIDTH)
-    const curveOffset = getOffset(x)
-    
+
     ctx.save()
-    ctx.translate(x, y + curveOffset)
+    ctx.translate(x, y)
+    
+    // ── 0. Floating Shadow (on the page below) ──
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.12)'
+    ctx.shadowBlur = 10
+    ctx.shadowOffsetY = 6
+    ctx.beginPath()
+    if (ctx.roundRect) {
+      ctx.roundRect(-width / 2, -height / 2, width, height, borderRadius)
+    } else {
+      ctx.rect(-width / 2, -height / 2, width, height)
+    }
+    ctx.fill()
+    
+    // Reset shadow for the key itself to keep it crisp
+    ctx.shadowColor = 'transparent'
+    ctx.shadowBlur = 0
+    ctx.shadowOffsetY = 0
 
     // ── 1. Key Base (Side/Depth) ──
     ctx.fillStyle = '#C0A070' // Darker parchment/gold for the depth
     ctx.beginPath()
-    // Using simple rect since older versions of roundRect might be temperamental
     if (ctx.roundRect) {
       ctx.roundRect(-width / 2, -height / 2 + visualDepth, width, height, borderRadius)
     } else {
@@ -731,8 +745,12 @@ export class Game {
       ctx.strokeStyle = COLORS.rule
       ctx.lineWidth = 0.5
       ctx.beginPath()
-      ctx.moveTo(centerX - 60, hsY + 12 + getOffset(centerX))
-      ctx.lineTo(centerX + 60, hsY + 12 + getOffset(centerX))
+      // Bottom border of HIGH SCORES title needs curving too
+      for (let x = centerX - 60; x <= centerX + 60; x += 10) {
+          const offset = getOffset(x)
+          if (x === centerX - 60) ctx.moveTo(x, hsY + 12 + offset)
+          else ctx.lineTo(x, hsY + 12 + offset)
+      }
       ctx.stroke()
 
       for (let i = 0; i < Math.min(5, this.highScores.length); i++) {
@@ -747,8 +765,8 @@ export class Game {
     const breathe = Math.sin(Date.now() * 0.0025) * 0.3 + 0.7
     ctx.save()
     ctx.globalAlpha = breathe
-    renderText(ctx, 'Press SPACE or ENTER to play again', centerX, GAME_HEIGHT - 60 + getOffset(centerX),
-      CANVAS_FONTS.laneItalic(15), COLORS.sepia, 'center')
+    renderCurvedText(ctx, 'Press SPACE or ENTER to play again', centerX, GAME_HEIGHT - 60,
+      CANVAS_FONTS.laneItalic(15), COLORS.sepia, getOffset, 'center')
     ctx.restore()
   }
 
@@ -791,7 +809,7 @@ export class Game {
     const font = this.countdownValue === 0 ? CANVAS_FONTS.uiSmallCaps(32) : CANVAS_FONTS.title(64)
     const color = this.countdownValue === 0 ? COLORS.gold : COLORS.espresso
 
-    renderText(ctx, text, 0, 0, font, color, 'center')
+    renderCurvedText(ctx, text, 0, 0, font, color, (x) => getPageCurvatureOffset(x, GAME_WIDTH), 'center')
     
     ctx.restore()
   }
