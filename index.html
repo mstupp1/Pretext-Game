@@ -15,26 +15,35 @@
   <div id="game-container">
     <canvas id="game-canvas"></canvas>
     <div id="ui-overlay">
-      <div id="hud">
-        <div id="hud-left">
-          <span id="score-label">SCORE</span>
-          <span id="score-value">0</span>
+      <div id="overlay-top">
+        <div id="hud">
+          <div id="hud-left">
+            <span id="score-label">SCORE</span>
+            <span id="score-value">0</span>
+          </div>
+          <div id="hud-center">
+            <span id="level-label">CHAPTER</span>
+            <span id="level-value">I</span>
+            <span id="next-chapter-label">next at <span id="next-chapter-value">75</span></span>
+          </div>
+          <div id="hud-right">
+            <span id="timer-value">1:30</span>
+          </div>
         </div>
-        <div id="hud-center">
-          <span id="level-label">CHAPTER</span>
-          <span id="level-value">I</span>
-        </div>
-        <div id="hud-right">
-          <span id="timer-value">1:30</span>
+        <div id="completed-words-container" aria-label="Completed words">
+          <div id="completed-words-list"></div>
         </div>
       </div>
       <div id="word-tray">
-        <div id="tray-letters"></div>
-        <div id="tray-controls">
-          <button id="submit-word" title="Submit Word (Enter)">Submit</button>
-          <button id="clear-word" title="Clear (Backspace)">Clear</button>
+        <div id="word-tray-inner">
+          <div id="current-word-area">
+            <div id="current-word" class="empty"></div>
+            <div id="word-feedback"></div>
+          </div>
+          <div id="tray-controls">
+            <button id="submit-word" title="Submit Word (Enter)">Submit</button>
+          </div>
         </div>
-        <div id="word-feedback"></div>
       </div>
     </div>
   </div>

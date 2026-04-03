@@ -13,7 +13,6 @@ export type GameState = 'title' | 'playing' | 'gameover'
 interface CollectedLetter {
   letter: string
   value: number
-  selected: boolean
   // Animation
   floatingX: number
   floatingY: number
@@ -50,6 +49,7 @@ export class Game {
   public timeRemaining: number = 90
   public collectedLetters: CollectedLetter[] = []
   public wordsFound: string[] = []
+  public chapterWords: Set<string> = new Set()  // words used this chapter (no repeats)
   public feedback: FeedbackMessage | null = null
   public floatingScores: FloatingScore[] = []
   public highScores: number[] = []
@@ -83,7 +83,6 @@ export class Game {
 
     // Button handlers
     document.getElementById('submit-word')?.addEventListener('click', () => this.submitWord())
-    document.getElementById('clear-word')?.addEventListener('click', () => this.clearSelection())
 
     // Hide UI initially (title screen)
     this.toggleUI(false)
@@ -112,6 +111,7 @@ export class Game {
     this.score = 0
     this.chapter = 1
     this.wordsFound = []
+    this.chapterWords = new Set()
     this.collectedLetters = []
     this.feedback = null
     this.floatingScores = []
@@ -120,6 +120,7 @@ export class Game {
     this.toggleUI(true)
     this.updateUI()
     this.updateTrayUI()
+    this.updateWordsUI()
   }
 
   private loadLevel(chapter: number): void {
@@ -203,7 +204,7 @@ export class Game {
           break
         case 'Backspace':
           e.preventDefault()
-          this.clearSelection()
+          this.removeLastLetter()
           break
         case ' ':
           e.preventDefault()
@@ -237,7 +238,6 @@ export class Game {
       this.collectedLetters.push({
         letter,
         value: getLetterValue(letter),
-        selected: true,
         floatingX: this.player.x,
         floatingY: this.player.y,
         animProgress: 0,
@@ -257,31 +257,37 @@ export class Game {
     if (this.state !== 'playing') return
     if (this.isSubmitting) return
 
-    const selectedLetters = this.collectedLetters
-      .filter(l => l.selected)
-      .map(l => l.letter)
+    const allLetters = this.collectedLetters.map(l => l.letter)
 
-    if (selectedLetters.length === 0) {
-      this.showFeedback('Select letters first', false)
+    if (allLetters.length === 0) {
+      this.showFeedback('Collect letters first', false)
+      return
+    }
+
+    // Check for duplicate word in this chapter
+    const candidateWord = allLetters.join('').toUpperCase()
+    if (this.chapterWords.has(candidateWord)) {
+      this.showFeedback(`"${candidateWord}" already used this chapter`, false)
       return
     }
 
     this.isSubmitting = true
-    this.showFeedback('Checking lexicon...', true) // Setting to success=true temporarily just for styling
+    this.showFeedback('Checking lexicon...', true)
     
     // Set a very long timer for the check so it doesn't disappear in the middle of a slow API call
     if (this.feedback) this.feedback.timer = 10
 
-    const result = await scoreWord(selectedLetters)
+    const result = await scoreWord(allLetters)
 
     this.isSubmitting = false
 
     if (result.valid) {
       this.score += result.totalScore
       this.wordsFound.push(result.word)
+      this.chapterWords.add(result.word)
 
-      // Remove used letters
-      this.collectedLetters = this.collectedLetters.filter(l => !l.selected)
+      // Clear all letters after successful submit
+      this.collectedLetters = []
 
       this.showFeedback(`${result.word}: +${result.totalScore}  ${result.message}`, true)
 
@@ -291,6 +297,8 @@ export class Game {
 
       // Score text rises as particles
       this.particles.waveText(`+${result.totalScore}`, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 60)
+
+      this.updateWordsUI()
     } else {
       this.showFeedback(result.message, false)
     }
@@ -299,15 +307,11 @@ export class Game {
     this.updateTrayUI()
   }
 
-  clearSelection(): void {
-    // If some are selected, deselect all. If none selected, remove last letter.
-    const hasSelection = this.collectedLetters.some(l => l.selected)
-    if (hasSelection) {
-      this.collectedLetters.forEach(l => l.selected = false)
-    } else if (this.collectedLetters.length > 0) {
+  removeLastLetter(): void {
+    if (this.collectedLetters.length > 0) {
       this.collectedLetters.pop()
+      this.updateTrayUI()
     }
-    this.updateTrayUI()
   }
 
   private showFeedback(text: string, success: boolean): void {
@@ -348,21 +352,17 @@ export class Game {
       lane.update(dt, this.player.x, this.player.y)
     }
 
-    // Check if player crossed
-    if (this.player.hasReachedTop()) {
-      this.timeRemaining = Math.min(this.timeRemaining + TIME_BONUS, this.level.timeLimit)
-      this.score += 50  // crossing bonus
-      this.showFeedback(`Crossed! +50 points, +${TIME_BONUS}s`, true)
-      this.player.reset() // Return to bottom
-    }
-
-    // Check chapter threshold (easy progression: 50 points per chapter)
-    const requiredScore = this.chapter * 50
+    // Check chapter threshold (easy progression: 75 points per chapter)
+    const requiredScore = this.chapter * 75
     if (this.score >= requiredScore) {
       this.chapter++
+      this.chapterWords = new Set()  // reset per-chapter duplicate tracking
       this.level = generateLevel(this.chapter)
+      this.timeRemaining = Math.min(this.timeRemaining + TIME_BONUS, this.level.timeLimit)
       this.buildLanes()
-      this.showFeedback(`Chapter ${ROMAN_NUMERALS[Math.min(this.chapter - 1, ROMAN_NUMERALS.length - 1)]} Reached!`, true)
+      this.showFeedback(`Chapter ${ROMAN_NUMERALS[Math.min(this.chapter - 1, ROMAN_NUMERALS.length - 1)]} — New chapter unlocked!`, true)
+      // Celebration particles
+      this.particles.waveText(`Chapter ${ROMAN_NUMERALS[Math.min(this.chapter - 1, ROMAN_NUMERALS.length - 1)]}`, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40)
     }
 
     // Collected letter animations
@@ -538,11 +538,11 @@ export class Game {
     const instrFont = CANVAS_FONTS.laneItalic(15)
     const lines = [
       'Navigate through streams of flowing prose.',
-      'Collect highlighted letters to spell words.',
-      'Cross to the other side before time expires.',
+      'Collect letters and spell words for points.',
+      'Reach score thresholds to unlock new chapters.',
       '',
       '↑ ↓ ← →  or  W A S D  to move',
-      'SPACE  to collect  ·  ENTER  to submit word',
+      'SPACE  collect  ·  BACKSPACE  undo  ·  ENTER  submit',
     ]
 
     for (let i = 0; i < lines.length; i++) {
@@ -639,9 +639,11 @@ export class Game {
     const scoreEl = document.getElementById('score-value')
     const levelEl = document.getElementById('level-value')
     const timerEl = document.getElementById('timer-value')
+    const nextEl = document.getElementById('next-chapter-value')
 
     if (scoreEl) scoreEl.textContent = String(this.score)
     if (levelEl) levelEl.textContent = ROMAN_NUMERALS[Math.min(this.chapter - 1, 9)]
+    if (nextEl) nextEl.textContent = String(this.chapter * 75)
 
     if (timerEl) {
       const mins = Math.floor(this.timeRemaining / 60)
@@ -652,20 +654,44 @@ export class Game {
   }
 
   updateTrayUI(): void {
-    const trayEl = document.getElementById('tray-letters')
-    if (!trayEl) return
+    const wordDisplay = document.getElementById('current-word')
+    if (!wordDisplay) return
 
-    trayEl.innerHTML = ''
-    for (let i = 0; i < this.collectedLetters.length; i++) {
-      const letter = this.collectedLetters[i]
-      const tile = document.createElement('div')
-      tile.className = `tray-tile${letter.selected ? ' selected' : ''}`
-      tile.innerHTML = `${letter.letter}<span class="tile-points">${letter.value}</span>`
-      tile.addEventListener('click', () => {
-        letter.selected = !letter.selected
-        this.updateTrayUI()
-      })
-      trayEl.appendChild(tile)
+    wordDisplay.innerHTML = ''
+    if (this.collectedLetters.length === 0) {
+      wordDisplay.classList.add('empty')
+    } else {
+      wordDisplay.classList.remove('empty')
+      for (const letter of this.collectedLetters) {
+        const tile = document.createElement('div')
+        tile.className = 'tray-tile'
+        tile.innerHTML = `${letter.letter}<span class="tile-points">${letter.value}</span>`
+        wordDisplay.appendChild(tile)
+      }
+    }
+  }
+
+  private updateWordsUI(): void {
+    const wordsEl = document.getElementById('completed-words-list')
+    if (!wordsEl) return
+
+    wordsEl.innerHTML = ''
+    // Show most recent words first
+    const recentWords = [...this.wordsFound].reverse()
+    for (const word of recentWords) {
+      const wordContainer = document.createElement('div')
+      wordContainer.className = 'completed-word'
+      
+      for (let i = 0; i < word.length; i++) {
+        const char = word[i].toUpperCase()
+        const value = getLetterValue(char)
+        const tile = document.createElement('div')
+        tile.className = 'tray-tile'
+        tile.innerHTML = `${char}<span class="tile-points">${value}</span>`
+        wordContainer.appendChild(tile)
+      }
+      
+      wordsEl.appendChild(wordContainer)
     }
   }
 }

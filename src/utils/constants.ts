@@ -68,7 +68,7 @@ export const LETTER_VALUES: Record<string, number> = {
 
 // Word length bonuses
 export const WORD_LENGTH_BONUS: Record<number, number> = {
-  3: 0, 4: 5, 5: 15, 6: 30, 7: 50, 8: 80, 9: 120, 10: 170,
+  3: 0, 4: 8, 5: 20, 6: 40, 7: 70, 8: 110, 9: 160, 10: 220,
 }
 
 // Ornamental characters for safe zones
