@@ -477,11 +477,12 @@ export class Game {
   }
 
   private renderBackground(ctx: CanvasRenderingContext2D): void {
-    // Ruled lines within the lane block
+    // Ruled lines across the entire page
     ctx.strokeStyle = 'rgba(44, 24, 16, 0.04)'
     ctx.lineWidth = 0.5
-    const endY = LANE_Y_START + (LANE_COUNT * LANE_HEIGHT)
-    for (let y = LANE_Y_START; y <= endY; y += 22) {
+    const startY = 40
+    const endY = GAME_HEIGHT - 40
+    for (let y = startY; y <= endY; y += 22) {
       ctx.beginPath()
       for (let x = 0; x <= GAME_WIDTH; x += 10) {
         const offset = getPageCurvatureOffset(x, GAME_WIDTH)
@@ -549,45 +550,23 @@ export class Game {
   }
 
   private renderTitle(ctx: CanvasRenderingContext2D): void {
-    // Animated background — flowing text streams
-    ctx.fillStyle = COLORS.ivory
-    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT)
+    // Use the standard book background (texture, spine, etc.)
+    this.renderBackground(ctx)
 
-    // Decorative background text (faint passage)
-    ctx.save()
-    ctx.globalAlpha = 0.06
-    ctx.font = CANVAS_FONTS.laneItalic(42)
-    ctx.fillStyle = COLORS.espresso
-
-    const text = 'It is a truth universally acknowledged that a single man in possession of a good fortune must be in want of a wife '
-    const offset = (this.titleTime * 20) % 1200
-    for (let y = 60; y < GAME_HEIGHT; y += 55) {
-      const dir = y % 110 === 60 ? 1 : -1
-      ctx.fillText(text, -offset * dir + (dir > 0 ? -600 : 0), y)
-    }
-    ctx.restore()
-
-    // Vignette overlay
-    const gradient = ctx.createRadialGradient(
-      GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40, 80,
-      GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH * 0.6,
-    )
-    gradient.addColorStop(0, 'rgba(245, 241, 232, 0.95)')
-    gradient.addColorStop(1, 'rgba(245, 241, 232, 0.7)')
-    ctx.fillStyle = gradient
-    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT)
+    const centerX = GAME_WIDTH * 0.75 // Center of the right-hand page
+    const getOffset = (x: number) => getPageCurvatureOffset(x, GAME_WIDTH)
 
     // Title
     const titleY = GAME_HEIGHT * 0.32
-    renderText(ctx, 'Lexicon Crossing', GAME_WIDTH / 2, titleY,
+    renderText(ctx, 'Lexicon Crossing', centerX, titleY + getOffset(centerX),
       CANVAS_FONTS.title(52), COLORS.espresso, 'center')
 
     // Subtitle
-    renderText(ctx, 'A   TYPOGRAPHIC   FROGGER', GAME_WIDTH / 2, titleY + 48,
+    renderText(ctx, 'A   TYPOGRAPHIC   FROGGER', centerX, titleY + 48 + getOffset(centerX),
       CANVAS_FONTS.uiSmallCaps(12), COLORS.muted, 'center')
 
-    // Simple Ornament
-    renderText(ctx, '✦', GAME_WIDTH / 2, titleY + 85,
+    // Ornament
+    renderText(ctx, '✦', centerX, titleY + 85 + getOffset(centerX),
       CANVAS_FONTS.laneRegular(20), COLORS.gold, 'center')
 
     // Instructions
@@ -605,78 +584,82 @@ export class Game {
     for (let i = 0; i < lines.length; i++) {
       const color = i >= 4 ? COLORS.muted : COLORS.sepia
       const font = i >= 4 ? CANVAS_FONTS.uiSmallCaps(12) : instrFont
-      renderText(ctx, lines[i], GAME_WIDTH / 2, instrY + i * 26, font, color, 'center')
+      renderText(ctx, lines[i], centerX, instrY + i * 26 + getOffset(centerX), font, color, 'center')
     }
 
     // Prompt
     const breathe = Math.sin(this.titleTime * 2.5) * 0.3 + 0.7
+    ctx.save()
     ctx.globalAlpha = breathe
-    renderText(ctx, 'Press SPACE or ENTER to begin', GAME_WIDTH / 2, GAME_HEIGHT - 80,
+    renderText(ctx, 'Press SPACE or ENTER to begin', centerX, GAME_HEIGHT - 80 + getOffset(centerX),
       CANVAS_FONTS.laneItalic(16), COLORS.sepia, 'center')
-    ctx.globalAlpha = 1
+    ctx.restore()
 
     // Pretext credit
-    renderText(ctx, 'Powered by Pretext — chenglou/pretext', GAME_WIDTH / 2, GAME_HEIGHT - 30,
+    renderText(ctx, 'Powered by Pretext — chenglou/pretext', centerX, GAME_HEIGHT - 30 + getOffset(centerX),
       CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
   }
 
   private renderGameOver(ctx: CanvasRenderingContext2D): void {
-    ctx.fillStyle = COLORS.ivory
-    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT)
+    // Use the standard book background
+    this.renderBackground(ctx)
 
+    const centerX = GAME_WIDTH * 0.75
+    const getOffset = (x: number) => getPageCurvatureOffset(x, GAME_WIDTH)
     const centerY = GAME_HEIGHT * 0.25
 
-    renderText(ctx, 'Finis', GAME_WIDTH / 2, centerY,
+    renderText(ctx, 'Finis', centerX, centerY + getOffset(centerX),
       CANVAS_FONTS.title(48), COLORS.espresso, 'center')
 
-    renderText(ctx, `Chapter ${ROMAN_NUMERALS[Math.min(this.chapter - 1, 9)]} reached`, GAME_WIDTH / 2, centerY + 45,
+    renderText(ctx, `Chapter ${ROMAN_NUMERALS[Math.min(this.chapter - 1, 9)]} reached`, centerX, centerY + 45 + getOffset(centerX),
       CANVAS_FONTS.laneItalic(16), COLORS.sepia, 'center')
 
     // Final score
-    renderText(ctx, String(this.score), GAME_WIDTH / 2, centerY + 100,
+    renderText(ctx, String(this.score), centerX, centerY + 100 + getOffset(centerX),
       CANVAS_FONTS.laneLight(56), COLORS.gold, 'center')
 
-    renderText(ctx, 'POINTS', GAME_WIDTH / 2, centerY + 130,
+    renderText(ctx, 'POINTS', centerX, centerY + 130 + getOffset(centerX),
       CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
 
     // Words found
     if (this.wordsFound.length > 0) {
-      renderText(ctx, `${this.wordsFound.length} word${this.wordsFound.length !== 1 ? 's' : ''} composed`, GAME_WIDTH / 2, centerY + 165,
+      renderText(ctx, `${this.wordsFound.length} word${this.wordsFound.length !== 1 ? 's' : ''} composed`, centerX, centerY + 165 + getOffset(centerX),
         CANVAS_FONTS.laneItalic(14), COLORS.sepia, 'center')
 
       // Show words in a flowing line
       const wordStr = this.wordsFound.slice(-8).join('  ·  ')
-      renderText(ctx, wordStr, GAME_WIDTH / 2, centerY + 190,
+      renderText(ctx, wordStr, centerX, centerY + 190 + getOffset(centerX),
         CANVAS_FONTS.laneItalic(13), COLORS.muted, 'center')
     }
 
     // High scores
     if (this.highScores.length > 0) {
       const hsY = centerY + 240
-      renderText(ctx, 'HIGH SCORES', GAME_WIDTH / 2, hsY,
+      renderText(ctx, 'HIGH SCORES', centerX, hsY + getOffset(centerX),
         CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
 
       ctx.strokeStyle = COLORS.rule
       ctx.lineWidth = 0.5
       ctx.beginPath()
-      ctx.moveTo(GAME_WIDTH / 2 - 60, hsY + 12)
-      ctx.lineTo(GAME_WIDTH / 2 + 60, hsY + 12)
+      ctx.moveTo(centerX - 60, hsY + 12 + getOffset(centerX))
+      ctx.lineTo(centerX + 60, hsY + 12 + getOffset(centerX))
       ctx.stroke()
 
       for (let i = 0; i < Math.min(5, this.highScores.length); i++) {
         const isNew = this.highScores[i] === this.score && i === this.highScores.indexOf(this.score)
         const color = isNew ? COLORS.gold : COLORS.sepia
-        renderText(ctx, `${i + 1}.  ${this.highScores[i]}`, GAME_WIDTH / 2, hsY + 30 + i * 25,
+        renderText(ctx, `${i + 1}.  ${this.highScores[i]}`, centerX, hsY + 30 + i * 25 + getOffset(centerX),
           CANVAS_FONTS.laneRegular(18), color, 'center')
       }
     }
 
     // Restart prompt
     const breathe = Math.sin(Date.now() * 0.0025) * 0.3 + 0.7
+    ctx.save()
     ctx.globalAlpha = breathe
-    renderText(ctx, 'Press SPACE or ENTER to play again', GAME_WIDTH / 2, GAME_HEIGHT - 60,
+    renderText(ctx, 'Press SPACE or ENTER to play again', centerX, GAME_HEIGHT - 60 + getOffset(centerX),
       CANVAS_FONTS.laneItalic(15), COLORS.sepia, 'center')
-    ctx.globalAlpha = 1
+    ctx.restore()
   }
 
   private renderCountdown(ctx: CanvasRenderingContext2D): void {
@@ -701,7 +684,10 @@ export class Game {
 
     // Countdown Text
     ctx.save()
-    ctx.translate(GAME_WIDTH / 2, GAME_HEIGHT / 2)
+    const centerX = GAME_WIDTH / 2
+    const centerY = GAME_HEIGHT / 2
+    const offset = getPageCurvatureOffset(centerX, GAME_WIDTH)
+    ctx.translate(centerX, centerY + offset)
     
     // Smooth scaling / fading based on timer (1.0 -> 0.0)
     const prog = 1.0 - this.countdownTimer
