@@ -14,7 +14,7 @@ const FONT_STYLES = ['light', 'regular', 'medium', 'bold', 'italic', 'boldItalic
 export function generateLevel(chapter: number): LevelConfig {
   const speedMultiplier = 1 + (chapter - 1) * 0.15
   const baseHighlightRate = Math.max(0.03, 0.08 - (chapter - 1) * 0.005)
-  const timeLimit = Math.max(60, 90 - (chapter - 1) * 3)
+  const timeLimit = 90 + (chapter - 1) * 30 // More time as chapters get harder
 
   const laneConfigs: LaneConfig[] = []
 

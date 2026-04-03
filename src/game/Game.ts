@@ -356,7 +356,7 @@ export class Game {
       this.chapter++
       this.chapterWords = new Set()  // reset per-chapter duplicate tracking
       this.level = generateLevel(this.chapter)
-      this.timeRemaining = Math.min(this.timeRemaining + TIME_BONUS, this.level.timeLimit)
+      this.timeRemaining += this.level.timeLimit // Add chapter allotment to current time (reward for speed)
       this.buildLanes()
       this.showFeedback(`Chapter ${ROMAN_NUMERALS[Math.min(this.chapter - 1, ROMAN_NUMERALS.length - 1)]} — New chapter unlocked!`, true)
       // Celebration particles
