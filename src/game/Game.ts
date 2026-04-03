@@ -10,7 +10,7 @@ import { GAME_WIDTH, GAME_HEIGHT, LANE_COUNT, LANE_HEIGHT, LANE_Y_START, COLORS,
 import { renderText, measureTextWidth, renderCurvedText } from '../text/TextEngine'
 import { getPageCurvatureOffset } from '../text/TextStream'
 
-export type GameState = 'title' | 'countdown' | 'playing' | 'gameover'
+export type GameState = 'title' | 'countdown' | 'playing' | 'paused' | 'gameover'
 
 interface CollectedLetter {
   letter: string
@@ -67,6 +67,7 @@ export class Game {
   // Manage collecting cooldown
   private collectCooldown: number = 0
   private isSubmitting: boolean = false
+  private pauseOptionIndex: number = 0
 
   // Countdown state
   private countdownValue: number = 3
@@ -92,7 +93,36 @@ export class Game {
     this.updateTrayUI()
     this.updateWordsUI()
 
+    this.setupPauseMenu()
+
     audioManager.playTitleMusic()
+  }
+
+  private setupPauseMenu(): void {
+    const musicOpt = document.getElementById('option-music')
+    const sfxOpt = document.getElementById('option-sfx')
+
+    if (musicOpt) {
+      musicOpt.addEventListener('click', () => {
+        const isMuted = audioManager.toggleMusic()
+        audioManager.playMenuNav()
+        const status = musicOpt.querySelector('.status')
+        if (status) status.textContent = isMuted ? '[x]' : '[ ]'
+        musicOpt.style.color = isMuted ? COLORS.muted : COLORS.espresso
+      })
+      musicOpt.addEventListener('mouseenter', () => audioManager.playMenuNav())
+    }
+
+    if (sfxOpt) {
+      sfxOpt.addEventListener('click', () => {
+        const isMuted = audioManager.toggleSfx()
+        audioManager.playMenuNav()
+        const status = sfxOpt.querySelector('.status')
+        if (status) status.textContent = isMuted ? '[x]' : '[ ]'
+        sfxOpt.style.color = isMuted ? COLORS.muted : COLORS.espresso
+      })
+      sfxOpt.addEventListener('mouseenter', () => audioManager.playMenuNav())
+    }
   }
 
   private loadHighScores(): void {
@@ -114,6 +144,11 @@ export class Game {
   // ── State transitions ──
 
   startGame(): void {
+    if (this.state === 'title') {
+      audioManager.playPagesFromTitle()
+    } else if (this.state === 'gameover') {
+      audioManager.playPagesFromGameOver()
+    }
     audioManager.playGameMusic()
     this.state = 'countdown'
     this.countdownValue = 3
@@ -127,10 +162,13 @@ export class Game {
     this.floatingScores = []
     this.player = new Player()
     this.loadLevel(1)
-    
+
     this.updateUI()
     this.updateTrayUI()
     this.updateWordsUI()
+
+    const gameoverOverlay = document.getElementById('gameover-overlay')
+    if (gameoverOverlay) gameoverOverlay.style.display = 'none'
   }
 
   private beginPlaying(): void {
@@ -159,12 +197,47 @@ export class Game {
   }
 
   private gameOver(): void {
+    audioManager.playApplause(this.chapter)
     audioManager.playTitleMusic()
     this.state = 'gameover'
     this.saveHighScore(this.score)
     this.updateUI()
     this.updateTrayUI()
     this.updateWordsUI()
+
+    const gameoverOverlay = document.getElementById('gameover-overlay')
+    if (gameoverOverlay) gameoverOverlay.style.display = 'flex'
+  }
+
+  private returnToTitle(): void {
+    this.state = 'title'
+    this.titleTime = 0
+    audioManager.playTitleMusic()
+    this.updateUI()
+
+    const gameoverOverlay = document.getElementById('gameover-overlay')
+    if (gameoverOverlay) gameoverOverlay.style.display = 'none'
+  }
+
+  private togglePause(): void {
+    if (this.state === 'playing') {
+      this.state = 'paused'
+      this.pauseOptionIndex = 0
+      this.updatePauseMenuHighlight()
+      const pauseOverlay = document.getElementById('pause-overlay')
+      if (pauseOverlay) pauseOverlay.style.display = 'flex'
+    } else if (this.state === 'paused') {
+      this.state = 'playing'
+      const pauseOverlay = document.getElementById('pause-overlay')
+      if (pauseOverlay) pauseOverlay.style.display = 'none'
+    }
+  }
+
+  private updatePauseMenuHighlight(): void {
+    const musicOpt = document.getElementById('option-music')
+    const sfxOpt = document.getElementById('option-sfx')
+    if (musicOpt) musicOpt.style.textDecoration = this.pauseOptionIndex === 0 ? 'underline' : 'none'
+    if (sfxOpt) sfxOpt.style.textDecoration = this.pauseOptionIndex === 1 ? 'underline' : 'none'
   }
 
   // ── Input handling ──
@@ -187,35 +260,71 @@ export class Game {
       if (event.key === ' ' || event.key === 'Enter') {
         e.preventDefault()
         this.startGame()
+      } else if (event.key === 'Escape') {
+        e.preventDefault()
+        this.returnToTitle()
+      }
+      return
+    }
+
+    if (this.state === 'paused') {
+      if (event.key === 'Escape') {
+        e.preventDefault()
+        this.togglePause()
+      } else if (event.key === 'ArrowUp' || event.key === 'w' || event.key === 'W') {
+        e.preventDefault()
+        this.pauseOptionIndex = (this.pauseOptionIndex - 1 + 2) % 2
+        audioManager.playMenuNav()
+        this.updatePauseMenuHighlight()
+      } else if (event.key === 'ArrowDown' || event.key === 's' || event.key === 'S') {
+        e.preventDefault()
+        this.pauseOptionIndex = (this.pauseOptionIndex + 1) % 2
+        audioManager.playMenuNav()
+        this.updatePauseMenuHighlight()
+      } else if (event.key === 'Enter' || event.key === ' ') {
+        e.preventDefault()
+        if (this.pauseOptionIndex === 0) {
+          document.getElementById('option-music')?.click()
+        } else {
+          document.getElementById('option-sfx')?.click()
+        }
       }
       return
     }
 
     if (this.state === 'playing') {
       switch (event.key) {
+        case 'Escape':
+          e.preventDefault()
+          this.togglePause()
+          break
         case 'ArrowUp':
         case 'w':
         case 'W':
           e.preventDefault()
           this.player.moveUp()
+          audioManager.playMovement()
           break
         case 'ArrowDown':
         case 's':
         case 'S':
           e.preventDefault()
           this.player.moveDown()
+          audioManager.playMovement()
           break
         case 'ArrowLeft':
         case 'a':
         case 'A':
           e.preventDefault()
           this.player.moveLeft()
+          audioManager.playMovement()
           break
         case 'ArrowRight':
         case 'd':
         case 'D':
           e.preventDefault()
           this.player.moveRight()
+          audioManager.playMovement()
           break
         case 'Enter':
           e.preventDefault()
@@ -263,6 +372,7 @@ export class Game {
       })
       this.collectCooldown = 0.15
       this.updateTrayUI()
+      audioManager.playSelectLetter()
 
       // Particle burst on collection
       this.particles.collectBurst(letter, this.player.x, this.player.y)
@@ -280,6 +390,7 @@ export class Game {
 
     if (allLetters.length === 0) {
       this.showFeedback('Collect letters first', false)
+      audioManager.playNoSubmit()
       return
     }
 
@@ -287,6 +398,7 @@ export class Game {
     const candidateWord = allLetters.join('').toUpperCase()
     if (this.usedWords.has(candidateWord)) {
       this.showFeedback(`"${candidateWord}" already used this run`, false)
+      audioManager.playNoSubmit()
       return
     }
 
@@ -301,6 +413,7 @@ export class Game {
     this.isSubmitting = false
 
     if (result.valid) {
+      audioManager.playScore(result.totalScore)
       this.score += result.totalScore
       this.wordsFound.push(result.word)
       this.usedWords.add(result.word)
@@ -319,6 +432,7 @@ export class Game {
 
       this.updateWordsUI()
     } else {
+      audioManager.playNoSubmit()
       this.showFeedback(result.message, false)
     }
 
@@ -371,7 +485,18 @@ export class Game {
     if (this.state !== 'playing') return
 
     // Timer
+    const prevSec = Math.ceil(this.timeRemaining)
     this.timeRemaining -= dt
+    const currSec = Math.ceil(this.timeRemaining)
+
+    if (prevSec > currSec) {
+      if (currSec > 0 && currSec % 30 === 0) {
+        audioManager.playTimeWarning1()
+      } else if (currSec === 15) {
+        audioManager.playTimeWarning2()
+      }
+    }
+
     if (this.timeRemaining <= 0) {
       this.timeRemaining = 0
       this.gameOver()
@@ -393,6 +518,7 @@ export class Game {
     const requiredScore = this.chapter * 75
     if (this.score >= requiredScore) {
       this.chapter++
+      audioManager.playChapterUnlock()
       this.level = generateLevel(this.chapter)
       this.timeRemaining += this.level.timeLimit // Add chapter allotment to current time (reward for speed)
       this.buildLanes()

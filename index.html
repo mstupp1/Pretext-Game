@@ -44,6 +44,28 @@
             <div id="completed-words-list"></div>
           </div>
         </div>
+        <div id="pause-overlay" class="screen-overlay" style="display: none; background: rgba(245, 241, 232, 0.85);">
+          <h1>Paused</h1>
+          <div class="subtitle" style="margin-bottom: 20px;">Options</div>
+
+          <div class="pause-options" style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 40px;">
+            <div class="pause-option" id="option-music" tabindex="0" style="font-family: var(--font-display); font-size: 24px; cursor: pointer; transition: color 0.2s;">
+              <span class="status" style="display: inline-block; width: 40px;">[ ]</span> Mute Music
+            </div>
+            <div class="pause-option" id="option-sfx" tabindex="0" style="font-family: var(--font-display); font-size: 24px; cursor: pointer; transition: color 0.2s;">
+              <span class="status" style="display: inline-block; width: 40px;">[ ]</span> Mute Sound Effects (SFX)
+            </div>
+          </div>
+
+          <div class="instructions">
+            Press <kbd>ESC</kbd> to resume
+          </div>
+        </div>
+        <div id="gameover-overlay" class="screen-overlay" style="display: none; background: transparent; pointer-events: none; justify-content: flex-end; padding-bottom: 80px;">
+          <div class="instructions">
+            Press <kbd>ESC</kbd> to return to Main Menu
+          </div>
+        </div>
       </div>
       <div id="word-tray">
         <div class="ui-container">
