@@ -637,10 +637,18 @@ export class Game {
     const levelEl = document.getElementById('level-value')
     const timerEl = document.getElementById('timer-value')
     const nextEl = document.getElementById('next-chapter-value')
+    const progressFillEl = document.getElementById('score-progress-fill')
+
+    const nextTarget = this.chapter * 75
 
     if (scoreEl) scoreEl.textContent = String(this.score)
     if (levelEl) levelEl.textContent = ROMAN_NUMERALS[Math.min(this.chapter - 1, 9)]
-    if (nextEl) nextEl.textContent = String(this.chapter * 75)
+    if (nextEl) nextEl.textContent = String(nextTarget)
+    
+    if (progressFillEl) {
+      const progress = Math.min(100, (this.score / nextTarget) * 100)
+      progressFillEl.style.width = `${progress}%`
+    }
 
     if (timerEl) {
       const mins = Math.floor(this.timeRemaining / 60)
