@@ -188,9 +188,9 @@ export class Lane {
 
         const isLifted = ch.scale > 1.05
         const proximityAlpha = isLifted ? 1.0 : (0.55 + (ch.scale - 1) * 1.0)
-        
+
         ctx.globalAlpha = Math.min(1, ch.alpha * proximityAlpha * inkAlpha * edgeFade)
-        
+
         ctx.font = this.font
         ctx.fillStyle = COLORS.sepia
         ctx.textAlign = 'center'
@@ -272,22 +272,34 @@ export class Lane {
             baseColor = `rgba(160, 196, 255, ${bgAlpha * baseAlpha})` // dlLight
             borderColor = `rgba(122, 162, 221, ${baseAlpha})`
             depthColor = 'rgba(100, 140, 200, 0.4)'
-            charColor = `rgba(44, 24, 16, ${colorT})`
+            const cr = Math.round(122 + colorT * (44 - 122))
+            const cg = Math.round(162 + colorT * (24 - 162))
+            const cb = Math.round(221 + colorT * (16 - 221))
+            charColor = `rgb(${cr}, ${cg}, ${cb})`
           } else if (ch.multiplierType === 'TripleLetter') {
-            baseColor = `rgba(74, 144, 226, ${bgAlpha * baseAlpha})` // tlBlue
-            borderColor = `rgba(53, 122, 189, ${baseAlpha})`
-            depthColor = 'rgba(50, 100, 180, 0.4)'
-            charColor = `rgba(245, 241, 232, ${colorT})`
+            baseColor = `rgba(34, 166, 153, ${bgAlpha * baseAlpha})` // tlBlue (Greenish)
+            borderColor = `rgba(23, 124, 114, ${baseAlpha})`
+            depthColor = 'rgba(20, 100, 95, 0.4)'
+            const cr = Math.round(23 + colorT * (245 - 23))
+            const cg = Math.round(124 + colorT * (241 - 124))
+            const cb = Math.round(114 + colorT * (232 - 114))
+            charColor = `rgb(${cr}, ${cg}, ${cb})`
           } else if (ch.multiplierType === 'DoubleWord') {
             baseColor = `rgba(255, 154, 162, ${bgAlpha * baseAlpha})` // dwCoral
             borderColor = `rgba(221, 120, 128, ${baseAlpha})`
             depthColor = 'rgba(200, 100, 110, 0.4)'
-            charColor = `rgba(44, 24, 16, ${colorT})`
+            const cr = Math.round(221 + colorT * (44 - 221))
+            const cg = Math.round(120 + colorT * (24 - 120))
+            const cb = Math.round(128 + colorT * (16 - 128))
+            charColor = `rgb(${cr}, ${cg}, ${cb})`
           } else if (ch.multiplierType === 'TripleWord') {
-            baseColor = `rgba(208, 0, 0, ${bgAlpha * baseAlpha})` // twRed
-            borderColor = `rgba(158, 0, 0, ${baseAlpha})`
-            depthColor = 'rgba(150, 0, 0, 0.4)'
-            charColor = `rgba(245, 241, 232, ${colorT})`
+            baseColor = `rgba(216, 27, 96, ${bgAlpha * baseAlpha})` // twRed (Pinkish)
+            borderColor = `rgba(163, 18, 72, ${baseAlpha})`
+            depthColor = 'rgba(150, 15, 65, 0.4)'
+            const cr = Math.round(163 + colorT * (245 - 163))
+            const cg = Math.round(18 + colorT * (241 - 18))
+            const cb = Math.round(72 + colorT * (232 - 72))
+            charColor = `rgb(${cr}, ${cg}, ${cb})`
           }
 
           ctx.fillStyle = baseColor

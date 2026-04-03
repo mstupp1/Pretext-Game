@@ -17,10 +17,10 @@ export const COLORS = {
   rule:       'rgba(44, 24, 16, 0.15)',
   shadow:     'rgba(92, 64, 51, 0.12)',
   // Multipliers
-  dlLight:    '#A0C4FF', // Light Blue (adjusted to match theme)
-  tlBlue:     '#4A90E2', // Standard Blue
-  dwCoral:    '#FF9AA2', // Light Red / Coral (adjusted to match theme)
-  twRed:      '#D00000', // Standard Red
+  dlLight:    '#A0C4FF', // Light Blue (Double Letter)
+  tlBlue:     '#22A699', // Greenish Blue (Triple Letter) - modified for better x3 distinction
+  dwCoral:    '#FF9AA2', // Light Red / Coral (Double Word)
+  twRed:      '#D81B60', // Pinkish Red (Triple Word) - modified for better x3 distinction
 } as const
 
 export type MultiplierType = 'None' | 'DoubleLetter' | 'TripleLetter' | 'DoubleWord' | 'TripleWord';

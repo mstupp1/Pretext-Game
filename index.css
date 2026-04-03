@@ -348,9 +348,9 @@ html, body {
   border-color: #7AA2DD !important;
 }
 .multiplier-TripleLetter {
-  background: #4A90E2 !important;
+  background: #22A699 !important; /* Greenish Blue */
   color: var(--bg-ivory) !important;
-  border-color: #357ABD !important;
+  border-color: #177C72 !important;
 }
 .multiplier-DoubleWord {
   background: #FF9AA2 !important;
@@ -358,9 +358,9 @@ html, body {
   border-color: #DD7880 !important;
 }
 .multiplier-TripleWord {
-  background: #D00000 !important;
+  background: #D81B60 !important; /* Pinkish Red */
   color: var(--bg-ivory) !important;
-  border-color: #9E0000 !important;
+  border-color: #A31248 !important;
 }
 .multiplier-DoubleLetter .tile-points, .multiplier-DoubleWord .tile-points {
   color: rgba(44, 24, 16, 0.8) !important;
