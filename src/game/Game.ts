@@ -9,7 +9,7 @@ import { GAME_WIDTH, GAME_HEIGHT, LANE_COUNT, LANE_HEIGHT, LANE_Y_START, COLORS,
 import { renderText, measureTextWidth } from '../text/TextEngine'
 import { getPageCurvatureOffset } from '../text/TextStream'
 
-export type GameState = 'title' | 'playing' | 'gameover'
+export type GameState = 'title' | 'countdown' | 'playing' | 'gameover'
 
 interface CollectedLetter {
   letter: string
@@ -67,6 +67,10 @@ export class Game {
   private collectCooldown: number = 0
   private isSubmitting: boolean = false
 
+  // Countdown state
+  private countdownValue: number = 3
+  private countdownTimer: number = 0
+
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
     this.ctx = canvas.getContext('2d')!
@@ -105,7 +109,9 @@ export class Game {
   // ── State transitions ──
 
   startGame(): void {
-    this.state = 'playing'
+    this.state = 'countdown'
+    this.countdownValue = 3
+    this.countdownTimer = 1.0 // 1 second per number
     this.score = 0
     this.chapter = 1
     this.wordsFound = []
@@ -115,6 +121,11 @@ export class Game {
     this.floatingScores = []
     this.player = new Player()
     this.loadLevel(1)
+    this.toggleUI(false) // Keep UI hidden during countdown
+  }
+
+  private beginPlaying(): void {
+    this.state = 'playing'
     this.toggleUI(true)
     this.updateUI()
     this.updateTrayUI()
@@ -329,6 +340,24 @@ export class Game {
       return
     }
 
+    if (this.state === 'countdown') {
+      this.countdownTimer -= dt
+      if (this.countdownTimer <= 0) {
+        this.countdownValue--
+        this.countdownTimer = 1.0
+        if (this.countdownValue < 0) {
+          this.beginPlaying()
+          return
+        }
+      }
+      
+      // Update lanes during countdown for ambient background
+      for (const lane of this.lanes) {
+        lane.update(dt, -100, -100) // Dummy player pos to avoid effects
+      }
+      return
+    }
+
     if (this.state !== 'playing') return
 
     // Timer
@@ -402,6 +431,11 @@ export class Game {
 
     if (this.state === 'title') {
       this.renderTitle(ctx)
+      return
+    }
+
+    if (this.state === 'countdown') {
+      this.renderCountdown(ctx)
       return
     }
 
@@ -648,6 +682,51 @@ export class Game {
     renderText(ctx, 'Press SPACE or ENTER to play again', GAME_WIDTH / 2, GAME_HEIGHT - 60,
       CANVAS_FONTS.laneItalic(15), COLORS.sepia, 'center')
     ctx.globalAlpha = 1
+  }
+
+  private renderCountdown(ctx: CanvasRenderingContext2D): void {
+    // Backdrop - ivory with background lanes visible
+    ctx.fillStyle = COLORS.ivory
+    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT)
+
+    this.renderBackground(ctx)
+    for (const lane of this.lanes) {
+      lane.render(ctx, -1, -100)
+    }
+
+    // Center ornament / vignette
+    const gradient = ctx.createRadialGradient(
+      GAME_WIDTH / 2, GAME_HEIGHT / 2, 50,
+      GAME_WIDTH / 2, GAME_HEIGHT / 2, 300
+    )
+    gradient.addColorStop(0, 'rgba(245, 241, 232, 0)')
+    gradient.addColorStop(1, 'rgba(245, 241, 232, 0.4)')
+    ctx.fillStyle = gradient
+    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT)
+
+    // Countdown Text
+    ctx.save()
+    ctx.translate(GAME_WIDTH / 2, GAME_HEIGHT / 2)
+    
+    // Smooth scaling / fading based on timer (1.0 -> 0.0)
+    const prog = 1.0 - this.countdownTimer
+    const scale = 0.5 + Math.pow(this.countdownTimer, 0.5) * 2.5
+    const alpha = Math.min(1, this.countdownTimer * 2.5)
+
+    ctx.scale(scale, scale)
+    ctx.globalAlpha = alpha
+
+    const text = this.countdownValue === 0 ? 'BEGIN' : String(this.countdownValue)
+    const font = this.countdownValue === 0 ? CANVAS_FONTS.uiSmallCaps(24) : CANVAS_FONTS.title(64)
+    const color = this.countdownValue === 0 ? COLORS.gold : COLORS.espresso
+
+    renderText(ctx, text, 0, 0, font, color, 'center')
+    
+    ctx.restore()
+
+    // Ornament below
+    renderText(ctx, '❧  ✦  ❧', GAME_WIDTH / 2, GAME_HEIGHT / 2 + 80,
+      CANVAS_FONTS.laneRegular(16), COLORS.gold, 'center')
   }
 
   // ── DOM UI updates ──

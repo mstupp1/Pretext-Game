@@ -17,8 +17,8 @@ export class Player {
   private trailPositions: { x: number; y: number; alpha: number }[] = []
 
   constructor() {
-    // Start at bottom safe zone
-    this.laneIndex = LANE_COUNT - 1
+    // Start at middle row
+    this.laneIndex = Math.floor(LANE_COUNT / 2)
     this.x = GAME_WIDTH / 2
     this.y = this.laneToY(this.laneIndex)
     this.targetX = this.x
@@ -26,7 +26,7 @@ export class Player {
   }
 
   reset(): void {
-    this.laneIndex = LANE_COUNT - 1
+    this.laneIndex = Math.floor(LANE_COUNT / 2)
     this.x = GAME_WIDTH / 2
     this.y = this.laneToY(this.laneIndex)
     this.targetX = this.x
