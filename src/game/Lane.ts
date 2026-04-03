@@ -150,7 +150,7 @@ export class Lane {
       }
 
       // Second Pass: Highlighted and Collected text
-      for (const { ch, charCenterX, charCenterY, totalScale } of topRenderChars) {
+      for (const { ch, charCenterX, charCenterY, totalScale, inkAlpha } of topRenderChars) {
         if (ch.isCollected) {
           ctx.save()
           ctx.globalAlpha = ch.alpha
@@ -164,7 +164,12 @@ export class Lane {
         } else if (ch.isHighlighted) {
           ctx.save()
           ctx.translate(charCenterX, charCenterY)
-          ctx.globalAlpha = 1.0 // Ensure collectibles are always 100% opaque
+          
+          const isLifted = ch.scale > 1.05
+          const proximityAlpha = isLifted ? 1.0 : (0.55 + (ch.scale - 1) * 1.0)
+          const baseAlpha = Math.min(1, ch.alpha * proximityAlpha * inkAlpha)
+          
+          ctx.globalAlpha = baseAlpha
 
           if (ch.rotation !== 0 || totalScale !== 1) {
             ctx.rotate(ch.rotation)
@@ -198,13 +203,13 @@ export class Lane {
 
           ctx.strokeStyle = COLORS.gold
           ctx.lineWidth = 1.5
-          ctx.globalAlpha = 0.6
+          ctx.globalAlpha = baseAlpha * 0.6
           ctx.beginPath()
           ctx.moveTo(-ch.width / 2, pillH / 2 - 1)
           ctx.lineTo(ch.width / 2, pillH / 2 - 1)
           ctx.stroke()
 
-          ctx.globalAlpha = 1
+          ctx.globalAlpha = baseAlpha
           ctx.shadowColor = COLORS.goldGlow
           ctx.shadowBlur = 4 + (ch.scale - 1) * 10
           ctx.font = this.font
