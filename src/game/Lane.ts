@@ -346,6 +346,7 @@ export class Lane {
     ctx.fill()
 
     ctx.fillStyle = colors.charColor
+    ctx.font = this.font
     ctx.fillText(ch.char, 0, -1)
 
     const points = getLetterValue(ch.char)
@@ -443,6 +444,6 @@ export class Lane {
   }
 
   private buildPointsFont(fontSize: number): string {
-    return `800 ${Math.max(9, fontSize * 0.4)}px ${FONTS.ui}`
+    return `800 ${Math.max(8, fontSize * 0.32)}px Georgia, "Times New Roman", serif`
   }
 }

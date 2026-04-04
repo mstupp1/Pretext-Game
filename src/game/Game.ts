@@ -1195,16 +1195,16 @@ export class Game {
     ctx.stroke()
 
     ctx.fillStyle = text
-    ctx.font = CANVAS_FONTS.laneMedium(31)
+    ctx.font = CANVAS_FONTS.laneMedium(30)
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText(letter.letter, centerX, centerY - 2)
+    ctx.fillText(letter.letter, centerX, centerY - 1)
 
     ctx.fillStyle = COLORS.ivory
-    ctx.font = '700 15px "Cormorant Garamond", Georgia, serif'
+    ctx.font = '700 14px Georgia, "Times New Roman", serif'
     ctx.textAlign = 'right'
     ctx.textBaseline = 'bottom'
-    ctx.fillText(String(letter.value), x + width - 4, y + height - 7)
+    ctx.fillText(String(letter.value), x + width - 4, y + height - 6)
 
     ctx.restore()
   }
