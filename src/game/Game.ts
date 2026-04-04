@@ -24,6 +24,13 @@ interface CollectedLetter {
   animProgress: number
 }
 
+interface RemovedTrayLetter {
+  letter: CollectedLetter
+  x: number
+  y: number
+  progress: number
+}
+
 interface FeedbackMessage {
   text: string
   success: boolean
@@ -78,6 +85,7 @@ export class Game {
   public chapter: number = 1
   public timeRemaining: number = LEVEL_TIME
   public collectedLetters: CollectedLetter[] = []
+  public removedTrayLetters: RemovedTrayLetter[] = []
   public wordsFound: ScoredLetter[][] = []
   public usedWords: Set<string> = new Set()    // words used this run (no repeats)
   public feedback: FeedbackMessage | null = null
@@ -265,6 +273,7 @@ export class Game {
     this.wordsFound = []
     this.usedWords = new Set()
     this.collectedLetters = []
+    this.removedTrayLetters = []
     this.feedback = null
     this.floatingScores = []
     this.particles.clear()
@@ -329,6 +338,7 @@ export class Game {
     this.collectCooldown = 0
     this.isSubmitting = false
     this.collectedLetters = []
+    this.removedTrayLetters = []
     this.wordsFound = []
     this.usedWords = new Set()
     this.feedback = null
@@ -740,6 +750,7 @@ export class Game {
 
       // Clear all letters after successful submit
       this.collectedLetters = []
+      this.removedTrayLetters = []
 
       const timeMsg = timeBonus > 0 ? ` (+${timeBonus}s)` : ''
       this.showFeedback(`${result.word}: +${result.totalScore}${timeMsg}  ${result.message}`, true)
@@ -765,7 +776,19 @@ export class Game {
 
   removeLastLetter(): void {
     if (this.collectedLetters.length > 0) {
-      this.collectedLetters.pop()
+      const removedIndex = this.collectedLetters.length - 1
+      const removed = this.collectedLetters.pop()
+      if (removed) {
+        const position = this.getTrayTileCenter(removedIndex, removedIndex + 1)
+        const settled = this.titleEaseOut(removed.animProgress)
+        const startY = removed.floatingY + getPageCurvatureOffset(removed.floatingX, GAME_WIDTH)
+        this.removedTrayLetters.push({
+          letter: removed,
+          x: removed.floatingX + (position.x - removed.floatingX) * settled,
+          y: startY + (position.y - startY) * settled,
+          progress: 0,
+        })
+      }
       audioManager.playBackspace()
     }
   }
@@ -876,6 +899,10 @@ export class Game {
     for (const letter of this.collectedLetters) {
       letter.animProgress = Math.min(1, letter.animProgress + dt * 4)
     }
+    this.removedTrayLetters = this.removedTrayLetters.filter((letter) => {
+      letter.progress = Math.min(1, letter.progress + dt * 4.5)
+      return letter.progress < 1
+    })
 
     // Floating scores
     this.floatingScores = this.floatingScores.filter(fs => {
@@ -995,21 +1022,20 @@ export class Game {
   }
 
   private renderCanvasTray(ctx: CanvasRenderingContext2D): void {
-    const slotCapacity = 15
-    const tileWidth = 44
-    const tileHeight = 52
-    const tileGap = 6
-    const innerPaddingX = 32
-    const traySideMargin = 18
-    const trayHeight = 88
-    const trayY = GAME_HEIGHT - trayHeight - 10
-    const innerWidth = slotCapacity * tileWidth + (slotCapacity - 1) * tileGap + innerPaddingX * 2
-    const trayWidth = innerWidth + traySideMargin * 2
-    const trayX = (GAME_WIDTH - trayWidth) / 2
-    const innerX = trayX + traySideMargin
-    const innerY = trayY + 10
-    const innerHeight = trayHeight - 22
-    const lipHeight = 10
+    const {
+      tileWidth,
+      tileHeight,
+      tileGap,
+      trayHeight,
+      trayY,
+      innerWidth,
+      trayWidth,
+      trayX,
+      innerX,
+      innerY,
+      innerHeight,
+      lipHeight,
+    } = this.getTrayMetrics()
     const trayPath = this.createRoundedRectPath(trayX, trayY, trayWidth, trayHeight, 14)
     const innerPath = this.createRoundedRectPath(innerX, innerY, innerWidth, innerHeight, 10)
     const lipPath = this.createRoundedRectPath(innerX + 18, innerY + innerHeight - lipHeight - 4, innerWidth - 36, lipHeight, 8)
@@ -1099,6 +1125,14 @@ export class Game {
       this.renderCanvasTrayTile(ctx, letter, x, y, tileWidth, tileHeight, scale)
     })
 
+    this.removedTrayLetters.forEach((letter) => {
+      const t = this.titleEaseOut(letter.progress)
+      const driftY = letter.y - t * 14
+      const alpha = 1 - t
+      const scale = 1 - t * 0.03
+      this.renderCanvasTrayTile(ctx, letter.letter, letter.x, driftY, tileWidth, tileHeight, scale, alpha)
+    })
+
     if (this.feedback && (this.state === 'countdown' || this.state === 'playing' || this.state === 'paused')) {
       const fade = Math.min(1, this.feedback.timer / 0.35)
       ctx.save()
@@ -1122,6 +1156,7 @@ export class Game {
     width: number,
     height: number,
     scale: number,
+    alpha: number = 1,
   ): void {
     const { fill, border, text, score } = this.getTrayTilePalette(letter.multiplierType)
     const x = centerX - width / 2
@@ -1129,6 +1164,7 @@ export class Game {
     const tilePath = this.createRoundedRectPath(x, y, width, height, 5)
 
     ctx.save()
+    ctx.globalAlpha = alpha
     ctx.translate(centerX, centerY)
     ctx.scale(scale, scale)
     ctx.translate(-centerX, -centerY)
@@ -1171,6 +1207,66 @@ export class Game {
     ctx.fillText(String(letter.value), x + width - 5, y + height - 4)
 
     ctx.restore()
+  }
+
+  private getTrayMetrics(): {
+    tileWidth: number
+    tileHeight: number
+    tileGap: number
+    trayHeight: number
+    trayY: number
+    innerWidth: number
+    trayWidth: number
+    trayX: number
+    innerX: number
+    innerY: number
+    innerHeight: number
+    lipHeight: number
+  } {
+    const slotCapacity = 15
+    const tileWidth = 44
+    const tileHeight = 52
+    const tileGap = 6
+    const innerPaddingX = 32
+    const traySideMargin = 18
+    const trayHeight = 88
+    const trayY = GAME_HEIGHT - trayHeight - 10
+    const innerWidth = slotCapacity * tileWidth + (slotCapacity - 1) * tileGap + innerPaddingX * 2
+    const trayWidth = innerWidth + traySideMargin * 2
+    const trayX = (GAME_WIDTH - trayWidth) / 2
+    const innerX = trayX + traySideMargin
+    const innerY = trayY + 10
+    const innerHeight = trayHeight - 22
+    const lipHeight = 10
+
+    return {
+      tileWidth,
+      tileHeight,
+      tileGap,
+      trayHeight,
+      trayY,
+      innerWidth,
+      trayWidth,
+      trayX,
+      innerX,
+      innerY,
+      innerHeight,
+      lipHeight,
+    }
+  }
+
+  private getTrayTileCenter(index: number, totalLetters: number): { x: number; y: number } {
+    const { tileWidth, tileHeight, tileGap, innerX, innerY, innerWidth, innerHeight, lipHeight } = this.getTrayMetrics()
+    const tileBottomY = innerY + innerHeight - lipHeight - 2
+    const totalLettersWidth = totalLetters > 0
+      ? totalLetters * tileWidth + (totalLetters - 1) * tileGap
+      : 0
+    const startX = innerX + (innerWidth - totalLettersWidth) / 2
+
+    return {
+      x: startX + index * (tileWidth + tileGap) + tileWidth / 2,
+      y: tileBottomY - tileHeight / 2,
+    }
   }
 
   private getTrayTilePalette(multiplierType: MultiplierType): { fill: string; border: string; text: string; score: string } {
