@@ -48,7 +48,7 @@ html, body {
   align-items: center;
   justify-content: center;
   background:
-    linear-gradient(rgba(245, 241, 232, 0.78), rgba(245, 241, 232, 0.78)),
+    linear-gradient(rgba(214, 204, 186, 0.84), rgba(214, 204, 186, 0.84)),
     url("/images/background_1.png"),
     radial-gradient(ellipse at 50% 30%, rgba(245, 241, 232, 0.88), rgba(232, 224, 208, 0.74)),
     repeating-linear-gradient(
@@ -58,8 +58,8 @@ html, body {
       rgba(44, 24, 16, 0.1) 27px,
       rgba(44, 24, 16, 0.1) 28px
     );
-  background-position: center, center, center, center;
-  background-size: cover, 38%, cover, auto;
+  background-position: center, 35% center, center, center;
+  background-size: cover, 56%, cover, auto;
   opacity: 0;
   transition: opacity 0.85s ease;
   will-change: opacity;
