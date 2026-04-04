@@ -285,6 +285,7 @@ export class Game {
 
   private returnToTitle(): void {
     this.hidePauseOverlay()
+    const previousState = this.state
     this.state = 'title'
     this.titleTime = 0
     this.pauseOptionIndex = 0
@@ -298,7 +299,11 @@ export class Game {
     this.feedback = null
     this.floatingScores = []
     this.particles.clear()
-    audioManager.restartTitleMusic()
+    if (previousState === 'gameover') {
+      audioManager.playTitleMusic()
+    } else {
+      audioManager.restartTitleMusic()
+    }
     this.setHudContentVisible(false)
     this.updateUI()
     this.updateTrayUI()
