@@ -40,12 +40,10 @@ export class AudioManager {
   private fadeStartTime: number = 0;
   private fadeFromTitleVolume: number = 0;
   private fadeFromGameVolume: number = 0;
-  private pendingFadeTimeout: number | null = null;
   
   private MAX_VOLUME = 0.5;
   private TITLE_AMBIENCE_MIX = 0.15;
   private MUSIC_CROSSFADE_MS = 1200;
-  private MUSIC_ENTRY_DELAY_MS = 4000;
   
   constructor() {
     this.titleAudio = new Audio(`${import.meta.env.BASE_URL}music/Title_1.mp3`);
@@ -194,11 +192,26 @@ export class AudioManager {
   }
   
   public playTitleMusic() {
-    this.transitionMusic('title');
+    this.targetTitleVolume = this.MAX_VOLUME;
+    this.targetGameVolume = 0;
+    this.startFader();
+  }
+
+  public restartTitleMusic() {
+    this.titleAudio.currentTime = 0;
+    this.titleAmbienceAudio.currentTime = 0;
+    this.playTitleMusic();
+  }
+
+  public fadeOutTitleMusic() {
+    this.targetTitleVolume = 0;
+    this.startFader();
   }
   
   public playGameMusic() {
-    this.transitionMusic('game');
+    this.targetTitleVolume = 0;
+    this.startGameMusicImmediate();
+    this.startFader();
   }
   
   public stopAllMusic() {
@@ -320,49 +333,21 @@ export class AudioManager {
     this.playSfx(this.timewarning2Sfx);
   }
 
-  private transitionMusic(target: 'title' | 'game') {
-    this.clearPendingFadeTimeout();
+  private chooseRandomGameTrack() {
+    if (this.gamePlaylist.length === 0) return;
 
-    const shouldDelayIncoming =
-      target === 'title'
-        ? this.gameVolume > 0.01 || this.targetGameVolume > 0.01
-        : this.titleVolume > 0.01 || this.targetTitleVolume > 0.01;
-
-    if (target === 'title') {
-      this.targetGameVolume = 0;
-      this.startFader();
-
-      if (shouldDelayIncoming) {
-        this.pendingFadeTimeout = window.setTimeout(() => {
-          this.pendingFadeTimeout = null;
-          this.targetTitleVolume = this.MAX_VOLUME;
-          this.startFader();
-        }, this.MUSIC_ENTRY_DELAY_MS);
-      } else {
-        this.targetTitleVolume = this.MAX_VOLUME;
-        this.startFader();
-      }
+    const previousIndex = this.currentGameTrackIndex;
+    if (this.gamePlaylist.length === 1) {
+      this.currentGameTrackIndex = 0;
       return;
     }
 
-    this.targetTitleVolume = 0;
-    this.startFader();
-
-    if (shouldDelayIncoming) {
-      this.pendingFadeTimeout = window.setTimeout(() => {
-        this.pendingFadeTimeout = null;
-        this.startGameMusicImmediate();
-      }, this.MUSIC_ENTRY_DELAY_MS);
-    } else {
-      this.startGameMusicImmediate();
+    let nextIndex = previousIndex;
+    while (nextIndex === previousIndex) {
+      nextIndex = Math.floor(Math.random() * this.gamePlaylist.length);
     }
-  }
 
-  private clearPendingFadeTimeout() {
-    if (this.pendingFadeTimeout !== null) {
-      window.clearTimeout(this.pendingFadeTimeout);
-      this.pendingFadeTimeout = null;
-    }
+    this.currentGameTrackIndex = nextIndex;
   }
 
   private startGameMusicImmediate() {
@@ -370,8 +355,15 @@ export class AudioManager {
     this.fadeFromGameVolume = this.MAX_VOLUME;
     this.gameVolume = this.MAX_VOLUME;
 
+    this.gamePlaylist.forEach(track => {
+      track.pause();
+      track.currentTime = 0;
+    });
+
+    this.chooseRandomGameTrack();
+
     const gameTrack = this.getCurrentGameTrack();
-    if (this.initialized && gameTrack && gameTrack.paused) {
+    if (this.initialized && gameTrack) {
       gameTrack.play().catch(e => console.warn('Game audio play prevented:', e));
     }
 

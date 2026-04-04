@@ -212,7 +212,7 @@ export class Game {
     } else if (this.state === 'gameover') {
       audioManager.playPagesFromGameOver()
     }
-    audioManager.playGameMusic()
+    audioManager.fadeOutTitleMusic()
     this.hidePauseOverlay()
     this.state = 'countdown'
     this.countdownValue = 3
@@ -244,6 +244,7 @@ export class Game {
   }
 
   private beginPlaying(): void {
+    audioManager.playGameMusic()
     this.state = 'playing'
     this.updateUI()
     this.updateTrayUI()
@@ -270,7 +271,7 @@ export class Game {
 
   private gameOver(): void {
     audioManager.playApplause(this.chapter)
-    audioManager.playTitleMusic()
+    audioManager.restartTitleMusic()
     this.state = 'gameover'
     this.saveHighScore(this.score)
     this.setHudContentVisible(false)
@@ -297,7 +298,7 @@ export class Game {
     this.feedback = null
     this.floatingScores = []
     this.particles.clear()
-    audioManager.playTitleMusic()
+    audioManager.restartTitleMusic()
     this.setHudContentVisible(false)
     this.updateUI()
     this.updateTrayUI()
