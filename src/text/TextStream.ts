@@ -88,6 +88,14 @@ export class TextStream {
     this.buildStream()
   }
 
+  public setSpeed(speed: number): void {
+    this.speed = speed
+  }
+
+  public setHighlightRate(rate: number): void {
+    this.highlightRate = rate
+  }
+
   private buildStream(): void {
     // Combine multiple passages to create a long stream
     let text = ''

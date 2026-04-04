@@ -509,7 +509,14 @@ export class Game {
       audioManager.playChapterUnlock()
       this.level = generateLevel(this.chapter)
       this.timeRemaining += this.level.timeLimit // Add chapter allotment to current time (reward for speed)
-      this.buildLanes()
+
+      // Update existing lanes with new configs rather than replacing them
+      for (let i = 0; i < LANE_COUNT; i++) {
+        if (this.lanes[i]) {
+          this.lanes[i].updateConfig(this.level.laneConfigs[i])
+        }
+      }
+
       this.showFeedback(`Chapter ${ROMAN_NUMERALS[Math.min(this.chapter - 1, ROMAN_NUMERALS.length - 1)]} — New chapter unlocked!`, true)
       // Celebration particles
       this.particles.waveText(`Chapter ${ROMAN_NUMERALS[Math.min(this.chapter - 1, ROMAN_NUMERALS.length - 1)]}`, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40)

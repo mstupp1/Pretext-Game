@@ -65,6 +65,14 @@ export class Lane {
     }
   }
 
+  updateConfig(newConfig: LaneConfig): void {
+    this.config = newConfig
+    if (this.stream) {
+      this.stream.setSpeed(newConfig.speed)
+      this.stream.setHighlightRate(newConfig.highlightRate)
+    }
+  }
+
   update(dt: number, playerX: number, playerY: number): void {
     if (this.stream) {
       this.stream.update(dt)
