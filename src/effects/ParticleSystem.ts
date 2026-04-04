@@ -21,6 +21,7 @@ export interface TypoParticle {
   life: number     // 0..1, decreasing
   gravity: number
   friction: number
+  curvatureScale?: number
 }
 
 // Pre-computed character palette for particle effects
@@ -78,7 +79,7 @@ export class ParticleSystem {
 
       ctx.save()
       ctx.globalAlpha = p.alpha
-      const offset = getPageCurvatureOffset(p.x, GAME_WIDTH)
+      const offset = getPageCurvatureOffset(p.x, GAME_WIDTH) * (p.curvatureScale ?? 1)
       ctx.translate(p.x, p.y + offset)
       ctx.rotate(p.rotation)
       ctx.scale(p.scale, p.scale)
@@ -275,14 +276,17 @@ export class ParticleSystem {
   waveText(text: string, x: number, y: number, color: string = COLORS.gold): void {
     const font = CANVAS_FONTS.laneBold(32)
     const chars = measureCharsInLine(text, font)
-    const totalWidth = chars.length > 0 ? chars[chars.length - 1].x + chars[chars.length - 1].width : 0
+    const letterSpacing = 2.5
+    const totalWidth = chars.length > 0
+      ? chars[chars.length - 1].x + chars[chars.length - 1].width + letterSpacing * (chars.length - 1)
+      : 0
     const offsetX = x - totalWidth / 2
 
     for (let i = 0; i < chars.length; i++) {
       const mc = chars[i]
       if (mc.char.trim() === '') continue
 
-      const charX = offsetX + mc.x + mc.width / 2
+      const charX = offsetX + mc.x + mc.width / 2 + letterSpacing * i
       // Stagger upward motion
       const delay = i * 0.05
 
@@ -290,7 +294,7 @@ export class ParticleSystem {
         char: mc.char,
         x: charX,
         y: y + 10,
-        vx: (Math.random() - 0.5) * 20,
+        vx: (Math.random() - 0.5) * 8,
         vy: -40 - Math.random() * 30,
         rotation: 0,
         rotationSpeed: 0,
@@ -302,6 +306,7 @@ export class ParticleSystem {
         life: 1.8 + delay,
         gravity: 5,
         friction: 2,
+        curvatureScale: 0.1,
       })
     }
   }
