@@ -64,6 +64,8 @@ interface RenderAssets {
 }
 
 export class Game {
+  private static readonly TITLE_INTRO_DURATION = 0.85
+
   public state: GameState = 'title'
   public canvas: HTMLCanvasElement
   public ctx: CanvasRenderingContext2D
@@ -91,6 +93,8 @@ export class Game {
 
   // Title screen animation
   private titleTime: number = 0
+  private titleIntroTime: number = 0
+  private hasPlayedTitleIntro: boolean = false
 
   // Manage collecting cooldown
   private collectCooldown: number = 0
@@ -322,6 +326,7 @@ export class Game {
     const previousState = this.state
     this.state = 'title'
     this.titleTime = 0
+    this.titleIntroTime = 0
     this.pauseOptionIndex = 0
     this.pauseConfirmAction = null
     this.pauseConfirmIndex = 0
@@ -817,6 +822,13 @@ export class Game {
     this.syncHudVisibility()
 
     if (this.state === 'title') {
+      if (!this.hasPlayedTitleIntro) {
+        this.titleIntroTime = Math.min(Game.TITLE_INTRO_DURATION, this.titleIntroTime + dt)
+        if (this.titleIntroTime >= Game.TITLE_INTRO_DURATION) {
+          this.hasPlayedTitleIntro = true
+        }
+        return
+      }
       this.titleTime += dt
       return
     }

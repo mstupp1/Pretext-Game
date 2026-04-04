@@ -60,6 +60,13 @@ html, body {
     );
   background-position: center, center, center, center;
   background-size: cover, 38%, cover, auto;
+  opacity: 0;
+  transition: opacity 0.85s ease;
+  will-change: opacity;
+}
+
+#game-container.is-visible {
+  opacity: 1;
 }
 
 #game-wrapper {

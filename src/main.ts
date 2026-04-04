@@ -25,14 +25,16 @@ async function init(): Promise<void> {
 
   const canvas = document.getElementById('game-canvas') as HTMLCanvasElement
   if (!canvas) throw new Error('Canvas not found')
+  const gameContainer = document.getElementById('game-container')
+  if (!gameContainer) throw new Error('Game container not found')
+  const containerEl: HTMLElement = gameContainer
 
   const game = new Game(canvas)
 
   // Responsive sizing
   function resize(): void {
-    const container = document.getElementById('game-container')!
     const wrapper = document.getElementById('game-wrapper')!
-    const { width, height } = container.getBoundingClientRect()
+    const { width, height } = containerEl.getBoundingClientRect()
 
     // Calculate scale to fit the entire game within viewport, dynamically factoring in UI space
     const overlayTop = document.getElementById('overlay-top')!
@@ -77,6 +79,10 @@ async function init(): Promise<void> {
 
   window.addEventListener('resize', resize)
   resize()
+
+  requestAnimationFrame(() => {
+    containerEl.classList.add('is-visible')
+  })
 
   // Game loop
   let lastTime = performance.now()
