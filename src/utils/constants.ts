@@ -59,6 +59,18 @@ export const SAFE_ZONE_INDICES = [0, LANE_COUNT - 1] // top and bottom safe zone
 // Player
 export const PLAYER_SIZE = 28
 export const PLAYER_SPEED = 3.5
+export const PLAYER_GRID_STEP = LANE_HEIGHT
+export const PLAYER_GRID_CENTER_X = GAME_WIDTH / 2
+export const PLAYER_GRID_MAX_OFFSET = Math.floor(
+  Math.min(
+    PLAYER_GRID_CENTER_X - PLAYER_SIZE,
+    GAME_WIDTH - PLAYER_GRID_CENTER_X - PLAYER_SIZE,
+  ) / PLAYER_GRID_STEP,
+)
+
+export function getPlayerGridX(offsetFromCenter: number): number {
+  return PLAYER_GRID_CENTER_X + offsetFromCenter * PLAYER_GRID_STEP
+}
 
 // Game settings
 export const LEVEL_TIME = 60 // seconds
