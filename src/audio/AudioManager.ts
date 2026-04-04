@@ -31,11 +31,15 @@ export class AudioManager {
   private initialized: boolean = false;
   private fadeInterval: number | null = null;
   private isFading: boolean = false;
+  private fadeStartTime: number = 0;
+  private fadeFromTitleVolume: number = 0;
+  private fadeFromGameVolume: number = 0;
+  private pendingFadeTimeout: number | null = null;
   
   private MAX_VOLUME = 0.5;
   private TITLE_AMBIENCE_MIX = 0.15;
-  private FADE_STEP = 0.05; // 5% volume change per interval tick
-  private FADE_INTERVAL_MS = 50;
+  private MUSIC_CROSSFADE_MS = 1200;
+  private MUSIC_ENTRY_DELAY_MS = 1500;
   
   constructor() {
     this.titleAudio = new Audio(`${import.meta.env.BASE_URL}music/Title_1.mp3`);
@@ -166,29 +170,11 @@ export class AudioManager {
   }
   
   public playTitleMusic() {
-    this.targetTitleVolume = this.MAX_VOLUME;
-    this.targetGameVolume = 0;
-    
-    if (this.initialized && this.titleAudio.paused) {
-      this.titleAudio.play().catch(e => console.warn('Title audio play prevented:', e));
-    }
-    if (this.initialized && this.titleAmbienceAudio.paused) {
-      this.titleAmbienceAudio.play().catch(e => console.warn('Title ambience play prevented:', e));
-    }
-    
-    this.startFader();
+    this.transitionMusic('title');
   }
   
   public playGameMusic() {
-    this.targetTitleVolume = 0;
-    this.targetGameVolume = this.MAX_VOLUME;
-    
-    const gameTrack = this.getCurrentGameTrack();
-    if (this.initialized && gameTrack && gameTrack.paused) {
-      gameTrack.play().catch(e => console.warn('Game audio play prevented:', e));
-    }
-    
-    this.startFader();
+    this.transitionMusic('game');
   }
   
   public stopAllMusic() {
@@ -283,62 +269,151 @@ export class AudioManager {
     this.playSfx(this.timewarning2Sfx);
   }
 
+  private transitionMusic(target: 'title' | 'game') {
+    this.clearPendingFadeTimeout();
+
+    const shouldDelayIncoming =
+      target === 'title'
+        ? this.gameVolume > 0.01 || this.targetGameVolume > 0.01
+        : this.titleVolume > 0.01 || this.targetTitleVolume > 0.01;
+
+    if (target === 'title') {
+      this.targetGameVolume = 0;
+      this.startFader();
+
+      if (shouldDelayIncoming) {
+        this.pendingFadeTimeout = window.setTimeout(() => {
+          this.pendingFadeTimeout = null;
+          this.targetTitleVolume = this.MAX_VOLUME;
+          this.startFader();
+        }, this.MUSIC_ENTRY_DELAY_MS);
+      } else {
+        this.targetTitleVolume = this.MAX_VOLUME;
+        this.startFader();
+      }
+      return;
+    }
+
+    this.targetTitleVolume = 0;
+    this.startFader();
+
+    if (shouldDelayIncoming) {
+      this.pendingFadeTimeout = window.setTimeout(() => {
+        this.pendingFadeTimeout = null;
+        this.startGameMusicImmediate();
+      }, this.MUSIC_ENTRY_DELAY_MS);
+    } else {
+      this.startGameMusicImmediate();
+    }
+  }
+
+  private clearPendingFadeTimeout() {
+    if (this.pendingFadeTimeout !== null) {
+      window.clearTimeout(this.pendingFadeTimeout);
+      this.pendingFadeTimeout = null;
+    }
+  }
+
+  private startGameMusicImmediate() {
+    this.targetGameVolume = this.MAX_VOLUME;
+    this.fadeFromGameVolume = this.MAX_VOLUME;
+    this.gameVolume = this.MAX_VOLUME;
+
+    const gameTrack = this.getCurrentGameTrack();
+    if (this.initialized && gameTrack && gameTrack.paused) {
+      gameTrack.play().catch(e => console.warn('Game audio play prevented:', e));
+    }
+
+    this.applyMusicVolumes();
+  }
+
   private startFader() {
-    if (this.isFading) return;
-    this.isFading = true;
-    
-    this.fadeInterval = window.setInterval(() => {
-      let isTitleDone = false;
-      let isGameDone = false;
-      
-      // Update Title Volume
-      if (Math.abs(this.titleVolume - this.targetTitleVolume) <= this.FADE_STEP) {
-        this.titleVolume = this.targetTitleVolume;
-        isTitleDone = true;
-      } else {
-        this.titleVolume += this.titleVolume < this.targetTitleVolume ? this.FADE_STEP : -this.FADE_STEP;
-      }
-      
-      // Update Game Volume
-      if (Math.abs(this.gameVolume - this.targetGameVolume) <= this.FADE_STEP) {
-        this.gameVolume = this.targetGameVolume;
-        isGameDone = true;
-      } else {
-        this.gameVolume += this.gameVolume < this.targetGameVolume ? this.FADE_STEP : -this.FADE_STEP;
-      }
-      
-      // Clamp volumes to prevent floating point errors
-      this.titleVolume = Math.max(0, Math.min(1, this.titleVolume));
-      this.gameVolume = Math.max(0, Math.min(1, this.gameVolume));
-      
-      // Apply volumes
-      this.titleAudio.volume = this.isMusicMuted ? 0 : this.titleVolume;
-      this.titleAmbienceAudio.volume = this.isMusicMuted ? 0 : this.titleVolume * this.TITLE_AMBIENCE_MIX;
-      const gameTrack = this.getCurrentGameTrack();
-      if (gameTrack) {
-        gameTrack.volume = this.isMusicMuted ? 0 : this.gameVolume;
-      }
-      
-      // Pause completely faded out tracks
-      if (this.titleVolume === 0 && !this.titleAudio.paused) {
-        this.titleAudio.pause();
-      }
-      if (this.titleVolume === 0 && !this.titleAmbienceAudio.paused) {
-        this.titleAmbienceAudio.pause();
-      }
-      if (this.gameVolume === 0 && gameTrack && !gameTrack.paused) {
-        gameTrack.pause();
-      }
-      
-      // End fading loop if done
-      if (isTitleDone && isGameDone) {
-        if (this.fadeInterval !== null) {
-          window.clearInterval(this.fadeInterval);
-          this.fadeInterval = null;
+    if (this.initialized) {
+      if (this.targetTitleVolume > 0) {
+        if (this.titleAudio.paused) {
+          this.titleAudio.play().catch(e => console.warn('Title audio play prevented:', e));
         }
-        this.isFading = false;
+        if (this.titleAmbienceAudio.paused) {
+          this.titleAmbienceAudio.play().catch(e => console.warn('Title ambience play prevented:', e));
+        }
       }
-    }, this.FADE_INTERVAL_MS);
+
+      const gameTrack = this.getCurrentGameTrack();
+      if (this.targetGameVolume > 0 && gameTrack && gameTrack.paused) {
+        gameTrack.play().catch(e => console.warn('Game audio play prevented:', e));
+      }
+    }
+
+    this.fadeFromTitleVolume = this.titleVolume;
+    this.fadeFromGameVolume = this.gameVolume;
+    this.fadeStartTime = performance.now();
+
+    if (this.fadeInterval !== null) {
+      window.cancelAnimationFrame(this.fadeInterval);
+    }
+
+    this.isFading = true;
+
+    const step = (now: number) => {
+      const elapsed = now - this.fadeStartTime;
+      const progress = Math.min(1, elapsed / this.MUSIC_CROSSFADE_MS);
+      const eased = this.easeInOutSine(progress);
+
+      this.titleVolume = this.lerp(this.fadeFromTitleVolume, this.targetTitleVolume, eased);
+      this.gameVolume = this.lerp(this.fadeFromGameVolume, this.targetGameVolume, eased);
+
+      this.applyMusicVolumes();
+
+      if (progress >= 1) {
+        this.titleVolume = this.targetTitleVolume;
+        this.gameVolume = this.targetGameVolume;
+        this.applyMusicVolumes();
+        this.pauseSilentTracks();
+        this.fadeInterval = null;
+        this.isFading = false;
+        return;
+      }
+
+      this.fadeInterval = window.requestAnimationFrame(step);
+    };
+
+    this.fadeInterval = window.requestAnimationFrame(step);
+  }
+
+  private applyMusicVolumes() {
+    this.titleVolume = Math.max(0, Math.min(1, this.titleVolume));
+    this.gameVolume = Math.max(0, Math.min(1, this.gameVolume));
+
+    this.titleAudio.volume = this.isMusicMuted ? 0 : this.titleVolume;
+    this.titleAmbienceAudio.volume = this.isMusicMuted ? 0 : this.titleVolume * this.TITLE_AMBIENCE_MIX;
+
+    const gameTrack = this.getCurrentGameTrack();
+    if (gameTrack) {
+      gameTrack.volume = this.isMusicMuted ? 0 : this.gameVolume;
+    }
+  }
+
+  private pauseSilentTracks() {
+    if (this.titleVolume === 0 && !this.titleAudio.paused) {
+      this.titleAudio.pause();
+    }
+    if (this.titleVolume === 0 && !this.titleAmbienceAudio.paused) {
+      this.titleAmbienceAudio.pause();
+    }
+
+    const gameTrack = this.getCurrentGameTrack();
+    if (this.gameVolume === 0 && gameTrack && !gameTrack.paused) {
+      gameTrack.pause();
+    }
+  }
+
+  private lerp(start: number, end: number, t: number): number {
+    return start + (end - start) * t;
+  }
+
+  private easeInOutSine(t: number): number {
+    const clamped = Math.max(0, Math.min(1, t));
+    return -(Math.cos(Math.PI * clamped) - 1) / 2;
   }
 }
 
