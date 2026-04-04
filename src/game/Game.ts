@@ -523,8 +523,8 @@ export class Game {
       lane.update(dt, this.player.x, this.player.y)
     }
 
-    // Check chapter threshold (easy progression: 75 points per chapter)
-    const requiredScore = this.chapter * 75
+    // Check chapter threshold (triangular progression: increment grows by 100 each chapter)
+    const requiredScore = 50 * this.chapter * (this.chapter + 1)
     if (this.score >= requiredScore) {
       this.chapter++
       audioManager.playChapterUnlock()
@@ -1060,12 +1060,12 @@ export class Game {
     const nextEl = document.getElementById('next-chapter-value')
     const progressFillEl = document.getElementById('score-progress-fill')
 
-    const nextTarget = this.chapter * 75
+    const nextTarget = 50 * this.chapter * (this.chapter + 1)
 
     if (scoreEl) scoreEl.textContent = String(this.score)
     if (levelEl) levelEl.textContent = ROMAN_NUMERALS[Math.min(this.chapter - 1, 9)]
     if (nextEl) nextEl.textContent = String(nextTarget)
-    
+
     if (progressFillEl) {
       const progress = Math.min(100, (this.score / nextTarget) * 100)
       progressFillEl.style.width = `${progress}%`
