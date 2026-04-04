@@ -39,10 +39,14 @@ export class AudioManager {
     this.titleAudio = new Audio(`${import.meta.env.BASE_URL}music/Title_1.mp3`);
     this.titleAudio.loop = true;
     this.titleAudio.volume = 0;
-    
-    const gameTrack1 = new Audio(`${import.meta.env.BASE_URL}music/Game_1.mp3`);
-    gameTrack1.volume = 0;
-    this.gamePlaylist.push(gameTrack1);
+
+    for (const trackName of ['Game_1.mp3', 'Game_2.mp3', 'Game_3.mp3']) {
+      const track = new Audio(`${import.meta.env.BASE_URL}music/${trackName}`);
+      track.volume = 0;
+      this.gamePlaylist.push(track);
+    }
+
+    this.currentGameTrackIndex = Math.floor(Math.random() * this.gamePlaylist.length);
     
     // Setup playlist looping
     this.gamePlaylist.forEach((track) => {
@@ -314,4 +318,3 @@ export class AudioManager {
 }
 
 export const audioManager = new AudioManager();
-
