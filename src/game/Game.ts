@@ -48,8 +48,6 @@ interface HudElements {
   timerValue: HTMLElement | null
   nextChapterValue: HTMLElement | null
   scoreProgressFill: HTMLElement | null
-  wordFeedback: HTMLElement | null
-  currentWord: HTMLElement | null
   completedWordsList: HTMLElement | null
 }
 
@@ -104,6 +102,7 @@ export class Game {
   private pauseConfirmIndex: number = 0
   private hud: HudElements
   private renderAssets: RenderAssets
+  private trayTexture: HTMLImageElement | null
   private lastHudScore: string | null = null
   private lastHudLevel: string | null = null
   private lastHudTimer: string | null = null
@@ -127,6 +126,7 @@ export class Game {
     this.level = generateLevel(1)
     this.hud = this.getHudElements()
     this.renderAssets = this.createRenderAssets()
+    this.trayTexture = this.loadTrayTexture()
     this.loadHighScores()
 
     // Input handlers
@@ -136,7 +136,6 @@ export class Game {
     // Show UI bars on all screens (they stay visible as layout chrome)
     this.setHudContentVisible(false)
     this.updateUI()
-    this.updateTrayUI()
     this.updateWordsUI()
 
     this.setupPauseMenu()
@@ -274,7 +273,6 @@ export class Game {
 
     this.setHudContentVisible(true)
     this.updateUI()
-    this.updateTrayUI()
     this.updateWordsUI()
 
     const gameoverOverlay = document.getElementById('gameover-overlay')
@@ -285,7 +283,6 @@ export class Game {
     audioManager.playGameMusic()
     this.state = 'playing'
     this.updateUI()
-    this.updateTrayUI()
     this.updateWordsUI()
   }
 
@@ -314,7 +311,6 @@ export class Game {
     this.saveHighScore(this.score)
     this.setHudContentVisible(false)
     this.updateUI()
-    this.updateTrayUI()
     this.updateWordsUI()
 
     const gameoverOverlay = document.getElementById('gameover-overlay')
@@ -345,11 +341,7 @@ export class Game {
     }
     this.setHudContentVisible(false)
     this.updateUI()
-    this.updateTrayUI()
     this.updateWordsUI()
-
-    const feedbackEl = document.getElementById('word-feedback')
-    if (feedbackEl) feedbackEl.textContent = ''
 
     const gameoverOverlay = document.getElementById('gameover-overlay')
     if (gameoverOverlay) gameoverOverlay.style.display = 'none'
@@ -692,7 +684,6 @@ export class Game {
         animProgress: 0,
       })
       this.collectCooldown = 0.15
-      this.updateTrayUI()
       audioManager.playSelectLetter()
 
       // Particle burst on collection
@@ -770,24 +761,17 @@ export class Game {
     }
 
     this.updateUI()
-    this.updateTrayUI()
   }
 
   removeLastLetter(): void {
     if (this.collectedLetters.length > 0) {
       this.collectedLetters.pop()
       audioManager.playBackspace()
-      this.updateTrayUI()
     }
   }
 
   private showFeedback(text: string, success: boolean): void {
     this.feedback = { text, success, timer: 2.5 }
-    const feedbackEl = document.getElementById('word-feedback')
-    if (feedbackEl) {
-      feedbackEl.textContent = text
-      feedbackEl.className = success ? 'success' : 'error'
-    }
   }
 
   // ── Update loop ──
@@ -908,8 +892,6 @@ export class Game {
       this.feedback.timer -= dt
       if (this.feedback.timer <= 0) {
         this.feedback = null
-        const feedbackEl = document.getElementById('word-feedback')
-        if (feedbackEl) feedbackEl.textContent = ''
       }
     }
 
@@ -934,6 +916,7 @@ export class Game {
 
     if (this.state === 'countdown') {
       this.renderCountdown(ctx)
+      this.renderCanvasTray(ctx)
       return
     }
 
@@ -974,6 +957,7 @@ export class Game {
 
     // Top/bottom boundaries
     this.renderBoundaryDecoration(ctx)
+    this.renderCanvasTray(ctx)
   }
 
   private renderBackground(ctx: CanvasRenderingContext2D): void {
@@ -1008,6 +992,200 @@ export class Game {
 
     // Bottom decorative line
     ctx.stroke(this.renderAssets.boundaryBottomPath)
+  }
+
+  private renderCanvasTray(ctx: CanvasRenderingContext2D): void {
+    const slotCapacity = 15
+    const tileWidth = 44
+    const tileHeight = 52
+    const tileGap = 6
+    const innerPaddingX = 32
+    const traySideMargin = 18
+    const trayHeight = 88
+    const trayY = GAME_HEIGHT - trayHeight - 10
+    const innerWidth = slotCapacity * tileWidth + (slotCapacity - 1) * tileGap + innerPaddingX * 2
+    const trayWidth = innerWidth + traySideMargin * 2
+    const trayX = (GAME_WIDTH - trayWidth) / 2
+    const innerX = trayX + traySideMargin
+    const innerY = trayY + 10
+    const innerHeight = trayHeight - 22
+    const lipHeight = 10
+    const trayPath = this.createRoundedRectPath(trayX, trayY, trayWidth, trayHeight, 14)
+    const innerPath = this.createRoundedRectPath(innerX, innerY, innerWidth, innerHeight, 10)
+    const lipPath = this.createRoundedRectPath(innerX + 18, innerY + innerHeight - lipHeight - 4, innerWidth - 36, lipHeight, 8)
+
+    ctx.save()
+    if (this.state === 'countdown') {
+      ctx.globalAlpha = 0.38
+    }
+
+    const trayGradient = ctx.createLinearGradient(trayX, trayY, trayX, trayY + trayHeight)
+    trayGradient.addColorStop(0, 'rgba(190, 146, 94, 0.96)')
+    trayGradient.addColorStop(0.42, 'rgba(150, 105, 62, 0.98)')
+    trayGradient.addColorStop(1, 'rgba(108, 69, 38, 0.98)')
+    ctx.fillStyle = trayGradient
+    ctx.fill(trayPath)
+
+    ctx.save()
+    ctx.clip(trayPath)
+    if (this.trayTexture?.complete && this.trayTexture.naturalWidth > 0) {
+      ctx.globalAlpha = 0.22
+      ctx.globalCompositeOperation = 'multiply'
+      this.drawImageCover(ctx, this.trayTexture, trayX, trayY, trayWidth, trayHeight, 0.42)
+      ctx.globalCompositeOperation = 'source-over'
+      ctx.globalAlpha = 0.12
+      this.drawImageCover(ctx, this.trayTexture, trayX, trayY, trayWidth, trayHeight, 0.54)
+    }
+
+    const trayHighlight = ctx.createLinearGradient(trayX, trayY, trayX, trayY + trayHeight)
+    trayHighlight.addColorStop(0, 'rgba(255, 241, 214, 0.26)')
+    trayHighlight.addColorStop(0.24, 'rgba(255, 241, 214, 0.08)')
+    trayHighlight.addColorStop(1, 'rgba(47, 26, 12, 0.12)')
+    ctx.fillStyle = trayHighlight
+    ctx.fillRect(trayX, trayY, trayWidth, trayHeight)
+    ctx.restore()
+
+    ctx.strokeStyle = 'rgba(116, 74, 40, 0.72)'
+    ctx.lineWidth = 1
+    ctx.stroke(trayPath)
+
+    const innerGradient = ctx.createLinearGradient(innerX, innerY, innerX, innerY + innerHeight)
+    innerGradient.addColorStop(0, 'rgba(177, 133, 84, 0.62)')
+    innerGradient.addColorStop(0.3, 'rgba(143, 100, 59, 0.42)')
+    innerGradient.addColorStop(1, 'rgba(95, 60, 33, 0.55)')
+    ctx.fillStyle = innerGradient
+    ctx.fill(innerPath)
+
+    ctx.save()
+    ctx.clip(innerPath)
+    if (this.trayTexture?.complete && this.trayTexture.naturalWidth > 0) {
+      ctx.globalAlpha = 0.1
+      ctx.globalCompositeOperation = 'multiply'
+      this.drawImageCover(ctx, this.trayTexture, innerX, innerY, innerWidth, innerHeight, 0.5)
+      ctx.globalCompositeOperation = 'source-over'
+    }
+    const innerHighlight = ctx.createLinearGradient(innerX, innerY, innerX, innerY + innerHeight)
+    innerHighlight.addColorStop(0, 'rgba(255, 243, 218, 0.14)')
+    innerHighlight.addColorStop(1, 'rgba(68, 42, 23, 0.04)')
+    ctx.fillStyle = innerHighlight
+    ctx.fillRect(innerX, innerY, innerWidth, innerHeight)
+    ctx.restore()
+
+    ctx.strokeStyle = 'rgba(120, 78, 44, 0.58)'
+    ctx.stroke(innerPath)
+
+    const lipGradient = ctx.createLinearGradient(innerX, innerY + innerHeight - lipHeight, innerX, innerY + innerHeight)
+    lipGradient.addColorStop(0, 'rgba(133, 90, 52, 0.94)')
+    lipGradient.addColorStop(1, 'rgba(88, 55, 29, 0.98)')
+    ctx.fillStyle = lipGradient
+    ctx.fill(lipPath)
+    ctx.strokeStyle = 'rgba(255, 231, 194, 0.08)'
+    ctx.stroke(lipPath)
+
+    const tileBottomY = innerY + innerHeight - lipHeight - 2
+    const totalLettersWidth = this.collectedLetters.length > 0
+      ? this.collectedLetters.length * tileWidth + (this.collectedLetters.length - 1) * tileGap
+      : 0
+    const startX = innerX + (innerWidth - totalLettersWidth) / 2
+
+    this.collectedLetters.forEach((letter, index) => {
+      const targetX = startX + index * (tileWidth + tileGap) + tileWidth / 2
+      const targetY = tileBottomY - tileHeight / 2
+      const t = this.titleEaseOut(letter.animProgress)
+      const startY = letter.floatingY + getPageCurvatureOffset(letter.floatingX, GAME_WIDTH)
+      const x = letter.floatingX + (targetX - letter.floatingX) * t
+      const y = startY + (targetY - startY) * t
+      const scale = 0.74 + 0.26 * t
+      this.renderCanvasTrayTile(ctx, letter, x, y, tileWidth, tileHeight, scale)
+    })
+
+    if (this.feedback && (this.state === 'countdown' || this.state === 'playing' || this.state === 'paused')) {
+      const fade = Math.min(1, this.feedback.timer / 0.35)
+      ctx.save()
+      ctx.globalAlpha = fade
+      ctx.font = CANVAS_FONTS.ui(13)
+      ctx.fillStyle = this.feedback.success ? COLORS.green : COLORS.red
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'bottom'
+      ctx.fillText(this.feedback.text, GAME_WIDTH / 2, trayY - 8)
+      ctx.restore()
+    }
+
+    ctx.restore()
+  }
+
+  private renderCanvasTrayTile(
+    ctx: CanvasRenderingContext2D,
+    letter: CollectedLetter,
+    centerX: number,
+    centerY: number,
+    width: number,
+    height: number,
+    scale: number,
+  ): void {
+    const { fill, border, text, score } = this.getTrayTilePalette(letter.multiplierType)
+    const x = centerX - width / 2
+    const y = centerY - height / 2
+    const tilePath = this.createRoundedRectPath(x, y, width, height, 5)
+
+    ctx.save()
+    ctx.translate(centerX, centerY)
+    ctx.scale(scale, scale)
+    ctx.translate(-centerX, -centerY)
+
+    ctx.shadowColor = 'rgba(44, 24, 16, 0.2)'
+    ctx.shadowBlur = 10
+    ctx.shadowOffsetY = 4
+    ctx.fillStyle = fill
+    ctx.fill(tilePath)
+
+    ctx.shadowColor = 'transparent'
+    const highlight = ctx.createLinearGradient(x, y, x, y + height)
+    highlight.addColorStop(0, 'rgba(255, 248, 232, 0.22)')
+    highlight.addColorStop(0.3, 'rgba(255, 248, 232, 0.06)')
+    highlight.addColorStop(1, 'rgba(0, 0, 0, 0.08)')
+    ctx.fillStyle = highlight
+    ctx.fill(tilePath)
+
+    ctx.strokeStyle = border
+    ctx.lineWidth = 1
+    ctx.stroke(tilePath)
+
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.14)'
+    ctx.lineWidth = 3
+    ctx.beginPath()
+    ctx.moveTo(x + 3, y + height - 2)
+    ctx.lineTo(x + width - 3, y + height - 2)
+    ctx.stroke()
+
+    ctx.fillStyle = text
+    ctx.font = CANVAS_FONTS.laneMedium(30)
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(letter.letter, centerX, centerY - 5)
+
+    ctx.fillStyle = score
+    ctx.font = '700 11px "Cormorant Garamond", Georgia, serif'
+    ctx.textAlign = 'right'
+    ctx.textBaseline = 'bottom'
+    ctx.fillText(String(letter.value), x + width - 5, y + height - 4)
+
+    ctx.restore()
+  }
+
+  private getTrayTilePalette(multiplierType: MultiplierType): { fill: string; border: string; text: string; score: string } {
+    switch (multiplierType) {
+      case 'DoubleLetter':
+        return { fill: COLORS.dlLight, border: '#3F6BA8', text: '#FFFFFF', score: 'rgba(44, 24, 16, 0.82)' }
+      case 'TripleLetter':
+        return { fill: COLORS.tlBlue, border: '#177C72', text: COLORS.ivory, score: COLORS.ivory }
+      case 'DoubleWord':
+        return { fill: COLORS.dwCoral, border: '#B83D2F', text: '#FFFFFF', score: 'rgba(44, 24, 16, 0.82)' }
+      case 'TripleWord':
+        return { fill: COLORS.twPurple, border: '#732D91', text: COLORS.ivory, score: COLORS.ivory }
+      default:
+        return { fill: COLORS.gold, border: '#9A7209', text: COLORS.ivory, score: COLORS.ivory }
+    }
   }
 
   // Ease-out cubic for smooth entrance deceleration
@@ -1531,27 +1709,6 @@ export class Game {
     }
   }
 
-  updateTrayUI(): void {
-    const wordDisplay = this.hud.currentWord
-    if (!wordDisplay) return
-
-    wordDisplay.innerHTML = ''
-    if (this.collectedLetters.length === 0) {
-      wordDisplay.classList.add('empty')
-    } else {
-      wordDisplay.classList.remove('empty')
-      for (const letter of this.collectedLetters) {
-        const tile = document.createElement('div')
-        tile.className = 'tray-tile'
-        if (letter.multiplierType && letter.multiplierType !== 'None') {
-          tile.classList.add(`multiplier-${letter.multiplierType}`)
-        }
-        tile.innerHTML = `${letter.letter}<span class="tile-points">${letter.value}</span>`
-        wordDisplay.appendChild(tile)
-      }
-    }
-  }
-
   public updateWordsUI(): void {
     const wordsEl = this.hud.completedWordsList
     if (!wordsEl) return
@@ -1606,10 +1763,46 @@ export class Game {
       timerValue: null,
       nextChapterValue: null,
       scoreProgressFill: null,
-      wordFeedback: document.getElementById('word-feedback'),
-      currentWord: document.getElementById('current-word'),
       completedWordsList: document.getElementById('completed-words-list'),
     }
+  }
+
+  private loadTrayTexture(): HTMLImageElement {
+    const image = new Image()
+    image.src = `${import.meta.env.BASE_URL}images/traytexture_1.png`
+    return image
+  }
+
+  private drawImageCover(
+    ctx: CanvasRenderingContext2D,
+    image: HTMLImageElement,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    focusY: number,
+  ): void {
+    const sourceWidth = image.naturalWidth
+    const sourceHeight = image.naturalHeight
+    if (sourceWidth === 0 || sourceHeight === 0) return
+
+    const sourceRatio = sourceWidth / sourceHeight
+    const targetRatio = width / height
+
+    let sx = 0
+    let sy = 0
+    let sw = sourceWidth
+    let sh = sourceHeight
+
+    if (sourceRatio > targetRatio) {
+      sw = sourceHeight * targetRatio
+      sx = (sourceWidth - sw) / 2
+    } else {
+      sh = sourceWidth / targetRatio
+      sy = Math.max(0, Math.min(sourceHeight - sh, (sourceHeight - sh) * focusY))
+    }
+
+    ctx.drawImage(image, sx, sy, sw, sh, x, y, width, height)
   }
 
   private createRenderAssets(): RenderAssets {
@@ -1658,6 +1851,22 @@ export class Game {
       if (x === startX) path.moveTo(x, y + offset)
       else path.lineTo(x, y + offset)
     }
+    return path
+  }
+
+  private createRoundedRectPath(x: number, y: number, width: number, height: number, radius: number): Path2D {
+    const r = Math.min(radius, width / 2, height / 2)
+    const path = new Path2D()
+    path.moveTo(x + r, y)
+    path.lineTo(x + width - r, y)
+    path.quadraticCurveTo(x + width, y, x + width, y + r)
+    path.lineTo(x + width, y + height - r)
+    path.quadraticCurveTo(x + width, y + height, x + width - r, y + height)
+    path.lineTo(x + r, y + height)
+    path.quadraticCurveTo(x, y + height, x, y + height - r)
+    path.lineTo(x, y + r)
+    path.quadraticCurveTo(x, y, x + r, y)
+    path.closePath()
     return path
   }
 }

@@ -38,10 +38,9 @@ async function init(): Promise<void> {
 
     // Calculate scale to fit the entire game within viewport, dynamically factoring in UI space
     const overlayTop = document.getElementById('overlay-top')!
-    const wordTray = document.getElementById('word-tray')!
 
     const topHeight = overlayTop ? overlayTop.offsetHeight : 0
-    const bottomHeight = wordTray ? wordTray.offsetHeight : 0
+    const bottomHeight = 0
 
     // Add safe padding 
     const paddingX = 24
