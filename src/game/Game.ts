@@ -38,6 +38,8 @@ interface FloatingScore {
   dy: number
 }
 
+type PauseConfirmAction = 'restart' | 'quit' | null
+
 export class Game {
   public state: GameState = 'title'
   public canvas: HTMLCanvasElement
@@ -71,6 +73,8 @@ export class Game {
   private collectCooldown: number = 0
   private isSubmitting: boolean = false
   private pauseOptionIndex: number = 0
+  private pauseConfirmAction: PauseConfirmAction = null
+  private pauseConfirmIndex: number = 0
 
   // Countdown state
   private countdownValue: number = 3
@@ -103,30 +107,55 @@ export class Game {
   }
 
   private setupPauseMenu(): void {
+    const resumeOpt = document.getElementById('option-resume')
+    const restartOpt = document.getElementById('option-restart')
+    const quitOpt = document.getElementById('option-quit')
     const musicOpt = document.getElementById('option-music')
     const sfxOpt = document.getElementById('option-sfx')
     const debugPointsOpt = document.getElementById('option-debug-points')
+    const confirmNoOpt = document.getElementById('pause-confirm-no')
+    const confirmYesOpt = document.getElementById('pause-confirm-yes')
+
+    if (resumeOpt) {
+      resumeOpt.addEventListener('click', () => {
+        audioManager.playMenuNav()
+        this.resumeFromPause()
+      })
+      resumeOpt.addEventListener('mouseenter', () => this.selectPauseOption('option-resume'))
+    }
+
+    if (restartOpt) {
+      restartOpt.addEventListener('click', () => {
+        audioManager.playMenuNav()
+        this.openPauseConfirmation('restart')
+      })
+      restartOpt.addEventListener('mouseenter', () => this.selectPauseOption('option-restart'))
+    }
+
+    if (quitOpt) {
+      quitOpt.addEventListener('click', () => {
+        audioManager.playMenuNav()
+        this.openPauseConfirmation('quit')
+      })
+      quitOpt.addEventListener('mouseenter', () => this.selectPauseOption('option-quit'))
+    }
 
     if (musicOpt) {
       musicOpt.addEventListener('click', () => {
         const isMuted = audioManager.toggleMusic()
         audioManager.playMenuNav()
-        const status = musicOpt.querySelector('.status')
-        if (status) status.textContent = isMuted ? '[x]' : '[ ]'
-        musicOpt.style.color = isMuted ? COLORS.muted : COLORS.espresso
+        this.setPauseToggleStatus(musicOpt, isMuted)
       })
-      musicOpt.addEventListener('mouseenter', () => audioManager.playMenuNav())
+      musicOpt.addEventListener('mouseenter', () => this.selectPauseOption('option-music'))
     }
 
     if (sfxOpt) {
       sfxOpt.addEventListener('click', () => {
         const isMuted = audioManager.toggleSfx()
         audioManager.playMenuNav()
-        const status = sfxOpt.querySelector('.status')
-        if (status) status.textContent = isMuted ? '[x]' : '[ ]'
-        sfxOpt.style.color = isMuted ? COLORS.muted : COLORS.espresso
+        this.setPauseToggleStatus(sfxOpt, isMuted)
       })
-      sfxOpt.addEventListener('mouseenter', () => audioManager.playMenuNav())
+      sfxOpt.addEventListener('mouseenter', () => this.selectPauseOption('option-sfx'))
     }
 
     if (debugPointsOpt) {
@@ -139,7 +168,23 @@ export class Game {
           this.checkChapterProgression()
         }
       })
-      debugPointsOpt.addEventListener('mouseenter', () => audioManager.playMenuNav())
+      debugPointsOpt.addEventListener('mouseenter', () => this.selectPauseOption('option-debug-points'))
+    }
+
+    if (confirmNoOpt) {
+      confirmNoOpt.addEventListener('click', () => {
+        audioManager.playMenuNav()
+        this.closePauseConfirmation()
+      })
+      confirmNoOpt.addEventListener('mouseenter', () => this.selectPauseConfirmOption(0))
+    }
+
+    if (confirmYesOpt) {
+      confirmYesOpt.addEventListener('click', () => {
+        audioManager.playMenuNav()
+        this.confirmPauseAction()
+      })
+      confirmYesOpt.addEventListener('mouseenter', () => this.selectPauseConfirmOption(1))
     }
   }
 
@@ -168,9 +213,15 @@ export class Game {
       audioManager.playPagesFromGameOver()
     }
     audioManager.playGameMusic()
+    this.hidePauseOverlay()
     this.state = 'countdown'
     this.countdownValue = 3
     this.countdownTimer = 1.0 // 1 second per number
+    this.collectCooldown = 0
+    this.isSubmitting = false
+    this.pauseOptionIndex = 0
+    this.pauseConfirmAction = null
+    this.pauseConfirmIndex = 0
     this.score = 0
     this.chapter = 1
     this.wordsFound = []
@@ -178,6 +229,7 @@ export class Game {
     this.collectedLetters = []
     this.feedback = null
     this.floatingScores = []
+    this.particles.clear()
     this.player = new Player()
     this.loadLevel(1)
 
@@ -230,11 +282,28 @@ export class Game {
   }
 
   private returnToTitle(): void {
+    this.hidePauseOverlay()
     this.state = 'title'
     this.titleTime = 0
+    this.pauseOptionIndex = 0
+    this.pauseConfirmAction = null
+    this.pauseConfirmIndex = 0
+    this.collectCooldown = 0
+    this.isSubmitting = false
+    this.collectedLetters = []
+    this.wordsFound = []
+    this.usedWords = new Set()
+    this.feedback = null
+    this.floatingScores = []
+    this.particles.clear()
     audioManager.playTitleMusic()
     this.setHudContentVisible(false)
     this.updateUI()
+    this.updateTrayUI()
+    this.updateWordsUI()
+
+    const feedbackEl = document.getElementById('word-feedback')
+    if (feedbackEl) feedbackEl.textContent = ''
 
     const gameoverOverlay = document.getElementById('gameover-overlay')
     if (gameoverOverlay) gameoverOverlay.style.display = 'none'
@@ -244,27 +313,168 @@ export class Game {
     if (this.state === 'playing') {
       this.state = 'paused'
       this.pauseOptionIndex = 0
-      this.updatePauseMenuHighlight()
-
-      const pauseChapter = document.getElementById('pause-chapter')
-      if (pauseChapter) pauseChapter.textContent = `Chapter ${ROMAN_NUMERALS[Math.min(this.chapter - 1, 9)]}`
-
-      const pauseOverlay = document.getElementById('pause-overlay')
-      if (pauseOverlay) pauseOverlay.style.display = 'flex'
+      this.pauseConfirmAction = null
+      this.pauseConfirmIndex = 0
+      this.refreshPauseMenu()
+      this.showPauseOverlay()
     } else if (this.state === 'paused') {
-      this.state = 'playing'
-      const pauseOverlay = document.getElementById('pause-overlay')
-      if (pauseOverlay) pauseOverlay.style.display = 'none'
+      this.resumeFromPause()
     }
   }
 
   private updatePauseMenuHighlight(): void {
+    if (this.pauseConfirmAction !== null) return
+
+    this.getPauseOptions().forEach((option, index) => {
+      option.classList.toggle('is-selected', this.pauseOptionIndex === index)
+    })
+  }
+
+  private getPauseOptions(): HTMLElement[] {
+    const optionIds = [
+      'option-resume',
+      'option-restart',
+      'option-quit',
+      'option-music',
+      'option-sfx',
+      'option-debug-points',
+    ]
+
+    return optionIds
+      .map((id) => document.getElementById(id))
+      .filter((option): option is HTMLElement => option !== null)
+  }
+
+  private selectPauseOption(optionId: string): void {
+    const options = this.getPauseOptions()
+    const nextIndex = options.findIndex((option) => option.id === optionId)
+    if (nextIndex === -1) return
+
+    if (this.pauseOptionIndex !== nextIndex) {
+      audioManager.playMenuNav()
+    }
+
+    this.pauseOptionIndex = nextIndex
+    this.updatePauseMenuHighlight()
+  }
+
+  private activatePauseOption(): void {
+    const option = this.getPauseOptions()[this.pauseOptionIndex]
+    option?.click()
+  }
+
+  private getPauseConfirmOptions(): HTMLElement[] {
+    const optionIds = ['pause-confirm-no', 'pause-confirm-yes']
+
+    return optionIds
+      .map((id) => document.getElementById(id))
+      .filter((option): option is HTMLElement => option !== null)
+  }
+
+  private updatePauseConfirmHighlight(): void {
+    this.getPauseConfirmOptions().forEach((option, index) => {
+      option.classList.toggle('is-selected', this.pauseConfirmIndex === index)
+    })
+  }
+
+  private selectPauseConfirmOption(index: number): void {
+    const options = this.getPauseConfirmOptions()
+    if (index < 0 || index >= options.length) return
+
+    if (this.pauseConfirmIndex !== index) {
+      audioManager.playMenuNav()
+    }
+
+    this.pauseConfirmIndex = index
+    this.updatePauseConfirmHighlight()
+  }
+
+  private openPauseConfirmation(action: Exclude<PauseConfirmAction, null>): void {
+    this.pauseConfirmAction = action
+    this.pauseConfirmIndex = 0
+
+    const confirmOverlay = document.getElementById('pause-confirm')
+    const confirmTitle = document.getElementById('pause-confirm-title')
+    const confirmMessage = document.getElementById('pause-confirm-message')
+    const confirmYes = document.getElementById('pause-confirm-yes')
+
+    if (confirmTitle) confirmTitle.textContent = 'Are you sure?'
+
+    if (confirmMessage) {
+      confirmMessage.textContent = action === 'restart'
+        ? 'Restart the current run? Your collected letters and score will be lost.'
+        : 'Quit to the title screen? Your current run will be lost.'
+    }
+
+    if (confirmYes) {
+      confirmYes.textContent = action === 'restart' ? 'Yes, Restart' : 'Yes, Quit'
+    }
+
+    if (confirmOverlay) confirmOverlay.style.display = 'flex'
+    this.updatePauseConfirmHighlight()
+  }
+
+  private closePauseConfirmation(): void {
+    this.pauseConfirmAction = null
+    this.pauseConfirmIndex = 0
+
+    const confirmOverlay = document.getElementById('pause-confirm')
+    if (confirmOverlay) confirmOverlay.style.display = 'none'
+
+    this.getPauseConfirmOptions().forEach((option) => option.classList.remove('is-selected'))
+    this.updatePauseMenuHighlight()
+  }
+
+  private confirmPauseAction(): void {
+    const action = this.pauseConfirmAction
+    this.closePauseConfirmation()
+
+    if (action === 'restart') {
+      this.startGame()
+    } else if (action === 'quit') {
+      this.returnToTitle()
+    }
+  }
+
+  private activatePauseConfirmOption(): void {
+    const option = this.getPauseConfirmOptions()[this.pauseConfirmIndex]
+    option?.click()
+  }
+
+  private setPauseToggleStatus(option: HTMLElement, isMuted: boolean): void {
+    const status = option.querySelector('.status')
+    if (status) status.textContent = isMuted ? '[x]' : '[ ]'
+  }
+
+  private refreshPauseMenu(): void {
+    const pauseChapter = document.getElementById('pause-chapter')
+    if (pauseChapter) {
+      pauseChapter.textContent = `Chapter ${ROMAN_NUMERALS[Math.min(this.chapter - 1, 9)]}`
+    }
+
     const musicOpt = document.getElementById('option-music')
     const sfxOpt = document.getElementById('option-sfx')
-    const debugPointsOpt = document.getElementById('option-debug-points')
-    if (musicOpt) musicOpt.style.textDecoration = this.pauseOptionIndex === 0 ? 'underline' : 'none'
-    if (sfxOpt) sfxOpt.style.textDecoration = this.pauseOptionIndex === 1 ? 'underline' : 'none'
-    if (debugPointsOpt) debugPointsOpt.style.textDecoration = this.pauseOptionIndex === 2 ? 'underline' : 'none'
+    if (musicOpt) this.setPauseToggleStatus(musicOpt, audioManager.getMusicMuted())
+    if (sfxOpt) this.setPauseToggleStatus(sfxOpt, audioManager.getSfxMuted())
+
+    this.updatePauseMenuHighlight()
+    this.updatePauseConfirmHighlight()
+  }
+
+  private showPauseOverlay(): void {
+    const pauseOverlay = document.getElementById('pause-overlay')
+    if (pauseOverlay) pauseOverlay.style.display = 'flex'
+  }
+
+  private hidePauseOverlay(): void {
+    const pauseOverlay = document.getElementById('pause-overlay')
+    if (pauseOverlay) pauseOverlay.style.display = 'none'
+    this.closePauseConfirmation()
+  }
+
+  private resumeFromPause(): void {
+    this.state = 'playing'
+    this.hidePauseOverlay()
   }
 
   // ── Input handling ──
@@ -295,28 +505,58 @@ export class Game {
     }
 
     if (this.state === 'paused') {
+      if (this.pauseConfirmAction !== null) {
+        if (event.key === 'Escape') {
+          e.preventDefault()
+          audioManager.playMenuNav()
+          this.closePauseConfirmation()
+        } else if (
+          event.key === 'ArrowLeft' || event.key === 'a' || event.key === 'A' ||
+          event.key === 'ArrowUp' || event.key === 'w' || event.key === 'W'
+        ) {
+          e.preventDefault()
+          const optionCount = this.getPauseConfirmOptions().length
+          if (optionCount === 0) return
+          this.pauseConfirmIndex = (this.pauseConfirmIndex - 1 + optionCount) % optionCount
+          audioManager.playMenuNav()
+          this.updatePauseConfirmHighlight()
+        } else if (
+          event.key === 'ArrowRight' || event.key === 'd' || event.key === 'D' ||
+          event.key === 'ArrowDown' || event.key === 's' || event.key === 'S'
+        ) {
+          e.preventDefault()
+          const optionCount = this.getPauseConfirmOptions().length
+          if (optionCount === 0) return
+          this.pauseConfirmIndex = (this.pauseConfirmIndex + 1) % optionCount
+          audioManager.playMenuNav()
+          this.updatePauseConfirmHighlight()
+        } else if (event.key === 'Enter' || event.key === ' ') {
+          e.preventDefault()
+          this.activatePauseConfirmOption()
+        }
+        return
+      }
+
       if (event.key === 'Escape') {
         e.preventDefault()
         this.togglePause()
       } else if (event.key === 'ArrowUp' || event.key === 'w' || event.key === 'W') {
         e.preventDefault()
-        this.pauseOptionIndex = (this.pauseOptionIndex - 1 + 3) % 3
+        const optionCount = this.getPauseOptions().length
+        if (optionCount === 0) return
+        this.pauseOptionIndex = (this.pauseOptionIndex - 1 + optionCount) % optionCount
         audioManager.playMenuNav()
         this.updatePauseMenuHighlight()
       } else if (event.key === 'ArrowDown' || event.key === 's' || event.key === 'S') {
         e.preventDefault()
-        this.pauseOptionIndex = (this.pauseOptionIndex + 1) % 3
+        const optionCount = this.getPauseOptions().length
+        if (optionCount === 0) return
+        this.pauseOptionIndex = (this.pauseOptionIndex + 1) % optionCount
         audioManager.playMenuNav()
         this.updatePauseMenuHighlight()
       } else if (event.key === 'Enter' || event.key === ' ') {
         e.preventDefault()
-        if (this.pauseOptionIndex === 0) {
-          document.getElementById('option-music')?.click()
-        } else if (this.pauseOptionIndex === 1) {
-          document.getElementById('option-sfx')?.click()
-        } else {
-          document.getElementById('option-debug-points')?.click()
-        }
+        this.activatePauseOption()
       }
       return
     }

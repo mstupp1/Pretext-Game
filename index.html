@@ -62,29 +62,59 @@
             <div id="completed-words-list"></div>
           </div>
         </div>
-        <div id="pause-overlay" class="screen-overlay" style="display: none; background: rgba(245, 241, 232, 0.85); pointer-events: auto;">
-          <h2 id="pause-chapter" style="font-family: var(--font-display); font-size: 32px; font-style: italic; font-weight: 300; color: var(--text-sepia); margin-bottom: 10px;">Chapter I</h2>
-          <h1>Paused</h1>
-          <div class="subtitle" style="margin-bottom: 20px;">Options</div>
+        <div id="pause-overlay" class="screen-overlay pause-overlay" style="display: none;">
+          <div class="pause-panel">
+            <h2 id="pause-chapter" class="pause-chapter pause-pixel-text">Chapter I</h2>
+            <h1 class="pause-pixel-text">Paused</h1>
 
-          <div class="pause-options" style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 40px;">
-            <div class="pause-option" id="option-music" tabindex="0" style="font-family: var(--font-display); font-size: 24px; cursor: pointer; transition: color 0.2s;">
-              <span class="status" style="display: inline-block; width: 40px;">[ ]</span> Mute Music
+            <div class="pause-section">
+              <div class="subtitle">Session</div>
+              <div class="pause-options">
+                <button class="pause-option pause-pixel-text" id="option-resume" type="button">Resume</button>
+                <button class="pause-option pause-pixel-text" id="option-restart" type="button">Restart</button>
+                <button class="pause-option pause-pixel-text" id="option-quit" type="button">Quit to Menu</button>
+              </div>
             </div>
-            <div class="pause-option" id="option-sfx" tabindex="0" style="font-family: var(--font-display); font-size: 24px; cursor: pointer; transition: color 0.2s;">
-              <span class="status" style="display: inline-block; width: 40px;">[ ]</span> Mute Sound Effects (SFX)
+
+            <div class="pause-section">
+              <div class="subtitle">Audio</div>
+              <div class="pause-options">
+                <button class="pause-option pause-pixel-text" id="option-music" type="button">
+                  <span class="status" aria-hidden="true">[ ]</span>
+                  <span class="pause-option-label">Mute Music</span>
+                </button>
+                <button class="pause-option pause-pixel-text" id="option-sfx" type="button">
+                  <span class="status" aria-hidden="true">[ ]</span>
+                  <span class="pause-option-label">Mute Sound Effects</span>
+                </button>
+              </div>
             </div>
-          </div>
 
-          <div class="instructions">
-            Press <kbd>ESC</kbd> to resume
-          </div>
+            <div class="pause-section pause-section-debug">
+              <div class="subtitle">Debug</div>
+              <div class="pause-options">
+                <button class="pause-option pause-option-debug pause-pixel-text" id="option-debug-points" type="button">Give Points For Next Level</button>
+              </div>
+            </div>
 
-          <div style="margin-top: 40px; text-align: center;">
-            <div class="subtitle" style="margin-bottom: 20px;">Debug Options</div>
-            <div class="pause-options" style="display: flex; flex-direction: column; gap: 16px;">
-              <div class="pause-option" id="option-debug-points" tabindex="0" style="font-family: var(--font-display); font-size: 20px; cursor: pointer; transition: color 0.2s;">
-                Give points for next level
+            <div class="instructions">
+              Press <kbd>ESC</kbd> to resume
+            </div>
+
+            <div id="pause-confirm" class="pause-confirm" style="display: none;">
+              <div class="pause-confirm-card">
+                <div class="subtitle">Confirm</div>
+                <h3 id="pause-confirm-title" class="pause-confirm-title pause-pixel-text">Are you sure?</h3>
+                <div id="pause-confirm-message" class="pause-confirm-message">
+                  Your current run will be lost.
+                </div>
+                <div class="pause-confirm-options">
+                  <button class="pause-option pause-confirm-option pause-pixel-text" id="pause-confirm-no" type="button">No</button>
+                  <button class="pause-option pause-confirm-option pause-pixel-text" id="pause-confirm-yes" type="button">Yes</button>
+                </div>
+                <div class="pause-confirm-hint">
+                  Press <kbd>ESC</kbd> to go back
+                </div>
               </div>
             </div>
           </div>

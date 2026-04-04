@@ -66,10 +66,34 @@ export class Lane {
   }
 
   updateConfig(newConfig: LaneConfig): void {
+    const fontChanged = this.config.fontSize !== newConfig.fontSize || this.config.fontStyle !== newConfig.fontStyle
+    const highlightRateChanged = this.config.highlightRate !== newConfig.highlightRate
     this.config = newConfig
+
     if (this.stream) {
       this.stream.setSpeed(newConfig.speed)
-      this.stream.setHighlightRate(newConfig.highlightRate)
+
+      if (this.isSafeZone) {
+        return
+      }
+
+      const fontBuilder = {
+        light: CANVAS_FONTS.laneLight,
+        regular: CANVAS_FONTS.laneRegular,
+        medium: CANVAS_FONTS.laneMedium,
+        bold: CANVAS_FONTS.laneBold,
+        italic: CANVAS_FONTS.laneItalic,
+        boldItalic: CANVAS_FONTS.laneBoldItalic,
+      }[newConfig.fontStyle]
+
+      const nextFont = fontBuilder(newConfig.fontSize)
+
+      if (fontChanged || highlightRateChanged) {
+        this.font = nextFont
+        this.stream.rebuild(this.font, newConfig.highlightRate)
+      } else {
+        this.stream.setHighlightRate(newConfig.highlightRate)
+      }
     }
   }
 

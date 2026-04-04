@@ -1,5 +1,6 @@
 export class AudioManager {
   private titleAudio: HTMLAudioElement;
+  private titleAmbienceAudio: HTMLAudioElement;
   private gamePlaylist: HTMLAudioElement[] = [];
   
   private currentGameTrackIndex: number = 0;
@@ -32,6 +33,7 @@ export class AudioManager {
   private isFading: boolean = false;
   
   private MAX_VOLUME = 0.5;
+  private TITLE_AMBIENCE_MIX = 0.15;
   private FADE_STEP = 0.05; // 5% volume change per interval tick
   private FADE_INTERVAL_MS = 50;
   
@@ -39,6 +41,10 @@ export class AudioManager {
     this.titleAudio = new Audio(`${import.meta.env.BASE_URL}music/Title_1.mp3`);
     this.titleAudio.loop = true;
     this.titleAudio.volume = 0;
+
+    this.titleAmbienceAudio = new Audio(`${import.meta.env.BASE_URL}sfx/Ambiance_1.wav`);
+    this.titleAmbienceAudio.loop = true;
+    this.titleAmbienceAudio.volume = 0;
 
     for (const trackName of ['Game_1.mp3', 'Game_2.mp3', 'Game_3.mp3']) {
       const track = new Audio(`${import.meta.env.BASE_URL}music/${trackName}`);
@@ -111,6 +117,8 @@ export class AudioManager {
         this.titleVolume = 0;
         this.titleAudio.volume = 0;
         this.titleAudio.play().catch(e => console.warn('Title audio autoplay prevented:', e));
+        this.titleAmbienceAudio.volume = 0;
+        this.titleAmbienceAudio.play().catch(e => console.warn('Title ambience autoplay prevented:', e));
         this.startFader();
       }
 
@@ -164,6 +172,9 @@ export class AudioManager {
     if (this.initialized && this.titleAudio.paused) {
       this.titleAudio.play().catch(e => console.warn('Title audio play prevented:', e));
     }
+    if (this.initialized && this.titleAmbienceAudio.paused) {
+      this.titleAmbienceAudio.play().catch(e => console.warn('Title ambience play prevented:', e));
+    }
     
     this.startFader();
   }
@@ -196,9 +207,11 @@ export class AudioManager {
     this.isMusicMuted = !this.isMusicMuted;
     if (this.isMusicMuted) {
       this.titleAudio.volume = 0;
+      this.titleAmbienceAudio.volume = 0;
       this.gamePlaylist.forEach(track => track.volume = 0);
     } else {
       this.titleAudio.volume = this.titleVolume;
+      this.titleAmbienceAudio.volume = this.titleVolume * this.TITLE_AMBIENCE_MIX;
       const gameTrack = this.getCurrentGameTrack();
       if (gameTrack) gameTrack.volume = this.gameVolume;
     }
@@ -207,6 +220,14 @@ export class AudioManager {
 
   public toggleSfx(): boolean {
     this.isSfxMuted = !this.isSfxMuted;
+    return this.isSfxMuted;
+  }
+
+  public getMusicMuted(): boolean {
+    return this.isMusicMuted;
+  }
+
+  public getSfxMuted(): boolean {
     return this.isSfxMuted;
   }
 
@@ -292,6 +313,7 @@ export class AudioManager {
       
       // Apply volumes
       this.titleAudio.volume = this.isMusicMuted ? 0 : this.titleVolume;
+      this.titleAmbienceAudio.volume = this.isMusicMuted ? 0 : this.titleVolume * this.TITLE_AMBIENCE_MIX;
       const gameTrack = this.getCurrentGameTrack();
       if (gameTrack) {
         gameTrack.volume = this.isMusicMuted ? 0 : this.gameVolume;
@@ -300,6 +322,9 @@ export class AudioManager {
       // Pause completely faded out tracks
       if (this.titleVolume === 0 && !this.titleAudio.paused) {
         this.titleAudio.pause();
+      }
+      if (this.titleVolume === 0 && !this.titleAmbienceAudio.paused) {
+        this.titleAmbienceAudio.pause();
       }
       if (this.gameVolume === 0 && gameTrack && !gameTrack.paused) {
         gameTrack.pause();

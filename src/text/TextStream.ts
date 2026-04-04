@@ -5,6 +5,19 @@ import { measureCharsInLine, type MeasuredChar } from './TextEngine'
 import { getRandomPassage } from './passages'
 import { ICONS, MultiplierType } from '../utils/constants'
 
+const MULTIPLIER_SPAWN_RATE = 0.018
+const MULTIPLIER_WEIGHTS: Array<{
+  type: Exclude<MultiplierType, 'None'>
+  weight: number
+  cooldown: number
+  tripleCooldown?: number
+}> = [
+  { type: 'DoubleLetter', weight: 0.58, cooldown: 1 },
+  { type: 'DoubleWord', weight: 0.17, cooldown: 2 },
+  { type: 'TripleLetter', weight: 0.125, cooldown: 2, tripleCooldown: 6 },
+  { type: 'TripleWord', weight: 0.125, cooldown: 2, tripleCooldown: 8 },
+]
+
 export function getPageCurvatureOffset(screenX: number, viewportWidth: number): number {
   const center = viewportWidth / 2
   const distFromCenter = screenX - center
@@ -96,7 +109,17 @@ export class TextStream {
     this.highlightRate = rate
   }
 
-  private buildStream(): void {
+  public rebuild(font: string = this.font, highlightRate: number = this.highlightRate): void {
+    const scrollRatio = this.totalWidth > 0
+      ? ((this.scrollOffset % this.totalWidth) + this.totalWidth) % this.totalWidth / this.totalWidth
+      : 0
+
+    this.font = font
+    this.highlightRate = highlightRate
+    this.buildStream(scrollRatio)
+  }
+
+  private buildStream(scrollRatio?: number): void {
     // Combine multiple passages to create a long stream
     let text = ''
     
@@ -148,42 +171,42 @@ export class TextStream {
       let multiplierType: MultiplierType = 'None'
 
       if (isLetter && highlightCooldown <= 0) {
-        let chance = this.highlightRate
-        if (vowels.has(upper)) chance *= 1.8
-        else if (commonConsonants.has(upper)) chance *= 1.3
+        if (multiplierCooldown <= 0 && Math.random() < MULTIPLIER_SPAWN_RATE) {
+          const availableMultipliers = MULTIPLIER_WEIGHTS.filter(option =>
+            option.tripleCooldown === undefined || tripleMultiplierCooldown <= 0
+          )
+          const totalWeight = availableMultipliers.reduce((sum, option) => sum + option.weight, 0)
+          let pick = Math.random() * totalWeight
 
-        isHighlighted = Math.random() < chance
+          for (const option of availableMultipliers) {
+            pick -= option.weight
+            if (pick <= 0) {
+              multiplierType = option.type
+              multiplierCooldown = option.cooldown
+              if (option.tripleCooldown !== undefined) {
+                tripleMultiplierCooldown = option.tripleCooldown
+              }
+              break
+            }
+          }
+
+          isHighlighted = multiplierType !== 'None'
+        } else {
+          let chance = this.highlightRate
+          if (vowels.has(upper)) chance *= 1.8
+          else if (commonConsonants.has(upper)) chance *= 1.3
+
+          isHighlighted = Math.random() < chance
+        }
 
         if (isHighlighted) {
           // Enforce a minimum gap between collectibles (e.g., 8 to 12 characters)
           highlightCooldown = 8 + Math.floor(Math.random() * 5)
-
-          if (multiplierCooldown <= 0) {
-            // Scale multiplier chances up exponentially as highlight rate goes down
-            // so that multipliers feel plentiful even with fewer highlighted letters.
-            const scale = this.highlightRate > 0 ? Math.pow(0.08 / this.highlightRate, 1.5) * 1.5 : 1;
-            const rand = Math.random()
-
-            if (rand < 0.015 * scale && tripleMultiplierCooldown <= 0) {
-              multiplierType = 'TripleWord'
-              multiplierCooldown = 2
-              tripleMultiplierCooldown = 8
-            } else if (rand < 0.035 * scale) {
-              multiplierType = 'DoubleWord'
-              multiplierCooldown = 2
-            } else if (rand < 0.05 * scale && tripleMultiplierCooldown <= 0) {
-              multiplierType = 'TripleLetter'
-              multiplierCooldown = 2
-              tripleMultiplierCooldown = 6
-            } else if (rand < 0.12 * scale) {
-              multiplierType = 'DoubleLetter'
-              multiplierCooldown = 1
-            }
-          } else {
+          if (multiplierType === 'None' && multiplierCooldown > 0) {
             multiplierCooldown--
           }
           if (tripleMultiplierCooldown > 0) {
-             tripleMultiplierCooldown--
+            tripleMultiplierCooldown--
           }
         }
       }
@@ -226,7 +249,9 @@ export class TextStream {
 
     this.totalWidth = totalW
     // Start offset randomly so lanes don't all start aligned
-    this.scrollOffset = Math.random() * totalW * 0.5
+    this.scrollOffset = scrollRatio === undefined
+      ? Math.random() * totalW * 0.5
+      : Math.max(0, Math.min(1, scrollRatio)) * totalW
   }
 
   // Simple deterministic pseudo-random from seed

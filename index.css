@@ -528,6 +528,212 @@ html, body {
   margin: 0 2px;
 }
 
+.pause-overlay {
+  pointer-events: auto;
+  background:
+    linear-gradient(rgba(245, 241, 232, 0.9), rgba(245, 241, 232, 0.84)),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 27px,
+      rgba(44, 24, 16, 0.06) 27px,
+      rgba(44, 24, 16, 0.06) 28px
+    );
+}
+
+.pause-panel {
+  position: relative;
+  width: min(100%, 520px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 28px 24px 36px;
+}
+
+.pause-chapter {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-style: italic;
+  font-weight: 300;
+  color: var(--text-sepia);
+  margin-bottom: -6px;
+}
+
+.pause-pixel-text {
+  text-rendering: optimizeSpeed;
+  -webkit-font-smoothing: none;
+  text-shadow:
+    1px 0 0 rgba(92, 64, 51, 0.15),
+    0 1px 0 rgba(92, 64, 51, 0.15),
+    1px 1px 0 rgba(92, 64, 51, 0.12),
+    2px 2px 0 rgba(184, 134, 11, 0.08);
+}
+
+.pause-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.pause-section .subtitle {
+  margin-bottom: 0;
+}
+
+.pause-section-debug {
+  margin-top: 4px;
+}
+
+.pause-options {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pause-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px;
+  border: 1px solid rgba(92, 64, 51, 0.18);
+  border-bottom-width: 3px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(245, 241, 232, 0.96), rgba(232, 224, 208, 0.92));
+  box-shadow:
+    0 10px 20px rgba(44, 24, 16, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  color: var(--text-espresso);
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 400;
+  justify-content: flex-start;
+  letter-spacing: 0.02em;
+  text-align: left;
+  transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease, color 0.14s ease;
+}
+
+.pause-option .status {
+  width: 44px;
+  flex-shrink: 0;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.pause-option-label {
+  flex: 1;
+}
+
+.pause-option:hover,
+.pause-option:focus-visible,
+.pause-option.is-selected {
+  outline: none;
+  border-color: rgba(184, 134, 11, 0.6);
+  box-shadow:
+    0 14px 28px rgba(44, 24, 16, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42);
+  color: var(--accent-gold);
+  transform: translateY(-1px);
+}
+
+.pause-option:active {
+  transform: translateY(1px);
+}
+
+.pause-option-debug {
+  font-size: 20px;
+}
+
+.pause-confirm {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: rgba(245, 241, 232, 0.72);
+  backdrop-filter: blur(6px);
+}
+
+.pause-confirm-card {
+  width: min(100%, 360px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 24px 22px 20px;
+  border: 1px solid rgba(92, 64, 51, 0.2);
+  border-bottom-width: 3px;
+  border-radius: 6px;
+  background:
+    linear-gradient(rgba(245, 241, 232, 0.98), rgba(232, 224, 208, 0.95)),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 27px,
+      rgba(44, 24, 16, 0.045) 27px,
+      rgba(44, 24, 16, 0.045) 28px
+    );
+  box-shadow:
+    0 20px 44px rgba(44, 24, 16, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+
+.pause-confirm-title {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 300;
+  font-style: italic;
+  color: var(--text-espresso);
+  text-align: center;
+}
+
+.pause-confirm-message {
+  max-width: 280px;
+  font-family: var(--font-display);
+  font-size: 18px;
+  line-height: 1.4;
+  color: var(--text-sepia);
+  text-align: center;
+}
+
+.pause-confirm-options {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.pause-confirm-option {
+  justify-content: center;
+  text-align: center;
+}
+
+.pause-confirm-hint {
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.pause-confirm-hint kbd {
+  display: inline-block;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  padding: 2px 6px;
+  border: 1px solid var(--rule-color);
+  border-radius: 3px;
+  background: var(--bg-cream);
+  margin: 0 2px;
+}
+
 .high-scores {
   margin-top: 32px;
   text-align: center;
