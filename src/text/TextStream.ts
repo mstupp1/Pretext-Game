@@ -527,6 +527,16 @@ export class TextStream {
     }
   }
 
+  resetPlayerEffects(): void {
+    for (const ch of this.chars) {
+      if (ch.isCollected) continue
+      ch.targetDy = 0
+      ch.targetDx = 0
+      ch.targetRotation = 0
+      ch.targetScale = 1
+    }
+  }
+
   // Trigger a ripple wave at a specific screen position (e.g., on letter collection)
   triggerRipple(screenX: number, laneWidth: number, amplitude: number = 8): void {
     const visible = this.getVisibleChars(laneWidth)

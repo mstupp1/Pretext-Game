@@ -31,6 +31,7 @@ export class Lane {
   private separatorPath: Path2D
   private pointsFont: string
   private tileShineGradientCache: Map<string, CanvasGradient> = new Map()
+  private effectsActive: boolean = false
 
   constructor(config: LaneConfig, yPosition: number) {
     this.config = config
@@ -114,9 +115,19 @@ export class Lane {
   update(dt: number, playerX: number, playerY: number): void {
     if (this.stream) {
       this.stream.update(dt)
-      // Use the enhanced effects system — pass full player position
-      const isPlayerLane = Math.abs(playerY - (this.y + this.height / 2)) < this.height / 2
-      this.stream.applyPlayerEffects(playerX, playerY, this.y + this.height / 2, GAME_WIDTH, isPlayerLane)
+      const laneCenterY = this.y + this.height / 2
+      const distToLane = Math.abs(playerY - laneCenterY)
+      const isPlayerLane = distToLane < this.height / 2
+      const laneProximity = Math.max(0, 1 - distToLane / 200)
+      const shouldApplyEffects = isPlayerLane || laneProximity > 0.2
+
+      if (shouldApplyEffects) {
+        this.effectsActive = true
+        this.stream.applyPlayerEffects(playerX, playerY, laneCenterY, GAME_WIDTH, isPlayerLane)
+      } else if (this.effectsActive) {
+        this.effectsActive = false
+        this.stream.resetPlayerEffects()
+      }
     }
   }
 
