@@ -133,6 +133,54 @@ export const PASSAGES: string[] = [
 
   // Charles Darwin — On the Origin of Species
   `When on board H.M.S. Beagle, as naturalist, I was much struck with certain facts in the distribution of the inhabitants of South America, and in the geological relations of the present to the past inhabitants of that continent.`,
+
+  // L.M. Montgomery — Anne of Green Gables
+  `Mrs. Rachel Lynde lived just where the Avonlea main road dipped down into a little hollow, fringed with alders and ladies' eardrops and traversed by a brook that had its source away back in the woods of the old Cuthbert place.`,
+
+  // George Eliot — Middlemarch
+  `Miss Brooke had that kind of beauty which seems to be thrown into relief by poor dress. Her hand and wrist were so finely formed that she could wear sleeves not less bare of style than those in which the Blessed Virgin appeared to Italian painters.`,
+
+  // Thomas Hardy — Tess of the d'Urbervilles
+  `On an evening in the latter part of May a middle-aged man was walking homeward from Shaston to the village of Marlott, in the adjoining Vale of Blakemore, or Blackmoor. The pair of legs that carried him were rickety, and there was a bias in his gait.`,
+
+  // Henry David Thoreau — Walden
+  `When I wrote the following pages, or rather the bulk of them, I lived alone, in the woods, a mile from any neighbor, in a house which I had built myself, on the shore of Walden Pond, in Concord, Massachusetts, and earned my living by the labor of my hands only.`,
+
+  // Edith Wharton — The Age of Innocence
+  `On a January evening of the early seventies, Christine Nilsson was singing in Faust at the Academy of Music in New York. Though there was already talk of the erection, in remote metropolitan distances "above the Forties," of a new Opera House...`,
+
+  // Jonathan Swift — Gulliver's Travels
+  `My father had a small estate in Nottinghamshire; I was the third of five sons. He sent me to Emanuel College in Cambridge, at fourteen years old, where I resided three years, and applied myself close to my studies.`,
+
+  // Charlotte Perkins Gilman — The Yellow Wallpaper
+  `It is very seldom that mere ordinary people like John and myself secure ancestral halls for the summer. A colonial mansion, a hereditary estate, I would say a haunted house, and reach the height of romantic felicity—but that would be asking too much of fate!`,
+
+  // Rudyard Kipling — The Jungle Book
+  `It was seven o'clock of a very warm evening in the Seeonee hills when Father Wolf woke up from his day's rest, scratched himself, yawned, and spread out his paws one after the other to get rid of the sleepy feeling in their tips.`,
+
+  // Gustave Flaubert — Madame Bovary
+  `We were in class when the head-master came in, followed by a "new fellow," not wearing the school uniform, and a school servant carrying a large desk. Those who had been asleep woke up, and every one rose as if just surprised at his work.`,
+
+  // Mary Shelley — The Last Man
+  `I am the native of a sea-surrounded nook, a cloud-enshadowed land, which, when the surface of the globe, with its shoreless ocean and trackless continents, presents itself to my mind, appears only as an inconsiderable speck in the immense whole.`,
+
+  // John Milton — Paradise Lost
+  `Of Man's first disobedience, and the fruit of that forbidden tree whose mortal taste brought death into the World, and all our woe, with loss of Eden, till one greater Man restore us, and regain the blissful seat.`,
+
+  // Washington Irving — The Legend of Sleepy Hollow
+  `In the bosom of one of those spacious coves which indent the eastern shore of the Hudson, at that broad expansion of the river denominated by the ancient Dutch navigators the Tappan Zee, and where they always prudently shortened sail...`,
+
+  // Daniel Defoe — Robinson Crusoe
+  `I was born in the year 1632, in the city of York, of a good family, though not of that country, my father being a foreigner of Bremen, who settled first at Hull. He got a good estate by merchandise, and leaving off his trade, lived afterwards at York...`,
+
+  // William Makepeace Thackeray — Vanity Fair
+  `While the present century was in its teens, and on one sunshiny morning in June, there drove up to the great iron gate of Miss Pinkerton's academy for young ladies, on Chiswick Mall, a large family coach, with two fat horses in blazing harness.`,
+
+  // Kate Chopin — The Awakening
+  `A green and yellow parrot, which hung in a cage outside the door, kept repeating over and over: "Allez vous-en! Allez vous-en! Sapristi! That's all right!" He could speak a little Spanish, and also a language which nobody understood, unless it was the mocking-bird.`,
+
+  // G.K. Chesterton — The Man Who Was Thursday
+  `The suburb of Saffron Park lay on the sunset side of London, as red and ragged as a cloud of sunset. It was built of a bright brick throughout; its sky-line was fantastic, and even its ground plan was wild.`,
 ]
 
 export function getPassage(index: number): string {
