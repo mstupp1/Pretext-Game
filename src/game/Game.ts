@@ -217,6 +217,7 @@ export class Game {
     this.state = 'countdown'
     this.countdownValue = 3
     this.countdownTimer = 1.0 // 1 second per number
+    audioManager.playCountdown(3)
     this.collectCooldown = 0
     this.isSubmitting = false
     this.pauseOptionIndex = 0
@@ -783,6 +784,9 @@ export class Game {
       if (this.countdownTimer <= 0) {
         this.countdownValue--
         this.countdownTimer = 1.0
+        if (this.countdownValue >= 0) {
+          audioManager.playCountdown(this.countdownValue as 2 | 1 | 0)
+        }
         if (this.countdownValue < 0) {
           this.beginPlaying()
           return

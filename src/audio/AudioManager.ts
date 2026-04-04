@@ -21,6 +21,10 @@ export class AudioManager {
   private menus1Sfx: HTMLAudioElement;
   private camera1Sfx: HTMLAudioElement;
   private restart1Sfx: HTMLAudioElement;
+  private countdown3Sfx: HTMLAudioElement;
+  private countdown2Sfx: HTMLAudioElement;
+  private countdown1Sfx: HTMLAudioElement;
+  private countdownGoSfx: HTMLAudioElement;
   private selectLetterSfx: HTMLAudioElement;
   private backspaceSfx: HTMLAudioElement;
 
@@ -41,7 +45,7 @@ export class AudioManager {
   private MAX_VOLUME = 0.5;
   private TITLE_AMBIENCE_MIX = 0.15;
   private MUSIC_CROSSFADE_MS = 1200;
-  private MUSIC_ENTRY_DELAY_MS = 1000;
+  private MUSIC_ENTRY_DELAY_MS = 4000;
   
   constructor() {
     this.titleAudio = new Audio(`${import.meta.env.BASE_URL}music/Title_1.mp3`);
@@ -111,6 +115,18 @@ export class AudioManager {
 
     this.restart1Sfx = new Audio(`${import.meta.env.BASE_URL}sfx/restart_1.wav`);
     this.restart1Sfx.volume = 0.4;
+
+    this.countdown3Sfx = new Audio(`${import.meta.env.BASE_URL}sfx/countdown_3.wav`);
+    this.countdown3Sfx.volume = 0.3;
+
+    this.countdown2Sfx = new Audio(`${import.meta.env.BASE_URL}sfx/countdown_2.wav`);
+    this.countdown2Sfx.volume = 0.3;
+
+    this.countdown1Sfx = new Audio(`${import.meta.env.BASE_URL}sfx/countdown_1.wav`);
+    this.countdown1Sfx.volume = 0.3;
+
+    this.countdownGoSfx = new Audio(`${import.meta.env.BASE_URL}sfx/countdown_go.wav`);
+    this.countdownGoSfx.volume = 0.32;
 
     this.selectLetterSfx = new Audio(`${import.meta.env.BASE_URL}sfx/selectletter_1.wav`);
     this.selectLetterSfx.volume = 1.0; // Full volume
@@ -235,6 +251,25 @@ export class AudioManager {
 
   public playRestart() {
     this.playSfx(this.restart1Sfx);
+  }
+
+  public playCountdown(value: 3 | 2 | 1 | 0) {
+    if (value === 3) {
+      this.playSfx(this.countdown3Sfx);
+      return;
+    }
+
+    if (value === 2) {
+      this.playSfx(this.countdown2Sfx);
+      return;
+    }
+
+    if (value === 1) {
+      this.playSfx(this.countdown1Sfx);
+      return;
+    }
+
+    this.playSfx(this.countdownGoSfx);
   }
 
   public playSelectLetter() {
