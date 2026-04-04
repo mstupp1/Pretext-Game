@@ -411,7 +411,7 @@ html, body {
 }
 
 #current-word.empty::after {
-  content: '·  ·  ·';
+  content: none;
   font-size: 22px;
   color: rgba(255, 242, 220, 0.62);
   text-shadow: 0 1px 1px rgba(37, 20, 10, 0.32);
