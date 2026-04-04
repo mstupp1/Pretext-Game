@@ -109,6 +109,11 @@ export class TextStream {
 
   public setSpeed(speed: number): void {
     this.speed = speed
+    this.shimmerIntensity = 0.3 + (speed / 100) * 0.5
+  }
+
+  public setDirection(direction: 1 | -1): void {
+    this.direction = direction
   }
 
   public setHighlightRate(rate: number): void {

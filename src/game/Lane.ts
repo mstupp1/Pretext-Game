@@ -80,35 +80,29 @@ export class Lane {
   }
 
   updateConfig(newConfig: LaneConfig): void {
-    const fontChanged = this.config.fontSize !== newConfig.fontSize || this.config.fontStyle !== newConfig.fontStyle
-    const highlightRateChanged = this.config.highlightRate !== newConfig.highlightRate
-    this.config = newConfig
-
     if (this.stream) {
       this.stream.setSpeed(newConfig.speed)
+      this.stream.setDirection(newConfig.direction)
+      this.stream.setHighlightRate(newConfig.highlightRate)
 
       if (this.isSafeZone) {
+        this.config = {
+          ...this.config,
+          speed: newConfig.speed,
+          direction: newConfig.direction,
+          highlightRate: newConfig.highlightRate,
+        }
         return
       }
+    }
 
-      const fontBuilder = {
-        light: CANVAS_FONTS.laneLight,
-        regular: CANVAS_FONTS.laneRegular,
-        medium: CANVAS_FONTS.laneMedium,
-        bold: CANVAS_FONTS.laneBold,
-        italic: CANVAS_FONTS.laneItalic,
-        boldItalic: CANVAS_FONTS.laneBoldItalic,
-      }[newConfig.fontStyle]
-
-      const nextFont = fontBuilder(newConfig.fontSize)
-      this.pointsFont = this.buildPointsFont(newConfig.fontSize)
-
-      if (fontChanged || highlightRateChanged) {
-        this.font = nextFont
-        this.stream.rebuild(this.font, newConfig.highlightRate)
-      } else {
-        this.stream.setHighlightRate(newConfig.highlightRate)
-      }
+    // Preserve the existing measured typography during chapter transitions so
+    // the stream contents and scroll positions continue uninterrupted.
+    this.config = {
+      ...this.config,
+      speed: newConfig.speed,
+      direction: newConfig.direction,
+      highlightRate: newConfig.highlightRate,
     }
   }
 
