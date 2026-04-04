@@ -106,6 +106,7 @@ export class Game {
   private lastHudNextTarget: string | null = null
   private lastHudProgressWidth: string | null = null
   private lastHudTimerUrgent: boolean | null = null
+  private hudContentVisible: boolean | null = null
 
   // Countdown state
   private countdownValue: number = 3
@@ -813,6 +814,8 @@ export class Game {
   }
 
   update(dt: number): void {
+    this.syncHudVisibility()
+
     if (this.state === 'title') {
       this.titleTime += dt
       return
@@ -904,6 +907,8 @@ export class Game {
   // ── Render ──
 
   render(): void {
+    this.syncHudVisibility()
+
     const ctx = this.ctx
 
     // Clear with ivory
@@ -1343,9 +1348,24 @@ export class Game {
 
   /** Hide/show the book-top stat block and multiplier legend. */
   private setHudContentVisible(visible: boolean): void {
+    if (this.hudContentVisible === visible) return
+
     const visibility = visible ? 'visible' : 'hidden'
-    if (this.hud.bookStats) this.hud.bookStats.style.visibility = visibility
-    if (this.hud.multiplierLegend) this.hud.multiplierLegend.style.visibility = visibility
+    const opacity = visible ? '1' : '0'
+    if (this.hud.bookStats) {
+      this.hud.bookStats.style.visibility = visibility
+      this.hud.bookStats.style.opacity = opacity
+    }
+    if (this.hud.multiplierLegend) {
+      this.hud.multiplierLegend.style.visibility = visibility
+      this.hud.multiplierLegend.style.opacity = opacity
+    }
+    this.hudContentVisible = visible
+  }
+
+  private syncHudVisibility(): void {
+    const shouldShowHud = this.state === 'countdown' || this.state === 'playing' || this.state === 'paused'
+    this.setHudContentVisible(shouldShowHud)
   }
 
   private updateUI(): void {
