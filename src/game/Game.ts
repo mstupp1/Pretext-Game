@@ -442,8 +442,11 @@ export class Game {
   }
 
   private setPauseToggleStatus(option: HTMLElement, isMuted: boolean): void {
-    const status = option.querySelector('.status')
-    if (status) status.textContent = isMuted ? '[x]' : '[ ]'
+    const toggleLabel = option.querySelector('.toggle-label')
+    if (toggleLabel) toggleLabel.textContent = isMuted ? 'Off' : 'On'
+
+    option.classList.toggle('is-toggle-off', isMuted)
+    option.setAttribute('aria-pressed', String(!isMuted))
   }
 
   private refreshPauseMenu(): void {
