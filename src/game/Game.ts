@@ -1223,8 +1223,8 @@ export class Game {
     innerHeight: number
     lipHeight: number
   } {
-    const slotCapacity = 15
-    const tileWidth = 44
+    const slotCapacity = MAX_COLLECTED_LETTERS
+    const tileWidth = 52
     const tileHeight = 52
     const tileGap = 6
     const innerPaddingX = 32
