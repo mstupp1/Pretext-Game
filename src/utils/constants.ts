@@ -61,7 +61,7 @@ export const PLAYER_SIZE = 28
 export const PLAYER_SPEED = 3.5
 
 // Game settings
-export const LEVEL_TIME = 90 // seconds
+export const LEVEL_TIME = 60 // seconds
 export const TIME_BONUS = 15 // seconds added for reaching far side
 export const MAX_COLLECTED_LETTERS = 12
 export const MIN_WORD_LENGTH = 3

@@ -6,7 +6,7 @@ import { Lane, type LaneConfig } from './Lane'
 import { scoreWord, type ScoreResult, getLetterValue, type ScoredLetter } from './Scoring'
 import { generateLevel, type LevelConfig } from './Levels'
 import { ParticleSystem } from '../effects/ParticleSystem'
-import { GAME_WIDTH, GAME_HEIGHT, LANE_COUNT, LANE_HEIGHT, LANE_Y_START, COLORS, CANVAS_FONTS, ROMAN_NUMERALS, MAX_COLLECTED_LETTERS, TIME_BONUS } from '../utils/constants'
+import { GAME_WIDTH, GAME_HEIGHT, LANE_COUNT, LANE_HEIGHT, LANE_Y_START, COLORS, CANVAS_FONTS, ROMAN_NUMERALS, MAX_COLLECTED_LETTERS, TIME_BONUS, LEVEL_TIME } from '../utils/constants'
 import { renderText, measureTextWidth, renderCurvedText, measureCharsInLine } from '../text/TextEngine'
 import { getPageCurvatureOffset } from '../text/TextStream'
 
@@ -51,7 +51,7 @@ export class Game {
   // Game state
   public score: number = 0
   public chapter: number = 1
-  public timeRemaining: number = 90
+  public timeRemaining: number = LEVEL_TIME
   public collectedLetters: CollectedLetter[] = []
   public wordsFound: ScoredLetter[][] = []
   public usedWords: Set<string> = new Set()    // words used this run (no repeats)
@@ -523,8 +523,8 @@ export class Game {
       lane.update(dt, this.player.x, this.player.y)
     }
 
-    // Check chapter threshold (triangular progression: increment grows by 100 each chapter)
-    const requiredScore = 50 * this.chapter * (this.chapter + 1)
+    // Check chapter threshold (slight progression: requirement grows by 50 each chapter)
+    const requiredScore = 25 * this.chapter * (this.chapter + 3)
     if (this.score >= requiredScore) {
       this.chapter++
       audioManager.playChapterUnlock()
@@ -1060,7 +1060,7 @@ export class Game {
     const nextEl = document.getElementById('next-chapter-value')
     const progressFillEl = document.getElementById('score-progress-fill')
 
-    const nextTarget = 50 * this.chapter * (this.chapter + 1)
+    const nextTarget = 25 * this.chapter * (this.chapter + 3)
 
     if (scoreEl) scoreEl.textContent = String(this.score)
     if (levelEl) levelEl.textContent = ROMAN_NUMERALS[Math.min(this.chapter - 1, 9)]
