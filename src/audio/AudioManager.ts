@@ -19,6 +19,8 @@ export class AudioManager {
   private timewarning2Sfx: HTMLAudioElement;
 
   private menus1Sfx: HTMLAudioElement;
+  private camera1Sfx: HTMLAudioElement;
+  private restart1Sfx: HTMLAudioElement;
   private selectLetterSfx: HTMLAudioElement;
   private backspaceSfx: HTMLAudioElement;
 
@@ -103,6 +105,12 @@ export class AudioManager {
 
     this.menus1Sfx = new Audio(`${import.meta.env.BASE_URL}sfx/menus_1.wav`);
     this.menus1Sfx.volume = 0.15; // Soft UI sound effect volume
+
+    this.camera1Sfx = new Audio(`${import.meta.env.BASE_URL}sfx/camera_1.wav`);
+    this.camera1Sfx.volume = 0.4;
+
+    this.restart1Sfx = new Audio(`${import.meta.env.BASE_URL}sfx/restart_1.wav`);
+    this.restart1Sfx.volume = 0.4;
 
     this.selectLetterSfx = new Audio(`${import.meta.env.BASE_URL}sfx/selectletter_1.wav`);
     this.selectLetterSfx.volume = 1.0; // Full volume
@@ -219,6 +227,14 @@ export class AudioManager {
 
   public playMenuNav() {
     this.playSfx(this.menus1Sfx);
+  }
+
+  public playPause() {
+    this.playSfx(this.camera1Sfx);
+  }
+
+  public playRestart() {
+    this.playSfx(this.restart1Sfx);
   }
 
   public playSelectLetter() {

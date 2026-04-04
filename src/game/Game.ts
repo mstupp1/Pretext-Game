@@ -311,6 +311,7 @@ export class Game {
 
   private togglePause(): void {
     if (this.state === 'playing') {
+      audioManager.playPause()
       this.state = 'paused'
       this.pauseOptionIndex = 0
       this.pauseConfirmAction = null
@@ -430,6 +431,7 @@ export class Game {
     this.closePauseConfirmation()
 
     if (action === 'restart') {
+      audioManager.playRestart()
       this.startGame()
     } else if (action === 'quit') {
       this.returnToTitle()
