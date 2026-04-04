@@ -426,10 +426,19 @@ export class Game {
       this.wordsFound.push(allLetters)
       this.usedWords.add(result.word)
 
+      let timeBonus = 0
+      if (result.word.length >= 6) timeBonus = 15
+      else if (result.word.length === 5) timeBonus = 8
+      else if (result.word.length === 4) timeBonus = 5
+      else if (result.word.length === 3) timeBonus = 3
+
+      this.timeRemaining += timeBonus
+
       // Clear all letters after successful submit
       this.collectedLetters = []
 
-      this.showFeedback(`${result.word}: +${result.totalScore}  ${result.message}`, true)
+      const timeMsg = timeBonus > 0 ? ` (+${timeBonus}s)` : ''
+      this.showFeedback(`${result.word}: +${result.totalScore}${timeMsg}  ${result.message}`, true)
 
       // ✨ TYPOGRAPHIC EXPLOSION — the big payoff!
       const intensity = Math.min(2, 0.8 + result.totalScore / 50)
@@ -437,6 +446,9 @@ export class Game {
 
       // Score text rises as particles
       this.particles.waveText(`+${result.totalScore}`, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 60)
+      if (timeBonus > 0) {
+        this.particles.waveText(`+${timeBonus}s`, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40)
+      }
 
       this.updateWordsUI()
     } else {
