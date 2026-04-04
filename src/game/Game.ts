@@ -53,6 +53,16 @@ interface HudElements {
   completedWordsList: HTMLElement | null
 }
 
+interface RenderAssets {
+  backgroundRulePaths: Path2D[]
+  boundaryTopPath: Path2D
+  boundaryBottomPath: Path2D
+  vignetteGradient: CanvasGradient
+  spineGradient: CanvasGradient
+  edgeGradientLeft: CanvasGradient
+  edgeGradientRight: CanvasGradient
+}
+
 export class Game {
   public state: GameState = 'title'
   public canvas: HTMLCanvasElement
@@ -89,6 +99,7 @@ export class Game {
   private pauseConfirmAction: PauseConfirmAction = null
   private pauseConfirmIndex: number = 0
   private hud: HudElements
+  private renderAssets: RenderAssets
   private lastHudScore: string | null = null
   private lastHudLevel: string | null = null
   private lastHudTimer: string | null = null
@@ -110,6 +121,7 @@ export class Game {
     this.player = new Player()
     this.level = generateLevel(1)
     this.hud = this.getHudElements()
+    this.renderAssets = this.createRenderAssets()
     this.loadHighScores()
 
     // Input handlers
@@ -950,49 +962,23 @@ export class Game {
     // Ruled lines across the entire page
     ctx.strokeStyle = 'rgba(44, 24, 16, 0.04)'
     ctx.lineWidth = 0.5
-    const startY = 40
-    const endY = GAME_HEIGHT - 40
-    for (let y = startY; y <= endY; y += 22) {
-      ctx.beginPath()
-      for (let x = 0; x <= GAME_WIDTH; x += 10) {
-        const offset = getPageCurvatureOffset(x, GAME_WIDTH)
-        if (x === 0) ctx.moveTo(x, y + offset)
-        else ctx.lineTo(x, y + offset)
-      }
-      ctx.stroke()
+    for (const path of this.renderAssets.backgroundRulePaths) {
+      ctx.stroke(path)
     }
 
     // Vignette
-    const gradient = ctx.createRadialGradient(
-      GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH * 0.3,
-      GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH * 0.7,
-    )
-    gradient.addColorStop(0, 'rgba(245, 241, 232, 0)')
-    gradient.addColorStop(1, 'rgba(200, 190, 170, 0.15)')
-    ctx.fillStyle = gradient
+    ctx.fillStyle = this.renderAssets.vignetteGradient
     ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT)
     
     // Book spine crease (center)
-    const spineGradient = ctx.createLinearGradient(GAME_WIDTH / 2 - 40, 0, GAME_WIDTH / 2 + 40, 0)
-    spineGradient.addColorStop(0, 'rgba(0, 0, 0, 0)')
-    spineGradient.addColorStop(0.3, 'rgba(0, 0, 0, 0.05)')
-    spineGradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.12)')
-    spineGradient.addColorStop(0.7, 'rgba(0, 0, 0, 0.05)')
-    spineGradient.addColorStop(1, 'rgba(0, 0, 0, 0)')
-    ctx.fillStyle = spineGradient
+    ctx.fillStyle = this.renderAssets.spineGradient
     ctx.fillRect(GAME_WIDTH / 2 - 40, 0, 80, GAME_HEIGHT)
 
     // Book page edges (left and right shadows)
-    const edgeGradientLeft = ctx.createLinearGradient(0, 0, 30, 0)
-    edgeGradientLeft.addColorStop(0, 'rgba(0, 0, 0, 0.06)')
-    edgeGradientLeft.addColorStop(1, 'rgba(0, 0, 0, 0)')
-    ctx.fillStyle = edgeGradientLeft
+    ctx.fillStyle = this.renderAssets.edgeGradientLeft
     ctx.fillRect(0, 0, 30, GAME_HEIGHT)
 
-    const edgeGradientRight = ctx.createLinearGradient(GAME_WIDTH - 30, 0, GAME_WIDTH, 0)
-    edgeGradientRight.addColorStop(0, 'rgba(0, 0, 0, 0)')
-    edgeGradientRight.addColorStop(1, 'rgba(0, 0, 0, 0.06)')
-    ctx.fillStyle = edgeGradientRight
+    ctx.fillStyle = this.renderAssets.edgeGradientRight
     ctx.fillRect(GAME_WIDTH - 30, 0, 30, GAME_HEIGHT)
   }
 
@@ -1000,23 +986,10 @@ export class Game {
     // Top decorative line
     ctx.strokeStyle = COLORS.rule
     ctx.lineWidth = 1
-    ctx.beginPath()
-    for (let x = 30; x <= GAME_WIDTH - 30; x += 10) {
-      const offset = getPageCurvatureOffset(x, GAME_WIDTH)
-      if (x === 30) ctx.moveTo(x, LANE_Y_START + offset)
-      else ctx.lineTo(x, LANE_Y_START + offset)
-    }
-    ctx.stroke()
+    ctx.stroke(this.renderAssets.boundaryTopPath)
 
     // Bottom decorative line
-    const bottomY = LANE_Y_START + LANE_COUNT * LANE_HEIGHT
-    ctx.beginPath()
-    for (let x = 30; x <= GAME_WIDTH - 30; x += 10) {
-      const offset = getPageCurvatureOffset(x, GAME_WIDTH)
-      if (x === 30) ctx.moveTo(x, bottomY + offset)
-      else ctx.lineTo(x, bottomY + offset)
-    }
-    ctx.stroke()
+    ctx.stroke(this.renderAssets.boundaryBottomPath)
   }
 
   // Ease-out cubic for smooth entrance deceleration
@@ -1498,5 +1471,54 @@ export class Game {
       currentWord: document.getElementById('current-word'),
       completedWordsList: document.getElementById('completed-words-list'),
     }
+  }
+
+  private createRenderAssets(): RenderAssets {
+    const backgroundRulePaths: Path2D[] = []
+    for (let y = 40; y <= GAME_HEIGHT - 40; y += 22) {
+      backgroundRulePaths.push(this.createCurvedLinePath(0, GAME_WIDTH, y))
+    }
+
+    const vignetteGradient = this.ctx.createRadialGradient(
+      GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH * 0.3,
+      GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH * 0.7,
+    )
+    vignetteGradient.addColorStop(0, 'rgba(245, 241, 232, 0)')
+    vignetteGradient.addColorStop(1, 'rgba(200, 190, 170, 0.15)')
+
+    const spineGradient = this.ctx.createLinearGradient(GAME_WIDTH / 2 - 40, 0, GAME_WIDTH / 2 + 40, 0)
+    spineGradient.addColorStop(0, 'rgba(0, 0, 0, 0)')
+    spineGradient.addColorStop(0.3, 'rgba(0, 0, 0, 0.05)')
+    spineGradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.12)')
+    spineGradient.addColorStop(0.7, 'rgba(0, 0, 0, 0.05)')
+    spineGradient.addColorStop(1, 'rgba(0, 0, 0, 0)')
+
+    const edgeGradientLeft = this.ctx.createLinearGradient(0, 0, 30, 0)
+    edgeGradientLeft.addColorStop(0, 'rgba(0, 0, 0, 0.06)')
+    edgeGradientLeft.addColorStop(1, 'rgba(0, 0, 0, 0)')
+
+    const edgeGradientRight = this.ctx.createLinearGradient(GAME_WIDTH - 30, 0, GAME_WIDTH, 0)
+    edgeGradientRight.addColorStop(0, 'rgba(0, 0, 0, 0)')
+    edgeGradientRight.addColorStop(1, 'rgba(0, 0, 0, 0.06)')
+
+    return {
+      backgroundRulePaths,
+      boundaryTopPath: this.createCurvedLinePath(30, GAME_WIDTH - 30, LANE_Y_START),
+      boundaryBottomPath: this.createCurvedLinePath(30, GAME_WIDTH - 30, LANE_Y_START + LANE_COUNT * LANE_HEIGHT),
+      vignetteGradient,
+      spineGradient,
+      edgeGradientLeft,
+      edgeGradientRight,
+    }
+  }
+
+  private createCurvedLinePath(startX: number, endX: number, y: number): Path2D {
+    const path = new Path2D()
+    for (let x = startX; x <= endX; x += 10) {
+      const offset = getPageCurvatureOffset(x, GAME_WIDTH)
+      if (x === startX) path.moveTo(x, y + offset)
+      else path.lineTo(x, y + offset)
+    }
+    return path
   }
 }

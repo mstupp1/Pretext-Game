@@ -25,12 +25,22 @@ export class Lane {
   private config: LaneConfig
   private ornamentOffset: number = 0
   private font: string
+  private safeZoneFillPath: Path2D | null = null
+  private safeZoneRulePath: Path2D | null = null
+  private playerLaneFillPath: Path2D | null = null
+  private separatorPath: Path2D
 
   constructor(config: LaneConfig, yPosition: number) {
     this.config = config
     this.index = config.index
     this.y = yPosition
     this.isSafeZone = SAFE_ZONE_INDICES.includes(config.index)
+    this.separatorPath = this.createCurvedLinePath(0, GAME_WIDTH, this.y + this.height)
+    this.playerLaneFillPath = this.createCurvedFillPath(0, GAME_WIDTH, this.y, this.y + this.height)
+    if (this.isSafeZone) {
+      this.safeZoneFillPath = this.createCurvedFillPath(0, GAME_WIDTH, this.y, this.y + this.height)
+      this.safeZoneRulePath = this.createSafeZoneRulePath()
+    }
 
     if (this.isSafeZone) {
       // Safe zones are now continuously scrolling icon streams
@@ -112,51 +122,18 @@ export class Lane {
     if (this.isSafeZone) {
       // Subtle background for safe zones
       ctx.fillStyle = 'rgba(232, 224, 208, 0.3)'
-      ctx.beginPath()
-      for (let x = 0; x <= GAME_WIDTH; x += 10) {
-        const offset = getPageCurvatureOffset(x, GAME_WIDTH)
-        if (x === 0) ctx.moveTo(x, this.y + offset)
-        else ctx.lineTo(x, this.y + offset)
-      }
-      for (let x = GAME_WIDTH; x >= 0; x -= 10) {
-        const offset = getPageCurvatureOffset(x, GAME_WIDTH)
-        ctx.lineTo(x, this.y + this.height + offset)
-      }
-      ctx.closePath()
-      ctx.fill()
+      if (this.safeZoneFillPath) ctx.fill(this.safeZoneFillPath)
 
       // Safe zone rules
       ctx.strokeStyle = COLORS.rule
       ctx.lineWidth = 0.5
-      ctx.beginPath()
-      for (let x = 30; x <= GAME_WIDTH - 30; x += 10) {
-        const offset = getPageCurvatureOffset(x, GAME_WIDTH)
-        if (x === 30) ctx.moveTo(x, this.y + 2 + offset)
-        else ctx.lineTo(x, this.y + 2 + offset)
-      }
-      for (let x = 30; x <= GAME_WIDTH - 30; x += 10) {
-        const offset = getPageCurvatureOffset(x, GAME_WIDTH)
-        if (x === 30) ctx.moveTo(x, this.y + this.height - 2 + offset)
-        else ctx.lineTo(x, this.y + this.height - 2 + offset)
-      }
-      ctx.stroke()
+      if (this.safeZoneRulePath) ctx.stroke(this.safeZoneRulePath)
     }
 
     // Subtle lane background
     if (this.index === playerLane) {
       ctx.fillStyle = 'rgba(184, 134, 11, 0.04)'
-      ctx.beginPath()
-      for (let x = 0; x <= GAME_WIDTH; x += 10) {
-        const offset = getPageCurvatureOffset(x, GAME_WIDTH)
-        if (x === 0) ctx.moveTo(x, this.y + offset)
-        else ctx.lineTo(x, this.y + offset)
-      }
-      for (let x = GAME_WIDTH; x >= 0; x -= 10) {
-        const offset = getPageCurvatureOffset(x, GAME_WIDTH)
-        ctx.lineTo(x, this.y + this.height + offset)
-      }
-      ctx.closePath()
-      ctx.fill()
+      if (this.playerLaneFillPath) ctx.fill(this.playerLaneFillPath)
     }
 
     // Render text stream with full effects
@@ -401,13 +378,7 @@ export class Lane {
     // Lane separator (thin rule)
     ctx.strokeStyle = COLORS.rule
     ctx.lineWidth = 0.5
-    ctx.beginPath()
-    for (let x = 0; x <= GAME_WIDTH; x += 10) {
-      const offset = getPageCurvatureOffset(x, GAME_WIDTH)
-      if (x === 0) ctx.moveTo(x, this.y + this.height + offset)
-      else ctx.lineTo(x, this.y + this.height + offset)
-    }
-    ctx.stroke()
+    ctx.stroke(this.separatorPath)
   }
 
 
@@ -422,5 +393,37 @@ export class Lane {
   findCollectibleNear(playerX: number): StreamChar | null {
     if (!this.stream) return null
     return this.stream.findCollectibleAt(playerX, GAME_WIDTH)
+  }
+
+  private createCurvedLinePath(startX: number, endX: number, y: number): Path2D {
+    const path = new Path2D()
+    for (let x = startX; x <= endX; x += 10) {
+      const offset = getPageCurvatureOffset(x, GAME_WIDTH)
+      if (x === startX) path.moveTo(x, y + offset)
+      else path.lineTo(x, y + offset)
+    }
+    return path
+  }
+
+  private createCurvedFillPath(startX: number, endX: number, topY: number, bottomY: number): Path2D {
+    const path = new Path2D()
+    for (let x = startX; x <= endX; x += 10) {
+      const offset = getPageCurvatureOffset(x, GAME_WIDTH)
+      if (x === startX) path.moveTo(x, topY + offset)
+      else path.lineTo(x, topY + offset)
+    }
+    for (let x = endX; x >= startX; x -= 10) {
+      const offset = getPageCurvatureOffset(x, GAME_WIDTH)
+      path.lineTo(x, bottomY + offset)
+    }
+    path.closePath()
+    return path
+  }
+
+  private createSafeZoneRulePath(): Path2D {
+    const path = new Path2D()
+    path.addPath(this.createCurvedLinePath(30, GAME_WIDTH - 30, this.y + 2))
+    path.addPath(this.createCurvedLinePath(30, GAME_WIDTH - 30, this.y + this.height - 2))
+    return path
   }
 }
