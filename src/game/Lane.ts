@@ -29,6 +29,8 @@ export class Lane {
   private safeZoneRulePath: Path2D | null = null
   private playerLaneFillPath: Path2D | null = null
   private separatorPath: Path2D
+  private pointsFont: string
+  private tileShineGradientCache: Map<string, CanvasGradient> = new Map()
 
   constructor(config: LaneConfig, yPosition: number) {
     this.config = config
@@ -37,6 +39,7 @@ export class Lane {
     this.isSafeZone = SAFE_ZONE_INDICES.includes(config.index)
     this.separatorPath = this.createCurvedLinePath(0, GAME_WIDTH, this.y + this.height)
     this.playerLaneFillPath = this.createCurvedFillPath(0, GAME_WIDTH, this.y, this.y + this.height)
+    this.pointsFont = this.buildPointsFont(config.fontSize)
     if (this.isSafeZone) {
       this.safeZoneFillPath = this.createCurvedFillPath(0, GAME_WIDTH, this.y, this.y + this.height)
       this.safeZoneRulePath = this.createSafeZoneRulePath()
@@ -97,6 +100,7 @@ export class Lane {
       }[newConfig.fontStyle]
 
       const nextFont = fontBuilder(newConfig.fontSize)
+      this.pointsFont = this.buildPointsFont(newConfig.fontSize)
 
       if (fontChanged || highlightRateChanged) {
         this.font = nextFont
@@ -141,234 +145,17 @@ export class Lane {
       const visible = this.stream.getVisibleChars(GAME_WIDTH)
 
       ctx.textBaseline = 'middle'
-
-      const normalRenderChars: any[] = []
-      const topRenderChars: any[] = []
+      ctx.textAlign = 'center'
+      ctx.font = this.font
 
       for (const { char: ch, screenX } of visible) {
-        if (ch.alpha <= 0) continue
-
-        // ── Compute all ambient offsets ──
-        const undulation = this.stream.getUndulationOffset(ch, screenX)
-        const shimmer = this.stream.getShimmerOffset(ch)
-        const wordPulse = this.stream.getWordPulseOffset(ch)
-        const edgeScale = this.stream.getEdgeScale(screenX, GAME_WIDTH)
-        const inkAlpha = this.stream.getInkAlpha(ch)
-        const rippleOffset = this.stream.getRippleOffset(ch)
-        const pageCurvature = this.stream.getPageCurvatureOffset(screenX, GAME_WIDTH)
-
-        // Combine displacements: interactive + ambient
-        const totalDx = ch.dx + shimmer + wordPulse
-        const totalDy = ch.dy + undulation + rippleOffset + pageCurvature
-
-        const charCenterX = screenX + ch.width / 2 + totalDx
-        const charCenterY = centerY + totalDy
-
-        // Combined scale: interactive × ambient edge warp
-        const totalScale = ch.scale * edgeScale
-        const edgeFade = this.stream.getEdgeFade(screenX, GAME_WIDTH)
-        
-        const renderData = { ch, charCenterX, charCenterY, totalScale, inkAlpha, edgeFade }
-        
-        if (ch.isCollected || ch.isHighlighted) {
-           topRenderChars.push(renderData)
-        } else {
-           normalRenderChars.push(renderData)
-        }
+        if (ch.alpha <= 0 || ch.isCollected || ch.isHighlighted) continue
+        this.renderNormalChar(ctx, ch, screenX, centerY)
       }
 
-      // First Pass: Normal background text
-      for (const { ch, charCenterX, charCenterY, totalScale, inkAlpha, edgeFade } of normalRenderChars) {
-        ctx.save()
-        ctx.translate(charCenterX, charCenterY)
-
-        if (ch.rotation !== 0 || totalScale !== 1) {
-          ctx.rotate(ch.rotation)
-          ctx.scale(totalScale, totalScale)
-        }
-
-        if (ch.scale > 1.05) {
-          const depth = (ch.scale - 1) * 15
-          ctx.shadowColor = COLORS.shadow
-          ctx.shadowBlur = depth * 1.5
-          ctx.shadowOffsetX = 0
-          ctx.shadowOffsetY = depth
-        }
-
-        const isLifted = ch.scale > 1.05
-        const proximityAlpha = isLifted ? 1.0 : (0.55 + (ch.scale - 1) * 1.0)
-
-        ctx.globalAlpha = Math.min(1, ch.alpha * proximityAlpha * inkAlpha * edgeFade)
-
-        ctx.font = this.font
-        let textColor: string = COLORS.sepia
-        if (ch.multiplierType === 'DoubleLetter') textColor = 'rgb(255, 255, 255)' // white
-        else if (ch.multiplierType === 'TripleLetter') textColor = 'rgb(23, 124, 114)'
-        else if (ch.multiplierType === 'DoubleWord') textColor = 'rgb(255, 255, 255)' // white
-        else if (ch.multiplierType === 'TripleWord') textColor = 'rgb(115, 45, 145)' // twPurple border roughly
-        ctx.fillStyle = textColor
-        ctx.textAlign = 'center'
-        ctx.fillText(ch.char, 0, 0)
-        ctx.restore()
-      }
-
-      // Second Pass: Highlighted and Collected text
-      for (const { ch, charCenterX, charCenterY, totalScale, inkAlpha, edgeFade } of topRenderChars) {
-        if (ch.isCollected) {
-          ctx.save()
-          ctx.globalAlpha = ch.alpha * edgeFade
-          ctx.translate(charCenterX, charCenterY)
-          ctx.rotate(ch.rotation)
-          ctx.scale(totalScale, totalScale)
-          ctx.font = this.font
-
-          let footprintColor: string = COLORS.gold
-          if (ch.multiplierType === 'DoubleLetter') footprintColor = COLORS.dlLight
-          else if (ch.multiplierType === 'TripleLetter') footprintColor = COLORS.tlBlue
-          else if (ch.multiplierType === 'DoubleWord') footprintColor = COLORS.dwCoral
-          else if (ch.multiplierType === 'TripleWord') footprintColor = COLORS.twPurple
-
-          ctx.fillStyle = footprintColor
-          ctx.fillText(ch.char, -ch.width / 2, 0)
-          ctx.restore()
-        } else if (ch.isHighlighted) {
-          ctx.save()
-          ctx.translate(charCenterX, charCenterY)
-          
-          const isLifted = ch.scale > 1.05
-          const proximityAlpha = isLifted ? 1.0 : Math.min(1, 0.75 + (ch.scale - 1) * 1.0)
-          const baseAlpha = Math.min(1, ch.alpha * proximityAlpha) * edgeFade
-          
-          ctx.globalAlpha = baseAlpha
-
-          if (ch.rotation !== 0 || totalScale !== 1) {
-            ctx.rotate(ch.rotation)
-            ctx.scale(totalScale, totalScale)
-          }
-
-          if (ch.scale > 1.05) {
-            const depth = (ch.scale - 1) * 15
-            ctx.shadowColor = COLORS.shadow
-            ctx.shadowBlur = depth * 1.5
-            ctx.shadowOffsetX = 0
-            ctx.shadowOffsetY = depth
-          }
-
-          // Compute tile dimensions
-          const interactionStrength = Math.min(1, Math.max(0, (ch.scale - 1) / 1.5))
-          const padding = 4 + interactionStrength * 2
-          const tileW = ch.width + padding * 2
-          const tileH = this.config.fontSize + padding * 2
-          const borderRadius = 4
-          
-          // 1. Draw Tile Shadow
-          if (ch.scale > 1.1) {
-            ctx.shadowColor = COLORS.shadow
-            ctx.shadowBlur = 4 + (ch.scale - 1) * 10
-            ctx.shadowOffsetY = 2 + (ch.scale - 1) * 4
-          }
-          
-          // 2. Draw Tile Background
-          // transition background from faint gold to solid gold based on focus
-          const bgAlpha = Math.min(1, 0.4 + interactionStrength * 0.6)
-          let baseColor = `rgba(184, 134, 11, ${bgAlpha * baseAlpha})`
-          let borderColor = `rgba(154, 114, 9, ${baseAlpha})` // #9A7209
-          let depthColor = 'rgba(100, 70, 20, 0.4)'
-
-          const colorT = Math.min(1, Math.max(0, interactionStrength * 1.2))
-          // Interpolate standard gold to ivory for regular tiles
-          const r = Math.round(184 + colorT * (245 - 184))
-          const g = Math.round(134 + colorT * (241 - 134))
-          const b = Math.round(11 + colorT * (232 - 11))
-          let charColor = `rgb(${r}, ${g}, ${b})`
-
-          if (ch.multiplierType === 'DoubleLetter') {
-            baseColor = `rgba(91, 155, 213, ${bgAlpha * baseAlpha})` // dlLight (Medium Blue)
-            borderColor = `rgba(63, 107, 168, ${baseAlpha})`
-            depthColor = 'rgba(50, 85, 140, 0.4)'
-            const cr = Math.round(63 + colorT * (255 - 63))
-            const cg = Math.round(107 + colorT * (255 - 107))
-            const cb = Math.round(168 + colorT * (255 - 168))
-            charColor = `rgb(${cr}, ${cg}, ${cb})`
-          } else if (ch.multiplierType === 'TripleLetter') {
-            baseColor = `rgba(34, 166, 153, ${bgAlpha * baseAlpha})` // tlBlue (Greenish)
-            borderColor = `rgba(23, 124, 114, ${baseAlpha})`
-            depthColor = 'rgba(20, 100, 95, 0.4)'
-            const cr = Math.round(23 + colorT * (245 - 23))
-            const cg = Math.round(124 + colorT * (241 - 124))
-            const cb = Math.round(114 + colorT * (232 - 114))
-            charColor = `rgb(${cr}, ${cg}, ${cb})`
-          } else if (ch.multiplierType === 'DoubleWord') {
-            baseColor = `rgba(231, 76, 60, ${bgAlpha * baseAlpha})` // dwCoral (Medium Red)
-            borderColor = `rgba(184, 61, 47, ${baseAlpha})`
-            depthColor = 'rgba(150, 50, 40, 0.4)'
-            const cr = Math.round(184 + colorT * (255 - 184))
-            const cg = Math.round(61 + colorT * (255 - 61))
-            const cb = Math.round(47 + colorT * (255 - 47))
-            charColor = `rgb(${cr}, ${cg}, ${cb})`
-          } else if (ch.multiplierType === 'TripleWord') {
-            baseColor = `rgba(142, 68, 173, ${bgAlpha * baseAlpha})` // twPurple
-            borderColor = `rgba(115, 45, 145, ${baseAlpha})`
-            depthColor = 'rgba(90, 30, 120, 0.4)'
-            const cr = Math.round(115 + colorT * (245 - 115))
-            const cg = Math.round(45 + colorT * (241 - 45))
-            const cb = Math.round(145 + colorT * (232 - 145))
-            charColor = `rgb(${cr}, ${cg}, ${cb})`
-          }
-
-          ctx.fillStyle = baseColor
-          ctx.beginPath()
-          ctx.roundRect(-tileW / 2, -tileH / 2, tileW, tileH, borderRadius)
-          ctx.fill()
-
-          // 3. Draw Tile Border (3D effect)
-          ctx.shadowBlur = 0
-          ctx.shadowOffsetY = 0
-
-          // Bottom "depth" part of the tile — consistent 3px depth regardless of scale
-          const visualDepth = 3
-          const depth = visualDepth / totalScale
-          ctx.fillStyle = depthColor
-          ctx.beginPath()
-          ctx.roundRect(-tileW / 2, tileH / 2 - depth, tileW, depth, [0, 0, borderRadius, borderRadius])
-          ctx.fill()
-
-          ctx.strokeStyle = borderColor
-          ctx.lineWidth = 1
-          ctx.beginPath()
-          ctx.roundRect(-tileW / 2, -tileH / 2, tileW, tileH, borderRadius)
-          ctx.stroke()
-
-          // 4. Draw Tile Surface Shine (Subtle)
-          const shineGradient = ctx.createLinearGradient(-tileW/2, -tileH/2, tileW/2, tileH/2)
-          shineGradient.addColorStop(0, 'rgba(255, 255, 255, 0.15)')
-          shineGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0)')
-          shineGradient.addColorStop(1, 'rgba(0, 0, 0, 0.05)')
-          ctx.fillStyle = shineGradient
-          ctx.fill()
-
-          // 5. Draw the main Character
-          ctx.font = this.font
-          ctx.fillStyle = charColor
-          ctx.textAlign = 'center'
-          ctx.textBaseline = 'middle'
-          ctx.fillText(ch.char, 0, -1) // nudge up slightly for 3D feel
-
-          // 6. Draw the Point Value (Bottom-Right)
-          const points = getLetterValue(ch.char)
-          if (points > 0) {
-            const pointsFontSize = Math.max(9, this.config.fontSize * 0.4)
-            ctx.font = `800 ${pointsFontSize}px ${FONTS.ui}`
-            ctx.textAlign = 'right'
-            ctx.textBaseline = 'bottom'
-            // Points fade in with focus
-            ctx.globalAlpha = baseAlpha * Math.min(1, interactionStrength * 2)
-            ctx.fillStyle = charColor
-            ctx.fillText(String(points), tileW / 2 - 3, tileH / 2 - 2)
-          }
-
-          ctx.restore()
-        }
+      for (const { char: ch, screenX } of visible) {
+        if (ch.alpha <= 0 || (!ch.isCollected && !ch.isHighlighted)) continue
+        this.renderTopChar(ctx, ch, screenX, centerY)
       }
 
       // Reset text align
@@ -425,5 +212,232 @@ export class Lane {
     path.addPath(this.createCurvedLinePath(30, GAME_WIDTH - 30, this.y + 2))
     path.addPath(this.createCurvedLinePath(30, GAME_WIDTH - 30, this.y + this.height - 2))
     return path
+  }
+
+  private renderNormalChar(ctx: CanvasRenderingContext2D, ch: StreamChar, screenX: number, centerY: number): void {
+    if (!this.stream) return
+
+    const undulation = this.stream.getUndulationOffset(ch, screenX)
+    const shimmer = this.stream.getShimmerOffset(ch)
+    const wordPulse = this.stream.getWordPulseOffset(ch)
+    const rippleOffset = this.stream.getRippleOffset(ch)
+    const pageCurvature = this.stream.getPageCurvatureOffset(screenX, GAME_WIDTH)
+    const edgeScale = this.stream.getEdgeScale(screenX, GAME_WIDTH)
+    const inkAlpha = this.stream.getInkAlpha(ch)
+    const edgeFade = this.stream.getEdgeFade(screenX, GAME_WIDTH)
+    const totalScale = ch.scale * edgeScale
+    const charCenterX = screenX + ch.width / 2 + ch.dx + shimmer + wordPulse
+    const charCenterY = centerY + ch.dy + undulation + rippleOffset + pageCurvature
+
+    ctx.save()
+    ctx.translate(charCenterX, charCenterY)
+
+    if (ch.rotation !== 0 || totalScale !== 1) {
+      ctx.rotate(ch.rotation)
+      ctx.scale(totalScale, totalScale)
+    }
+
+    if (ch.scale > 1.05) {
+      const depth = (ch.scale - 1) * 15
+      ctx.shadowColor = COLORS.shadow
+      ctx.shadowBlur = depth * 1.5
+      ctx.shadowOffsetX = 0
+      ctx.shadowOffsetY = depth
+    }
+
+    const isLifted = ch.scale > 1.05
+    const proximityAlpha = isLifted ? 1.0 : (0.55 + (ch.scale - 1) * 1.0)
+    ctx.globalAlpha = Math.min(1, ch.alpha * proximityAlpha * inkAlpha * edgeFade)
+    ctx.fillStyle = this.getNormalTextColor(ch)
+    ctx.fillText(ch.char, 0, 0)
+    ctx.restore()
+  }
+
+  private renderTopChar(ctx: CanvasRenderingContext2D, ch: StreamChar, screenX: number, centerY: number): void {
+    if (!this.stream) return
+
+    const undulation = this.stream.getUndulationOffset(ch, screenX)
+    const shimmer = this.stream.getShimmerOffset(ch)
+    const wordPulse = this.stream.getWordPulseOffset(ch)
+    const rippleOffset = this.stream.getRippleOffset(ch)
+    const pageCurvature = this.stream.getPageCurvatureOffset(screenX, GAME_WIDTH)
+    const edgeScale = this.stream.getEdgeScale(screenX, GAME_WIDTH)
+    const edgeFade = this.stream.getEdgeFade(screenX, GAME_WIDTH)
+    const totalScale = ch.scale * edgeScale
+    const charCenterX = screenX + ch.width / 2 + ch.dx + shimmer + wordPulse
+    const charCenterY = centerY + ch.dy + undulation + rippleOffset + pageCurvature
+
+    if (ch.isCollected) {
+      ctx.save()
+      ctx.globalAlpha = ch.alpha * edgeFade
+      ctx.translate(charCenterX, charCenterY)
+      ctx.rotate(ch.rotation)
+      ctx.scale(totalScale, totalScale)
+      ctx.fillStyle = this.getCollectedTextColor(ch)
+      ctx.fillText(ch.char, -ch.width / 2, 0)
+      ctx.restore()
+      return
+    }
+
+    ctx.save()
+    ctx.translate(charCenterX, charCenterY)
+
+    const isLifted = ch.scale > 1.05
+    const proximityAlpha = isLifted ? 1.0 : Math.min(1, 0.75 + (ch.scale - 1) * 1.0)
+    const baseAlpha = Math.min(1, ch.alpha * proximityAlpha) * edgeFade
+    ctx.globalAlpha = baseAlpha
+
+    if (ch.rotation !== 0 || totalScale !== 1) {
+      ctx.rotate(ch.rotation)
+      ctx.scale(totalScale, totalScale)
+    }
+
+    if (ch.scale > 1.05) {
+      const depth = (ch.scale - 1) * 15
+      ctx.shadowColor = COLORS.shadow
+      ctx.shadowBlur = depth * 1.5
+      ctx.shadowOffsetX = 0
+      ctx.shadowOffsetY = depth
+    }
+
+    const interactionStrength = Math.min(1, Math.max(0, (ch.scale - 1) / 1.5))
+    const padding = 4 + interactionStrength * 2
+    const tileW = ch.width + padding * 2
+    const tileH = this.config.fontSize + padding * 2
+    const borderRadius = 4
+    const bgAlpha = Math.min(1, 0.4 + interactionStrength * 0.6)
+    const colorT = Math.min(1, Math.max(0, interactionStrength * 1.2))
+
+    if (ch.scale > 1.1) {
+      ctx.shadowColor = COLORS.shadow
+      ctx.shadowBlur = 4 + (ch.scale - 1) * 10
+      ctx.shadowOffsetY = 2 + (ch.scale - 1) * 4
+    }
+
+    const colors = this.getHighlightColors(ch.multiplierType, baseAlpha, bgAlpha, colorT)
+
+    ctx.fillStyle = colors.baseColor
+    ctx.beginPath()
+    ctx.roundRect(-tileW / 2, -tileH / 2, tileW, tileH, borderRadius)
+    ctx.fill()
+
+    ctx.shadowBlur = 0
+    ctx.shadowOffsetY = 0
+
+    const visualDepth = 3
+    const depth = visualDepth / totalScale
+    ctx.fillStyle = colors.depthColor
+    ctx.beginPath()
+    ctx.roundRect(-tileW / 2, tileH / 2 - depth, tileW, depth, [0, 0, borderRadius, borderRadius])
+    ctx.fill()
+
+    ctx.strokeStyle = colors.borderColor
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.roundRect(-tileW / 2, -tileH / 2, tileW, tileH, borderRadius)
+    ctx.stroke()
+
+    ctx.fillStyle = this.getTileShineGradient(ctx, tileW, tileH)
+    ctx.fill()
+
+    ctx.fillStyle = colors.charColor
+    ctx.fillText(ch.char, 0, -1)
+
+    const points = getLetterValue(ch.char)
+    if (points > 0) {
+      ctx.font = this.pointsFont
+      ctx.textAlign = 'right'
+      ctx.textBaseline = 'bottom'
+      ctx.globalAlpha = baseAlpha * Math.min(1, interactionStrength * 2)
+      ctx.fillStyle = colors.charColor
+      ctx.fillText(String(points), tileW / 2 - 3, tileH / 2 - 2)
+    }
+
+    ctx.restore()
+  }
+
+  private getNormalTextColor(ch: StreamChar): string {
+    if (ch.multiplierType === 'DoubleLetter' || ch.multiplierType === 'DoubleWord') return 'rgb(255, 255, 255)'
+    if (ch.multiplierType === 'TripleLetter') return 'rgb(23, 124, 114)'
+    if (ch.multiplierType === 'TripleWord') return 'rgb(115, 45, 145)'
+    return COLORS.sepia
+  }
+
+  private getCollectedTextColor(ch: StreamChar): string {
+    if (ch.multiplierType === 'DoubleLetter') return COLORS.dlLight
+    if (ch.multiplierType === 'TripleLetter') return COLORS.tlBlue
+    if (ch.multiplierType === 'DoubleWord') return COLORS.dwCoral
+    if (ch.multiplierType === 'TripleWord') return COLORS.twPurple
+    return COLORS.gold
+  }
+
+  private getHighlightColors(multiplierType: StreamChar['multiplierType'], baseAlpha: number, bgAlpha: number, colorT: number): {
+    baseColor: string
+    borderColor: string
+    depthColor: string
+    charColor: string
+  } {
+    let baseColor = `rgba(184, 134, 11, ${bgAlpha * baseAlpha})`
+    let borderColor = `rgba(154, 114, 9, ${baseAlpha})`
+    let depthColor = 'rgba(100, 70, 20, 0.4)'
+    let r = Math.round(184 + colorT * 61)
+    let g = Math.round(134 + colorT * 107)
+    let b = Math.round(11 + colorT * 221)
+
+    if (multiplierType === 'DoubleLetter') {
+      baseColor = `rgba(91, 155, 213, ${bgAlpha * baseAlpha})`
+      borderColor = `rgba(63, 107, 168, ${baseAlpha})`
+      depthColor = 'rgba(50, 85, 140, 0.4)'
+      r = Math.round(63 + colorT * 192)
+      g = Math.round(107 + colorT * 148)
+      b = Math.round(168 + colorT * 87)
+    } else if (multiplierType === 'TripleLetter') {
+      baseColor = `rgba(34, 166, 153, ${bgAlpha * baseAlpha})`
+      borderColor = `rgba(23, 124, 114, ${baseAlpha})`
+      depthColor = 'rgba(20, 100, 95, 0.4)'
+      r = Math.round(23 + colorT * 222)
+      g = Math.round(124 + colorT * 117)
+      b = Math.round(114 + colorT * 118)
+    } else if (multiplierType === 'DoubleWord') {
+      baseColor = `rgba(231, 76, 60, ${bgAlpha * baseAlpha})`
+      borderColor = `rgba(184, 61, 47, ${baseAlpha})`
+      depthColor = 'rgba(150, 50, 40, 0.4)'
+      r = Math.round(184 + colorT * 71)
+      g = Math.round(61 + colorT * 194)
+      b = Math.round(47 + colorT * 208)
+    } else if (multiplierType === 'TripleWord') {
+      baseColor = `rgba(142, 68, 173, ${bgAlpha * baseAlpha})`
+      borderColor = `rgba(115, 45, 145, ${baseAlpha})`
+      depthColor = 'rgba(90, 30, 120, 0.4)'
+      r = Math.round(115 + colorT * 130)
+      g = Math.round(45 + colorT * 196)
+      b = Math.round(145 + colorT * 87)
+    }
+
+    return {
+      baseColor,
+      borderColor,
+      depthColor,
+      charColor: `rgb(${r}, ${g}, ${b})`,
+    }
+  }
+
+  private getTileShineGradient(ctx: CanvasRenderingContext2D, tileW: number, tileH: number): CanvasGradient {
+    const roundedW = Math.max(1, Math.round(tileW))
+    const roundedH = Math.max(1, Math.round(tileH))
+    const key = `${roundedW}x${roundedH}`
+    const cached = this.tileShineGradientCache.get(key)
+    if (cached) return cached
+
+    const gradient = ctx.createLinearGradient(-roundedW / 2, -roundedH / 2, roundedW / 2, roundedH / 2)
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.15)')
+    gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0)')
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0.05)')
+    this.tileShineGradientCache.set(key, gradient)
+    return gradient
+  }
+
+  private buildPointsFont(fontSize: number): string {
+    return `800 ${Math.max(9, fontSize * 0.4)}px ${FONTS.ui}`
   }
 }
