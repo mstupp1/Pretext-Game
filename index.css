@@ -48,14 +48,18 @@ html, body {
   align-items: center;
   justify-content: center;
   background:
-    radial-gradient(ellipse at 50% 30%, rgba(245, 241, 232, 0.95), rgba(232, 224, 208, 0.85)),
+    linear-gradient(rgba(245, 241, 232, 0.78), rgba(245, 241, 232, 0.78)),
+    url("/images/background_1.png"),
+    radial-gradient(ellipse at 50% 30%, rgba(245, 241, 232, 0.88), rgba(232, 224, 208, 0.74)),
     repeating-linear-gradient(
       0deg,
-      transparent,
-      transparent 27px,
-      var(--rule-color) 27px,
-      var(--rule-color) 28px
+      rgba(255, 255, 255, 0),
+      rgba(255, 255, 255, 0) 27px,
+      rgba(44, 24, 16, 0.1) 27px,
+      rgba(44, 24, 16, 0.1) 28px
     );
+  background-position: center, center, center, center;
+  background-size: cover, 38%, cover, auto;
 }
 
 #game-wrapper {
@@ -107,134 +111,8 @@ html, body {
 
 #hud {
   width: 100%;
-  height: 74px;
+  height: 0;
   pointer-events: none;
-}
-
-#book-stats,
-#multiplier-legend {
-  position: absolute;
-  top: 24px;
-  padding: 10px 14px;
-  background: linear-gradient(180deg, rgba(245, 241, 232, 0.9), rgba(237, 232, 220, 0.76));
-  border: 1px solid rgba(92, 64, 51, 0.14);
-  box-shadow:
-    0 8px 20px rgba(92, 64, 51, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.45);
-  backdrop-filter: blur(6px);
-  z-index: 5;
-}
-
-#book-stats {
-  left: 24px;
-  width: 230px;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 12px;
-  pointer-events: none;
-  border-radius: 16px 10px 12px 18px;
-}
-
-#hud-left, #hud-center, #hud-right {
-  display: flex;
-  gap: 6px;
-}
-
-#hud-left {
-  align-items: baseline;
-}
-
-#hud-center {
-  grid-column: 1 / -1;
-  align-items: baseline;
-  justify-content: space-between;
-  padding-top: 4px;
-  border-top: 1px solid rgba(44, 24, 16, 0.08);
-}
-
-#hud-right {
-  align-items: baseline;
-  justify-content: flex-end;
-}
-
-#score-label, #level-label, .hud-meta-label {
-  font-family: var(--font-ui);
-  font-size: 8px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  opacity: 0.78;
-  white-space: nowrap;
-}
-
-#score-display-group {
-  display: flex;
-  align-items: baseline;
-  gap: 5px;
-}
-
-#score-value {
-  font-family: var(--font-display);
-  font-size: 22px;
-  font-weight: 400;
-  color: var(--text-espresso);
-  font-feature-settings: 'tnum' 1;
-  letter-spacing: 0.03em;
-  line-height: 1;
-}
-
-#score-target {
-  font-family: var(--font-display);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-muted);
-  opacity: 0.76;
-}
-
-#score-progress-bar {
-  grid-column: 1 / -1;
-  width: 100%;
-  height: 2px;
-  background-color: rgba(44, 24, 16, 0.12);
-  overflow: hidden;
-  margin-top: 0;
-  border-radius: 999px;
-}
-
-#score-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, rgba(184, 134, 11, 0.82), rgba(212, 168, 67, 0.95));
-  width: 0%;
-  transition: width 0.3s ease;
-}
-
-#level-value {
-  font-family: var(--font-display);
-  font-size: 20px;
-  font-weight: 500;
-  color: var(--text-espresso);
-  font-style: italic;
-  line-height: 1;
-  letter-spacing: 0.03em;
-}
-
-#timer-value {
-  font-family: var(--font-display);
-  font-size: 21px;
-  font-weight: 400;
-  color: var(--text-espresso);
-  font-feature-settings: 'tnum' 1;
-  text-align: right;
-  transition: all 0.3s ease;
-  line-height: 1;
-  letter-spacing: 0.03em;
-}
-
-#timer-value.urgent {
-  color: var(--accent-red);
-  font-weight: 500;
-  animation: pulse-urgent 1.5s ease-in-out infinite;
 }
 
 @keyframes pulse-urgent {
@@ -399,42 +277,6 @@ html, body {
 }
 .multiplier-DoubleLetter .tile-points, .multiplier-DoubleWord .tile-points {
   color: rgba(44, 24, 16, 0.8) !important;
-}
-
-/* ── Multiplier Legend ── */
-
-#multiplier-legend {
-  right: 24px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px 14px;
-  pointer-events: none;
-  border-radius: 10px 16px 18px 12px;
-}
-
-#multiplier-legend .legend-item {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-#multiplier-legend .legend-tile {
-  width: 14px;
-  height: 14px;
-  border-radius: 2px;
-  border-width: 1px;
-  border-bottom-width: 2px;
-  border-style: solid;
-  box-shadow: 0 1px 3px var(--shadow-warm);
-}
-
-#multiplier-legend .legend-label {
-  font-family: var(--font-ui);
-  font-size: 11px;
-  font-style: italic;
-  color: var(--text-muted);
-  letter-spacing: 0.04em;
-  white-space: nowrap;
 }
 
 /* ── Current Word Display ── */

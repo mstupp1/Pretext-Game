@@ -932,6 +932,7 @@ export class Game {
 
     // Draw subtle paper texture
     this.renderBackground(ctx)
+    this.renderBookTopPanels(ctx)
 
     // Render lanes
     for (const lane of this.lanes) {
@@ -1307,6 +1308,7 @@ export class Game {
     ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT)
 
     this.renderBackground(ctx)
+    this.renderBookTopPanels(ctx)
     for (const lane of this.lanes) {
       lane.render(ctx, -1, -100)
     }
@@ -1341,6 +1343,111 @@ export class Game {
 
     renderCurvedText(ctx, text, 0, 0, font, color, (x) => getPageCurvatureOffset(x, GAME_WIDTH), 'center')
     
+    ctx.restore()
+  }
+
+  private renderBookTopPanels(ctx: CanvasRenderingContext2D): void {
+    this.renderStatsPanel(ctx, 24, 18, 220, 90)
+    this.renderLegendPanel(ctx, GAME_WIDTH - 260, 18, 236, 58)
+  }
+
+  private renderStatsPanel(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number): void {
+    this.drawPagePanel(ctx, x, y, width, height, () => {
+      const left = -width / 2 + 15
+      const right = width / 2 - 15
+      const progressLeft = left + 2
+      const progressWidth = width - 34
+      const chapterText = ROMAN_NUMERALS[Math.min(this.chapter - 1, 9)]
+      const mins = Math.floor(this.timeRemaining / 60)
+      const secs = Math.floor(this.timeRemaining % 60)
+      const timerText = `${mins}:${secs.toString().padStart(2, '0')}`
+      const nextTarget = 25 * this.chapter * (this.chapter + 3)
+      const scoreText = String(this.score)
+      const targetText = `/ ${nextTarget}`
+
+      renderText(ctx, 'CHAPTER', left, 14, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted)
+      renderText(ctx, 'TIME', right, 14, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted, 'right')
+      renderText(ctx, chapterText, left, 32, CANVAS_FONTS.title(22), COLORS.espresso)
+      renderText(ctx, timerText, right, 32, CANVAS_FONTS.laneRegular(20), this.timeRemaining <= 15 ? COLORS.red : COLORS.espresso, 'right')
+
+      ctx.strokeStyle = 'rgba(44, 24, 16, 0.08)'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(left, 44)
+      ctx.lineTo(right, 44)
+      ctx.stroke()
+
+      renderText(ctx, 'SCORE', left, 55, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted)
+      renderText(ctx, scoreText, left, 67, CANVAS_FONTS.laneMedium(18), COLORS.espresso)
+      const scoreWidth = measureTextWidth(scoreText, CANVAS_FONTS.laneMedium(18))
+      renderText(ctx, targetText, left + scoreWidth + 7, 67, CANVAS_FONTS.laneRegular(12), COLORS.gold)
+
+      ctx.save()
+      ctx.beginPath()
+      ctx.roundRect(progressLeft, 80, progressWidth, 2, 999)
+      ctx.fillStyle = 'rgba(44, 24, 16, 0.12)'
+      ctx.fill()
+      ctx.beginPath()
+      ctx.roundRect(progressLeft, 80, progressWidth * Math.min(1, this.score / nextTarget), 2, 999)
+      ctx.fillStyle = COLORS.gold
+      ctx.fill()
+      ctx.restore()
+    })
+  }
+
+  private renderLegendPanel(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number): void {
+    const items = [
+      { label: 'Double Letter', color: COLORS.dlLight, border: '#3F6BA8', x: -width / 2 + 16, y: 18 },
+      { label: 'Triple Letter', color: COLORS.tlBlue, border: '#177C72', x: -width / 2 + 126, y: 18 },
+      { label: 'Double Word', color: COLORS.dwCoral, border: '#B83D2F', x: -width / 2 + 16, y: 38 },
+      { label: 'Triple Word', color: COLORS.twPurple, border: '#732D91', x: -width / 2 + 126, y: 38 },
+    ] as const
+
+    this.drawPagePanel(ctx, x, y, width, height, () => {
+      for (const item of items) {
+        ctx.beginPath()
+        ctx.roundRect(item.x, item.y - 7, 12, 12, 2)
+        ctx.fillStyle = item.color
+        ctx.fill()
+        ctx.strokeStyle = item.border
+        ctx.lineWidth = 1
+        ctx.stroke()
+
+        renderText(ctx, item.label, item.x + 18, item.y, CANVAS_FONTS.laneItalic(12), COLORS.muted)
+      }
+    })
+  }
+
+  private drawPagePanel(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    drawContents: () => void,
+  ): void {
+    ctx.save()
+    ctx.translate(x + width / 2, y)
+
+    ctx.save()
+    ctx.beginPath()
+    ctx.roundRect(-width / 2, 0, width, height, 14)
+    ctx.fillStyle = 'rgba(245, 241, 232, 0.84)'
+    ctx.shadowColor = 'rgba(92, 64, 51, 0.08)'
+    ctx.shadowBlur = 14
+    ctx.shadowOffsetY = 3
+    ctx.fill()
+    ctx.restore()
+
+    ctx.beginPath()
+    ctx.roundRect(-width / 2, 0, width, height, 14)
+    ctx.fillStyle = 'rgba(245, 241, 232, 0.74)'
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(92, 64, 51, 0.14)'
+    ctx.lineWidth = 1
+    ctx.stroke()
+
+    drawContents()
     ctx.restore()
   }
 
@@ -1480,13 +1587,13 @@ export class Game {
 
   private getHudElements(): HudElements {
     return {
-      bookStats: document.getElementById('book-stats'),
-      multiplierLegend: document.getElementById('multiplier-legend'),
-      scoreValue: document.getElementById('score-value'),
-      levelValue: document.getElementById('level-value'),
-      timerValue: document.getElementById('timer-value'),
-      nextChapterValue: document.getElementById('next-chapter-value'),
-      scoreProgressFill: document.getElementById('score-progress-fill'),
+      bookStats: null,
+      multiplierLegend: null,
+      scoreValue: null,
+      levelValue: null,
+      timerValue: null,
+      nextChapterValue: null,
+      scoreProgressFill: null,
       wordFeedback: document.getElementById('word-feedback'),
       currentWord: document.getElementById('current-word'),
       completedWordsList: document.getElementById('completed-words-list'),
