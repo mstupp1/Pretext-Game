@@ -149,19 +149,103 @@ html, body {
 #word-tray {
   pointer-events: auto;
   padding: 0;
-  border-top: 1px solid var(--rule-color);
-  background: linear-gradient(to top, rgba(245, 241, 232, 0.98), rgba(245, 241, 232, 0.92));
-  backdrop-filter: blur(8px);
+  margin-top: -12px;
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  border-top: 1px solid rgba(74, 44, 21, 0.72);
+  background:
+    linear-gradient(180deg, rgba(142, 104, 62, 0.9), rgba(92, 58, 31, 0.96) 38%, rgba(58, 34, 18, 0.98)),
+    linear-gradient(90deg, rgba(38, 23, 13, 0.35), rgba(255, 232, 191, 0.08) 24%, rgba(255, 242, 218, 0.1) 50%, rgba(49, 28, 15, 0.3) 100%);
   display: flex;
-  height: 82px;
+  height: 98px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 235, 202, 0.32),
+    inset 0 12px 18px rgba(255, 227, 184, 0.08),
+    inset 0 -18px 22px rgba(27, 14, 7, 0.32),
+    0 -10px 30px rgba(44, 24, 16, 0.22);
+}
+
+#word-tray::before,
+#word-tray::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+#word-tray::before {
+  background:
+    linear-gradient(180deg, rgba(255, 235, 201, 0.28), rgba(255, 235, 201, 0.06) 22%, rgba(0, 0, 0, 0.16) 100%),
+    radial-gradient(circle at 50% -80%, rgba(255, 231, 190, 0.42), rgba(255, 231, 190, 0) 56%),
+    url("/images/traytexture_1.png");
+  background-position: center, center, center 36%;
+  background-repeat: no-repeat, no-repeat, no-repeat;
+  background-size: 100% 100%, 100% 100%, cover;
+  mix-blend-mode: multiply;
+  opacity: 0.62;
+  filter: saturate(0.82) contrast(1.08) brightness(0.9);
+}
+
+#word-tray::after {
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(255, 238, 212, 0.16), rgba(255, 238, 212, 0) 14%, rgba(0, 0, 0, 0) 86%, rgba(33, 17, 8, 0.26)),
+    linear-gradient(180deg, rgba(255, 242, 217, 0.12), rgba(255, 242, 217, 0) 24%, rgba(0, 0, 0, 0.14) 100%);
 }
 
 #word-tray-inner {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
   width: 100%;
+  height: calc(100% - 22px);
+  margin: 10px 18px 12px;
+  border-radius: 12px 12px 8px 8px;
+  border: 1px solid rgba(77, 47, 24, 0.7);
+  background:
+    linear-gradient(180deg, rgba(135, 97, 58, 0.3), rgba(104, 70, 39, 0.2) 28%, rgba(68, 42, 23, 0.4) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 233, 198, 0.12),
+    inset 0 -8px 12px rgba(32, 17, 8, 0.18),
+    0 1px 0 rgba(255, 229, 190, 0.06);
+}
+
+#word-tray-inner::before,
+#word-tray-inner::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+}
+
+#word-tray-inner::before {
+  inset: 4px 6px 12px;
+  border-radius: 10px 10px 7px 7px;
+  background:
+    linear-gradient(180deg, rgba(168, 126, 82, 0.1), rgba(114, 78, 45, 0.05) 42%, rgba(72, 45, 24, 0.06) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 242, 218, 0.1);
+}
+
+#word-tray-inner::after {
+  left: 18px;
+  right: 18px;
+  bottom: 8px;
+  height: 10px;
+  border-radius: 0 0 12px 12px;
+  background:
+    linear-gradient(180deg, rgba(85, 55, 31, 0.92), rgba(50, 30, 16, 0.97));
+  box-shadow:
+    0 -1px 0 rgba(255, 227, 184, 0.05),
+    0 2px 4px rgba(24, 12, 5, 0.16);
+}
+
+#word-tray .ui-container {
   height: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 #overlay-top {
@@ -294,23 +378,44 @@ html, body {
   align-items: center;
   justify-content: center;
   position: relative;
+  z-index: 1;
   height: 100%;
+  padding: 0 28px;
 }
 
 #current-word {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
   justify-content: center;
-  min-height: 44px;
+  min-height: 56px;
+  position: relative;
+  z-index: 1;
+  transform: translateY(-6px);
   transition: all 0.15s ease;
+}
+
+#current-word .tray-tile {
+  width: 52px;
+  height: 60px;
+  font-size: 34px;
+  border-bottom-width: 4px;
+  border-radius: 5px;
+  box-shadow: 0 5px 10px rgba(44, 24, 16, 0.18);
+}
+
+#current-word .tray-tile .tile-points {
+  bottom: 3px;
+  right: 5px;
+  font-size: 13px;
 }
 
 #current-word.empty::after {
   content: '·  ·  ·';
-  font-size: 18px;
-  color: var(--text-muted);
-  opacity: 0.4;
+  font-size: 22px;
+  color: rgba(255, 242, 220, 0.62);
+  text-shadow: 0 1px 1px rgba(37, 20, 10, 0.32);
+  opacity: 0.55;
   letter-spacing: 0.3em;
   display: flex;
   align-items: center;
@@ -318,7 +423,7 @@ html, body {
 #word-feedback {
   min-height: 14px;
   position: absolute;
-  bottom: 8px;
+  bottom: 6px;
   left: 0;
   right: 0;
   pointer-events: none;
