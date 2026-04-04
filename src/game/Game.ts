@@ -1158,7 +1158,7 @@ export class Game {
     scale: number,
     alpha: number = 1,
   ): void {
-    const { fill, border, text, score } = this.getTrayTilePalette(letter.multiplierType)
+    const { fill, border, text } = this.getTrayTilePalette(letter.multiplierType)
     const x = centerX - width / 2
     const y = centerY - height / 2
     const tilePath = this.createRoundedRectPath(x, y, width, height, 5)
@@ -1195,16 +1195,16 @@ export class Game {
     ctx.stroke()
 
     ctx.fillStyle = text
-    ctx.font = CANVAS_FONTS.laneMedium(30)
+    ctx.font = CANVAS_FONTS.laneMedium(31)
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText(letter.letter, centerX, centerY - 5)
+    ctx.fillText(letter.letter, centerX, centerY - 2)
 
-    ctx.fillStyle = score
-    ctx.font = '700 11px "Cormorant Garamond", Georgia, serif'
+    ctx.fillStyle = COLORS.ivory
+    ctx.font = '700 15px "Cormorant Garamond", Georgia, serif'
     ctx.textAlign = 'right'
     ctx.textBaseline = 'bottom'
-    ctx.fillText(String(letter.value), x + width - 5, y + height - 4)
+    ctx.fillText(String(letter.value), x + width - 4, y + height - 7)
 
     ctx.restore()
   }
@@ -1269,18 +1269,18 @@ export class Game {
     }
   }
 
-  private getTrayTilePalette(multiplierType: MultiplierType): { fill: string; border: string; text: string; score: string } {
+  private getTrayTilePalette(multiplierType: MultiplierType): { fill: string; border: string; text: string } {
     switch (multiplierType) {
       case 'DoubleLetter':
-        return { fill: COLORS.dlLight, border: '#3F6BA8', text: '#FFFFFF', score: 'rgba(44, 24, 16, 0.82)' }
+        return { fill: COLORS.dlLight, border: '#3F6BA8', text: '#FFFFFF' }
       case 'TripleLetter':
-        return { fill: COLORS.tlBlue, border: '#177C72', text: COLORS.ivory, score: COLORS.ivory }
+        return { fill: COLORS.tlBlue, border: '#177C72', text: COLORS.ivory }
       case 'DoubleWord':
-        return { fill: COLORS.dwCoral, border: '#B83D2F', text: '#FFFFFF', score: 'rgba(44, 24, 16, 0.82)' }
+        return { fill: COLORS.dwCoral, border: '#B83D2F', text: '#FFFFFF' }
       case 'TripleWord':
-        return { fill: COLORS.twPurple, border: '#732D91', text: COLORS.ivory, score: COLORS.ivory }
+        return { fill: COLORS.twPurple, border: '#732D91', text: COLORS.ivory }
       default:
-        return { fill: COLORS.gold, border: '#9A7209', text: COLORS.ivory, score: COLORS.ivory }
+        return { fill: COLORS.gold, border: '#9A7209', text: COLORS.ivory }
     }
   }
 
