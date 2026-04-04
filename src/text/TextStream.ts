@@ -151,25 +151,25 @@ export class TextStream {
           highlightCooldown = 8 + Math.floor(Math.random() * 5)
 
           if (multiplierCooldown <= 0) {
-            // Scale multiplier chances up as highlight rate goes down to keep absolute amount constant
-            // Base highlight rate started at 0.08. So the scale factor is (0.08 / this.highlightRate)
-            const scale = this.highlightRate > 0 ? 0.08 / this.highlightRate : 1;
+            // Scale multiplier chances up exponentially as highlight rate goes down
+            // so that multipliers feel plentiful even with fewer highlighted letters.
+            const scale = this.highlightRate > 0 ? Math.pow(0.08 / this.highlightRate, 1.5) * 1.5 : 1;
             const rand = Math.random()
 
-            if (rand < 0.007 * scale && tripleMultiplierCooldown <= 0) { // 0.7% chance (base)
+            if (rand < 0.015 * scale && tripleMultiplierCooldown <= 0) {
               multiplierType = 'TripleWord'
-              multiplierCooldown = 4
-              tripleMultiplierCooldown = 15
-            } else if (rand < 0.018 * scale) { // 1.1% chance (base)
-              multiplierType = 'DoubleWord'
-              multiplierCooldown = 3
-            } else if (rand < 0.035 * scale && tripleMultiplierCooldown <= 0) { // 1.7% chance (base)
-              multiplierType = 'TripleLetter'
-              multiplierCooldown = 3
-              tripleMultiplierCooldown = 10
-            } else if (rand < 0.08 * scale) { // 4.5% chance (base)
-              multiplierType = 'DoubleLetter'
               multiplierCooldown = 2
+              tripleMultiplierCooldown = 8
+            } else if (rand < 0.035 * scale) {
+              multiplierType = 'DoubleWord'
+              multiplierCooldown = 2
+            } else if (rand < 0.05 * scale && tripleMultiplierCooldown <= 0) {
+              multiplierType = 'TripleLetter'
+              multiplierCooldown = 2
+              tripleMultiplierCooldown = 6
+            } else if (rand < 0.12 * scale) {
+              multiplierType = 'DoubleLetter'
+              multiplierCooldown = 1
             }
           } else {
             multiplierCooldown--
