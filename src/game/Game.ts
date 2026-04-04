@@ -40,6 +40,19 @@ interface FloatingScore {
 
 type PauseConfirmAction = 'restart' | 'quit' | null
 
+interface HudElements {
+  bookStats: HTMLElement | null
+  multiplierLegend: HTMLElement | null
+  scoreValue: HTMLElement | null
+  levelValue: HTMLElement | null
+  timerValue: HTMLElement | null
+  nextChapterValue: HTMLElement | null
+  scoreProgressFill: HTMLElement | null
+  wordFeedback: HTMLElement | null
+  currentWord: HTMLElement | null
+  completedWordsList: HTMLElement | null
+}
+
 export class Game {
   public state: GameState = 'title'
   public canvas: HTMLCanvasElement
@@ -75,6 +88,13 @@ export class Game {
   private pauseOptionIndex: number = 0
   private pauseConfirmAction: PauseConfirmAction = null
   private pauseConfirmIndex: number = 0
+  private hud: HudElements
+  private lastHudScore: string | null = null
+  private lastHudLevel: string | null = null
+  private lastHudTimer: string | null = null
+  private lastHudNextTarget: string | null = null
+  private lastHudProgressWidth: string | null = null
+  private lastHudTimerUrgent: boolean | null = null
 
   // Countdown state
   private countdownValue: number = 3
@@ -89,6 +109,7 @@ export class Game {
 
     this.player = new Player()
     this.level = generateLevel(1)
+    this.hud = this.getHudElements()
     this.loadHighScores()
 
     // Input handlers
@@ -1349,41 +1370,57 @@ export class Game {
 
   /** Hide/show the book-top stat block and multiplier legend. */
   private setHudContentVisible(visible: boolean): void {
-    const ids = ['book-stats', 'multiplier-legend']
-    for (const id of ids) {
-      const el = document.getElementById(id)
-      if (el) el.style.visibility = visible ? 'visible' : 'hidden'
-    }
+    const visibility = visible ? 'visible' : 'hidden'
+    if (this.hud.bookStats) this.hud.bookStats.style.visibility = visibility
+    if (this.hud.multiplierLegend) this.hud.multiplierLegend.style.visibility = visibility
   }
 
   private updateUI(): void {
-    const scoreEl = document.getElementById('score-value')
-    const levelEl = document.getElementById('level-value')
-    const timerEl = document.getElementById('timer-value')
-    const nextEl = document.getElementById('next-chapter-value')
-    const progressFillEl = document.getElementById('score-progress-fill')
-
     const nextTarget = 25 * this.chapter * (this.chapter + 3)
+    const scoreText = String(this.score)
+    const levelText = ROMAN_NUMERALS[Math.min(this.chapter - 1, 9)]
+    const nextTargetText = String(nextTarget)
+    const progressWidth = `${Math.min(100, (this.score / nextTarget) * 100)}%`
+    const mins = Math.floor(this.timeRemaining / 60)
+    const secs = Math.floor(this.timeRemaining % 60)
+    const timerText = `${mins}:${secs.toString().padStart(2, '0')}`
+    const isTimerUrgent = this.timeRemaining <= 15
 
-    if (scoreEl) scoreEl.textContent = String(this.score)
-    if (levelEl) levelEl.textContent = ROMAN_NUMERALS[Math.min(this.chapter - 1, 9)]
-    if (nextEl) nextEl.textContent = String(nextTarget)
-
-    if (progressFillEl) {
-      const progress = Math.min(100, (this.score / nextTarget) * 100)
-      progressFillEl.style.width = `${progress}%`
+    if (this.hud.scoreValue && this.lastHudScore !== scoreText) {
+      this.hud.scoreValue.textContent = scoreText
+      this.lastHudScore = scoreText
     }
 
-    if (timerEl) {
-      const mins = Math.floor(this.timeRemaining / 60)
-      const secs = Math.floor(this.timeRemaining % 60)
-      timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`
-      timerEl.className = this.timeRemaining <= 15 ? 'urgent' : ''
+    if (this.hud.levelValue && this.lastHudLevel !== levelText) {
+      this.hud.levelValue.textContent = levelText
+      this.lastHudLevel = levelText
+    }
+
+    if (this.hud.nextChapterValue && this.lastHudNextTarget !== nextTargetText) {
+      this.hud.nextChapterValue.textContent = nextTargetText
+      this.lastHudNextTarget = nextTargetText
+    }
+
+    if (this.hud.scoreProgressFill && this.lastHudProgressWidth !== progressWidth) {
+      this.hud.scoreProgressFill.style.width = progressWidth
+      this.lastHudProgressWidth = progressWidth
+    }
+
+    if (this.hud.timerValue) {
+      if (this.lastHudTimer !== timerText) {
+        this.hud.timerValue.textContent = timerText
+        this.lastHudTimer = timerText
+      }
+
+      if (this.lastHudTimerUrgent !== isTimerUrgent) {
+        this.hud.timerValue.className = isTimerUrgent ? 'urgent' : ''
+        this.lastHudTimerUrgent = isTimerUrgent
+      }
     }
   }
 
   updateTrayUI(): void {
-    const wordDisplay = document.getElementById('current-word')
+    const wordDisplay = this.hud.currentWord
     if (!wordDisplay) return
 
     wordDisplay.innerHTML = ''
@@ -1404,7 +1441,7 @@ export class Game {
   }
 
   public updateWordsUI(): void {
-    const wordsEl = document.getElementById('completed-words-list')
+    const wordsEl = this.hud.completedWordsList
     if (!wordsEl) return
 
     const renderWords = (startIndex: number) => {
@@ -1445,6 +1482,21 @@ export class Game {
     while (wordsEl.scrollWidth > wordsEl.clientWidth && startIndex < this.wordsFound.length - 1) {
       startIndex++
       renderWords(startIndex)
+    }
+  }
+
+  private getHudElements(): HudElements {
+    return {
+      bookStats: document.getElementById('book-stats'),
+      multiplierLegend: document.getElementById('multiplier-legend'),
+      scoreValue: document.getElementById('score-value'),
+      levelValue: document.getElementById('level-value'),
+      timerValue: document.getElementById('timer-value'),
+      nextChapterValue: document.getElementById('next-chapter-value'),
+      scoreProgressFill: document.getElementById('score-progress-fill'),
+      wordFeedback: document.getElementById('word-feedback'),
+      currentWord: document.getElementById('current-word'),
+      completedWordsList: document.getElementById('completed-words-list'),
     }
   }
 }

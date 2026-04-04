@@ -83,6 +83,12 @@ export class TextStream {
   private undulationPhaseOffset: number
   private shimmerIntensity: number
   private isIconStream: boolean
+  private visibleCharsCache: {
+    viewportWidth: number
+    scrollOffset: number
+    totalWidth: number
+    visible: { char: StreamChar; screenX: number }[]
+  } | null = null
 
   constructor(font: string, speed: number, direction: 1 | -1, highlightRate: number, isIconStream: boolean = false) {
     this.font = font
@@ -252,6 +258,7 @@ export class TextStream {
     this.scrollOffset = scrollRatio === undefined
       ? Math.random() * totalW * 0.5
       : Math.max(0, Math.min(1, scrollRatio)) * totalW
+    this.visibleCharsCache = null
   }
 
   // Simple deterministic pseudo-random from seed
@@ -304,6 +311,16 @@ export class TextStream {
 
   // Get visible characters within a viewport
   getVisibleChars(viewportWidth: number): { char: StreamChar; screenX: number }[] {
+    const cached = this.visibleCharsCache
+    if (
+      cached &&
+      cached.viewportWidth === viewportWidth &&
+      cached.scrollOffset === this.scrollOffset &&
+      cached.totalWidth === this.totalWidth
+    ) {
+      return cached.visible
+    }
+
     const visible: { char: StreamChar; screenX: number }[] = []
     const offset = this.scrollOffset
     const padding = 100 // Load further offscreen to prevent popping
@@ -315,17 +332,26 @@ export class TextStream {
 
       // Check the primary position and its immediate wrapped clones
       // This ensures characters smoothly enter/exit across screen boundaries without popping or gaps
-      const positions = [
-        screenX - this.totalWidth,
-        screenX,
-        screenX + this.totalWidth
-      ]
-
-      for (const px of positions) {
-        if (px >= -ch.width - padding && px <= viewportWidth + padding) {
-          visible.push({ char: ch, screenX: px })
-        }
+      const leftCloneX = screenX - this.totalWidth
+      if (leftCloneX >= -ch.width - padding && leftCloneX <= viewportWidth + padding) {
+        visible.push({ char: ch, screenX: leftCloneX })
       }
+
+      if (screenX >= -ch.width - padding && screenX <= viewportWidth + padding) {
+        visible.push({ char: ch, screenX })
+      }
+
+      const rightCloneX = screenX + this.totalWidth
+      if (rightCloneX >= -ch.width - padding && rightCloneX <= viewportWidth + padding) {
+        visible.push({ char: ch, screenX: rightCloneX })
+      }
+    }
+
+    this.visibleCharsCache = {
+      viewportWidth,
+      scrollOffset: this.scrollOffset,
+      totalWidth: this.totalWidth,
+      visible,
     }
 
     return visible
