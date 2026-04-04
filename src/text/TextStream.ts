@@ -152,18 +152,18 @@ export class TextStream {
 
           if (multiplierCooldown <= 0) {
             const rand = Math.random()
-            if (rand < 0.004 && tripleMultiplierCooldown <= 0) { // 0.4% chance
+            if (rand < 0.007 && tripleMultiplierCooldown <= 0) { // 0.7% chance
               multiplierType = 'TripleWord'
               multiplierCooldown = 4
               tripleMultiplierCooldown = 15
-            } else if (rand < 0.01) { // 0.6% chance
+            } else if (rand < 0.018) { // 1.1% chance
               multiplierType = 'DoubleWord'
               multiplierCooldown = 3
-            } else if (rand < 0.02 && tripleMultiplierCooldown <= 0) { // 1% chance
+            } else if (rand < 0.035 && tripleMultiplierCooldown <= 0) { // 1.7% chance
               multiplierType = 'TripleLetter'
               multiplierCooldown = 3
               tripleMultiplierCooldown = 10
-            } else if (rand < 0.04) { // 2% chance
+            } else if (rand < 0.08) { // 4.5% chance
               multiplierType = 'DoubleLetter'
               multiplierCooldown = 2
             }
