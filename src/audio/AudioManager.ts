@@ -39,7 +39,7 @@ export class AudioManager {
   private MAX_VOLUME = 0.5;
   private TITLE_AMBIENCE_MIX = 0.15;
   private MUSIC_CROSSFADE_MS = 1200;
-  private MUSIC_ENTRY_DELAY_MS = 1500;
+  private MUSIC_ENTRY_DELAY_MS = 1000;
   
   constructor() {
     this.titleAudio = new Audio(`${import.meta.env.BASE_URL}music/Title_1.mp3`);
