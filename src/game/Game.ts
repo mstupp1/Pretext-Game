@@ -105,6 +105,7 @@ export class Game {
   private setupPauseMenu(): void {
     const musicOpt = document.getElementById('option-music')
     const sfxOpt = document.getElementById('option-sfx')
+    const debugPointsOpt = document.getElementById('option-debug-points')
 
     if (musicOpt) {
       musicOpt.addEventListener('click', () => {
@@ -126,6 +127,19 @@ export class Game {
         sfxOpt.style.color = isMuted ? COLORS.muted : COLORS.espresso
       })
       sfxOpt.addEventListener('mouseenter', () => audioManager.playMenuNav())
+    }
+
+    if (debugPointsOpt) {
+      debugPointsOpt.addEventListener('click', () => {
+        audioManager.playMenuNav()
+        const nextTarget = 25 * this.chapter * (this.chapter + 3)
+        const pointsNeeded = nextTarget - this.score
+        if (pointsNeeded > 0) {
+          this.score += pointsNeeded
+          this.checkChapterProgression()
+        }
+      })
+      debugPointsOpt.addEventListener('mouseenter', () => audioManager.playMenuNav())
     }
   }
 
@@ -231,6 +245,10 @@ export class Game {
       this.state = 'paused'
       this.pauseOptionIndex = 0
       this.updatePauseMenuHighlight()
+
+      const pauseChapter = document.getElementById('pause-chapter')
+      if (pauseChapter) pauseChapter.textContent = `Chapter ${ROMAN_NUMERALS[Math.min(this.chapter - 1, 9)]}`
+
       const pauseOverlay = document.getElementById('pause-overlay')
       if (pauseOverlay) pauseOverlay.style.display = 'flex'
     } else if (this.state === 'paused') {
@@ -243,8 +261,10 @@ export class Game {
   private updatePauseMenuHighlight(): void {
     const musicOpt = document.getElementById('option-music')
     const sfxOpt = document.getElementById('option-sfx')
+    const debugPointsOpt = document.getElementById('option-debug-points')
     if (musicOpt) musicOpt.style.textDecoration = this.pauseOptionIndex === 0 ? 'underline' : 'none'
     if (sfxOpt) sfxOpt.style.textDecoration = this.pauseOptionIndex === 1 ? 'underline' : 'none'
+    if (debugPointsOpt) debugPointsOpt.style.textDecoration = this.pauseOptionIndex === 2 ? 'underline' : 'none'
   }
 
   // ── Input handling ──
@@ -280,20 +300,22 @@ export class Game {
         this.togglePause()
       } else if (event.key === 'ArrowUp' || event.key === 'w' || event.key === 'W') {
         e.preventDefault()
-        this.pauseOptionIndex = (this.pauseOptionIndex - 1 + 2) % 2
+        this.pauseOptionIndex = (this.pauseOptionIndex - 1 + 3) % 3
         audioManager.playMenuNav()
         this.updatePauseMenuHighlight()
       } else if (event.key === 'ArrowDown' || event.key === 's' || event.key === 'S') {
         e.preventDefault()
-        this.pauseOptionIndex = (this.pauseOptionIndex + 1) % 2
+        this.pauseOptionIndex = (this.pauseOptionIndex + 1) % 3
         audioManager.playMenuNav()
         this.updatePauseMenuHighlight()
       } else if (event.key === 'Enter' || event.key === ' ') {
         e.preventDefault()
         if (this.pauseOptionIndex === 0) {
           document.getElementById('option-music')?.click()
-        } else {
+        } else if (this.pauseOptionIndex === 1) {
           document.getElementById('option-sfx')?.click()
+        } else {
+          document.getElementById('option-debug-points')?.click()
         }
       }
       return
@@ -479,6 +501,25 @@ export class Game {
 
   // ── Update loop ──
 
+  public checkChapterProgression(): void {
+    // Check chapter threshold (slight progression: requirement grows by 50 each chapter)
+    const requiredScore = 25 * this.chapter * (this.chapter + 3)
+    if (this.score >= requiredScore) {
+      this.chapter++
+      audioManager.playChapterUnlock()
+      this.level = generateLevel(this.chapter)
+      this.timeRemaining += this.level.timeLimit // Add chapter allotment to current time (reward for speed)
+      this.buildLanes()
+      this.showFeedback(`Chapter ${ROMAN_NUMERALS[Math.min(this.chapter - 1, ROMAN_NUMERALS.length - 1)]} — New chapter unlocked!`, true)
+      // Celebration particles
+      this.particles.waveText(`Chapter ${ROMAN_NUMERALS[Math.min(this.chapter - 1, ROMAN_NUMERALS.length - 1)]}`, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40)
+      this.updateUI()
+
+      const pauseChapter = document.getElementById('pause-chapter')
+      if (pauseChapter) pauseChapter.textContent = `Chapter ${ROMAN_NUMERALS[Math.min(this.chapter - 1, 9)]}`
+    }
+  }
+
   update(dt: number): void {
     if (this.state === 'title') {
       this.titleTime += dt
@@ -535,18 +576,7 @@ export class Game {
       lane.update(dt, this.player.x, this.player.y)
     }
 
-    // Check chapter threshold (slight progression: requirement grows by 50 each chapter)
-    const requiredScore = 25 * this.chapter * (this.chapter + 3)
-    if (this.score >= requiredScore) {
-      this.chapter++
-      audioManager.playChapterUnlock()
-      this.level = generateLevel(this.chapter)
-      this.timeRemaining += this.level.timeLimit // Add chapter allotment to current time (reward for speed)
-      this.buildLanes()
-      this.showFeedback(`Chapter ${ROMAN_NUMERALS[Math.min(this.chapter - 1, ROMAN_NUMERALS.length - 1)]} — New chapter unlocked!`, true)
-      // Celebration particles
-      this.particles.waveText(`Chapter ${ROMAN_NUMERALS[Math.min(this.chapter - 1, ROMAN_NUMERALS.length - 1)]}`, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40)
-    }
+    this.checkChapterProgression()
 
     // Collected letter animations
     for (const letter of this.collectedLetters) {

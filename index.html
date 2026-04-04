@@ -62,7 +62,8 @@
             <div id="completed-words-list"></div>
           </div>
         </div>
-        <div id="pause-overlay" class="screen-overlay" style="display: none; background: rgba(245, 241, 232, 0.85);">
+        <div id="pause-overlay" class="screen-overlay" style="display: none; background: rgba(245, 241, 232, 0.85); pointer-events: auto;">
+          <h2 id="pause-chapter" style="font-family: var(--font-display); font-size: 32px; font-style: italic; font-weight: 300; color: var(--text-sepia); margin-bottom: 10px;">Chapter I</h2>
           <h1>Paused</h1>
           <div class="subtitle" style="margin-bottom: 20px;">Options</div>
 
@@ -77,6 +78,15 @@
 
           <div class="instructions">
             Press <kbd>ESC</kbd> to resume
+          </div>
+
+          <div style="margin-top: 40px; text-align: center;">
+            <div class="subtitle" style="margin-bottom: 20px;">Debug Options</div>
+            <div class="pause-options" style="display: flex; flex-direction: column; gap: 16px;">
+              <div class="pause-option" id="option-debug-points" tabindex="0" style="font-family: var(--font-display); font-size: 20px; cursor: pointer; transition: color 0.2s;">
+                Give points for next level
+              </div>
+            </div>
           </div>
         </div>
         <div id="gameover-overlay" class="screen-overlay" style="display: none; background: transparent; pointer-events: none;"></div>
