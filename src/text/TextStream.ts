@@ -151,19 +151,23 @@ export class TextStream {
           highlightCooldown = 8 + Math.floor(Math.random() * 5)
 
           if (multiplierCooldown <= 0) {
+            // Scale multiplier chances up as highlight rate goes down to keep absolute amount constant
+            // Base highlight rate started at 0.08. So the scale factor is (0.08 / this.highlightRate)
+            const scale = this.highlightRate > 0 ? 0.08 / this.highlightRate : 1;
             const rand = Math.random()
-            if (rand < 0.007 && tripleMultiplierCooldown <= 0) { // 0.7% chance
+
+            if (rand < 0.007 * scale && tripleMultiplierCooldown <= 0) { // 0.7% chance (base)
               multiplierType = 'TripleWord'
               multiplierCooldown = 4
               tripleMultiplierCooldown = 15
-            } else if (rand < 0.018) { // 1.1% chance
+            } else if (rand < 0.018 * scale) { // 1.1% chance (base)
               multiplierType = 'DoubleWord'
               multiplierCooldown = 3
-            } else if (rand < 0.035 && tripleMultiplierCooldown <= 0) { // 1.7% chance
+            } else if (rand < 0.035 * scale && tripleMultiplierCooldown <= 0) { // 1.7% chance (base)
               multiplierType = 'TripleLetter'
               multiplierCooldown = 3
               tripleMultiplierCooldown = 10
-            } else if (rand < 0.08) { // 4.5% chance
+            } else if (rand < 0.08 * scale) { // 4.5% chance (base)
               multiplierType = 'DoubleLetter'
               multiplierCooldown = 2
             }
