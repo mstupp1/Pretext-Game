@@ -153,17 +153,17 @@ html, body {
   position: relative;
   overflow: hidden;
   isolation: isolate;
-  border-top: 1px solid rgba(74, 44, 21, 0.72);
+  border-top: 1px solid rgba(112, 72, 39, 0.68);
   background:
-    linear-gradient(180deg, rgba(142, 104, 62, 0.9), rgba(92, 58, 31, 0.96) 38%, rgba(58, 34, 18, 0.98)),
-    linear-gradient(90deg, rgba(38, 23, 13, 0.35), rgba(255, 232, 191, 0.08) 24%, rgba(255, 242, 218, 0.1) 50%, rgba(49, 28, 15, 0.3) 100%);
+    linear-gradient(180deg, rgba(182, 136, 86, 0.92), rgba(136, 91, 51, 0.95) 38%, rgba(92, 57, 30, 0.97)),
+    linear-gradient(90deg, rgba(78, 49, 28, 0.24), rgba(255, 231, 189, 0.12) 24%, rgba(255, 243, 220, 0.14) 50%, rgba(84, 53, 29, 0.22) 100%);
   display: flex;
   height: 98px;
   box-shadow:
-    inset 0 1px 0 rgba(255, 235, 202, 0.32),
-    inset 0 12px 18px rgba(255, 227, 184, 0.08),
-    inset 0 -18px 22px rgba(27, 14, 7, 0.32),
-    0 -10px 30px rgba(44, 24, 16, 0.22);
+    inset 0 1px 0 rgba(255, 240, 210, 0.38),
+    inset 0 12px 18px rgba(255, 231, 191, 0.12),
+    inset 0 -18px 22px rgba(43, 24, 12, 0.24),
+    0 -10px 30px rgba(44, 24, 16, 0.18);
 }
 
 #word-tray::before,
@@ -176,22 +176,22 @@ html, body {
 
 #word-tray::before {
   background:
-    linear-gradient(180deg, rgba(255, 235, 201, 0.28), rgba(255, 235, 201, 0.06) 22%, rgba(0, 0, 0, 0.16) 100%),
-    radial-gradient(circle at 50% -80%, rgba(255, 231, 190, 0.42), rgba(255, 231, 190, 0) 56%),
+    linear-gradient(180deg, rgba(255, 240, 208, 0.32), rgba(255, 240, 208, 0.1) 22%, rgba(0, 0, 0, 0.1) 100%),
+    radial-gradient(circle at 50% -80%, rgba(255, 233, 194, 0.46), rgba(255, 233, 194, 0) 56%),
     url("/images/traytexture_1.png");
   background-position: center, center, center 36%;
   background-repeat: no-repeat, no-repeat, no-repeat;
   background-size: 100% 100%, 100% 100%, cover;
   mix-blend-mode: multiply;
-  opacity: 0.62;
-  filter: saturate(0.82) contrast(1.08) brightness(0.9);
+  opacity: 0.56;
+  filter: saturate(0.9) contrast(1.02) brightness(1.02);
 }
 
 #word-tray::after {
   inset: 0;
   background:
-    linear-gradient(90deg, rgba(255, 238, 212, 0.16), rgba(255, 238, 212, 0) 14%, rgba(0, 0, 0, 0) 86%, rgba(33, 17, 8, 0.26)),
-    linear-gradient(180deg, rgba(255, 242, 217, 0.12), rgba(255, 242, 217, 0) 24%, rgba(0, 0, 0, 0.14) 100%);
+    linear-gradient(90deg, rgba(255, 239, 214, 0.18), rgba(255, 239, 214, 0) 14%, rgba(0, 0, 0, 0) 86%, rgba(52, 29, 15, 0.18)),
+    linear-gradient(180deg, rgba(255, 244, 220, 0.14), rgba(255, 244, 220, 0) 24%, rgba(0, 0, 0, 0.1) 100%);
 }
 
 #word-tray-inner {
@@ -199,17 +199,17 @@ html, body {
   align-items: center;
   justify-content: center;
   position: relative;
-  width: 100%;
+  width: min(100%, 940px);
   height: calc(100% - 22px);
-  margin: 10px 18px 12px;
+  margin: 10px auto 12px;
   border-radius: 12px 12px 8px 8px;
-  border: 1px solid rgba(77, 47, 24, 0.7);
+  border: 1px solid rgba(112, 72, 39, 0.6);
   background:
-    linear-gradient(180deg, rgba(135, 97, 58, 0.3), rgba(104, 70, 39, 0.2) 28%, rgba(68, 42, 23, 0.4) 100%);
+    linear-gradient(180deg, rgba(171, 126, 78, 0.34), rgba(136, 94, 54, 0.24) 28%, rgba(92, 57, 31, 0.36) 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 233, 198, 0.12),
-    inset 0 -8px 12px rgba(32, 17, 8, 0.18),
-    0 1px 0 rgba(255, 229, 190, 0.06);
+    inset 0 1px 0 rgba(255, 239, 208, 0.16),
+    inset 0 -8px 12px rgba(45, 25, 12, 0.14),
+    0 1px 0 rgba(255, 233, 198, 0.08);
 }
 
 #word-tray-inner::before,
@@ -224,9 +224,9 @@ html, body {
   inset: 4px 6px 12px;
   border-radius: 10px 10px 7px 7px;
   background:
-    linear-gradient(180deg, rgba(168, 126, 82, 0.1), rgba(114, 78, 45, 0.05) 42%, rgba(72, 45, 24, 0.06) 100%);
+    linear-gradient(180deg, rgba(196, 149, 100, 0.12), rgba(145, 102, 59, 0.07) 42%, rgba(96, 60, 33, 0.06) 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 242, 218, 0.1);
+    inset 0 1px 0 rgba(255, 244, 222, 0.12);
 }
 
 #word-tray-inner::after {
@@ -236,10 +236,10 @@ html, body {
   height: 10px;
   border-radius: 0 0 12px 12px;
   background:
-    linear-gradient(180deg, rgba(85, 55, 31, 0.92), rgba(50, 30, 16, 0.97));
+    linear-gradient(180deg, rgba(121, 80, 46, 0.92), rgba(78, 47, 25, 0.96));
   box-shadow:
-    0 -1px 0 rgba(255, 227, 184, 0.05),
-    0 2px 4px rgba(24, 12, 5, 0.16);
+    0 -1px 0 rgba(255, 231, 191, 0.08),
+    0 2px 4px rgba(24, 12, 5, 0.12);
 }
 
 #word-tray .ui-container {
