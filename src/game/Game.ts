@@ -3,7 +3,7 @@
 import { Player } from './Player'
 import { audioManager } from '../audio/AudioManager'
 import { Lane, type LaneConfig } from './Lane'
-import { scoreWord, type ScoreResult, getLetterValue, type ScoredLetter } from './Scoring'
+import { scoreWord, type ScoreResult, getLetterValue, type ScoredLetter, getScorePreview } from './Scoring'
 import { generateLevel, type LevelConfig } from './Levels'
 import { ParticleSystem } from '../effects/ParticleSystem'
 import { GAME_WIDTH, GAME_HEIGHT, LANE_COUNT, LANE_HEIGHT, LANE_Y_START, COLORS, CANVAS_FONTS, ROMAN_NUMERALS, MAX_COLLECTED_LETTERS, TIME_BONUS, LEVEL_TIME } from '../utils/constants'
@@ -740,11 +740,7 @@ export class Game {
       this.wordsFound.push(allLetters)
       this.usedWords.add(result.word)
 
-      let timeBonus = 0
-      if (result.word.length >= 6) timeBonus = 15
-      else if (result.word.length === 5) timeBonus = 8
-      else if (result.word.length === 4) timeBonus = 5
-      else if (result.word.length === 3) timeBonus = 3
+      const timeBonus = getScorePreview(allLetters).timeBonus
 
       this.timeRemaining += timeBonus
 
@@ -816,7 +812,7 @@ export class Game {
       }
 
       // Celebration particles
-      this.particles.waveText(`Chapter ${ROMAN_NUMERALS[Math.min(this.chapter - 1, ROMAN_NUMERALS.length - 1)]}`, GAME_WIDTH / 2, 126)
+      this.particles.waveText(`Chapter ${ROMAN_NUMERALS[Math.min(this.chapter - 1, ROMAN_NUMERALS.length - 1)]}`, GAME_WIDTH / 2, 104)
       this.updateUI()
 
       const pauseChapter = document.getElementById('pause-chapter')
@@ -1038,6 +1034,9 @@ export class Game {
     const trayPath = this.createRoundedRectPath(trayX, trayY, trayWidth, trayHeight, 14)
     const innerPath = this.createRoundedRectPath(innerX, innerY, innerWidth, innerHeight, 10)
     const lipPath = this.createRoundedRectPath(innerX + 18, innerY + innerHeight - lipHeight - 4, innerWidth - 36, lipHeight, 8)
+    const selectedPreview = this.collectedLetters.length > 0
+      ? getScorePreview(this.collectedLetters.map(({ letter, multiplierType }) => ({ letter, multiplierType })))
+      : null
 
     ctx.save()
     if (this.state === 'countdown') {
@@ -1132,6 +1131,10 @@ export class Game {
       this.renderCanvasTrayTile(ctx, letter.letter, letter.x, driftY, tileWidth, tileHeight, scale, alpha)
     })
 
+    if (selectedPreview) {
+      this.renderSelectedTrayPreview(ctx, trayY, selectedPreview.totalScore, selectedPreview.timeBonus)
+    }
+
     if (this.feedback && (this.state === 'countdown' || this.state === 'playing' || this.state === 'paused')) {
       const fade = Math.min(1, this.feedback.timer / 0.35)
       ctx.save()
@@ -1140,7 +1143,7 @@ export class Game {
       ctx.fillStyle = this.feedback.success ? COLORS.green : COLORS.red
       ctx.textAlign = 'center'
       ctx.textBaseline = 'bottom'
-      ctx.fillText(this.feedback.text, GAME_WIDTH / 2, trayY - 8)
+      ctx.fillText(this.feedback.text, GAME_WIDTH / 2, selectedPreview ? trayY - 36 : trayY - 8)
       ctx.restore()
     }
 
@@ -1701,6 +1704,41 @@ export class Game {
         renderText(ctx, item.label, item.x + 18, item.y, CANVAS_FONTS.laneItalic(12), COLORS.muted)
       }
     })
+  }
+
+  private renderSelectedTrayPreview(ctx: CanvasRenderingContext2D, trayY: number, totalScore: number, timeBonus: number): void {
+    const width = 186
+    const height = 24
+    const x = (GAME_WIDTH - width) / 2
+    const y = trayY - height - 10
+    const path = this.createRoundedRectPath(x, y, width, height, 12)
+    const timeColor = timeBonus > 0 ? COLORS.gold : COLORS.sepia
+
+    ctx.save()
+    ctx.fillStyle = 'rgba(245, 241, 232, 0.84)'
+    ctx.shadowColor = 'rgba(92, 64, 51, 0.08)'
+    ctx.shadowBlur = 10
+    ctx.shadowOffsetY = 2
+    ctx.fill(path)
+    ctx.restore()
+
+    ctx.fillStyle = 'rgba(245, 241, 232, 0.74)'
+    ctx.fill(path)
+    ctx.strokeStyle = 'rgba(92, 64, 51, 0.14)'
+    ctx.lineWidth = 1
+    ctx.stroke(path)
+
+    renderText(ctx, 'SELECTED', x + 18, y + 12, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted)
+    renderText(ctx, `${totalScore} pts`, x + 86, y + 12, CANVAS_FONTS.laneMedium(15), COLORS.espresso, 'center')
+
+    ctx.strokeStyle = COLORS.rule
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(x + 121, y + 5)
+    ctx.lineTo(x + 121, y + 19)
+    ctx.stroke()
+
+    renderText(ctx, `+${timeBonus}s`, x + 152, y + 12, CANVAS_FONTS.laneMedium(15), timeColor, 'center')
   }
 
   private drawPagePanel(

@@ -12,13 +12,22 @@ export interface ScoreResult {
   message: string
 }
 
+export interface ScorePreview {
+  word: string
+  letterScore: number
+  lengthBonus: number
+  totalScore: number
+  timeBonus: number
+}
+
 export interface ScoredLetter {
   letter: string
   multiplierType: MultiplierType
 }
 
 export async function scoreWord(letters: ScoredLetter[]): Promise<ScoreResult> {
-  const word = letters.map(l => l.letter).join('').toUpperCase()
+  const preview = getScorePreview(letters)
+  const { word, letterScore, lengthBonus, totalScore } = preview
 
   if (word.length < 3) {
     return {
@@ -43,7 +52,22 @@ export async function scoreWord(letters: ScoredLetter[]): Promise<ScoreResult> {
     }
   }
 
-  // Calculate letter scores
+  // Generate flavor message
+  const messages = getFlavorMessage(word.length, totalScore)
+
+  return {
+    valid: true,
+    word,
+    letterScore,
+    lengthBonus,
+    totalScore,
+    message: messages,
+  }
+}
+
+export function getScorePreview(letters: ScoredLetter[]): ScorePreview {
+  const word = letters.map(l => l.letter).join('').toUpperCase()
+
   let letterScore = 0
   let wordMultiplier = 1
   for (const item of letters) {
@@ -61,22 +85,23 @@ export async function scoreWord(letters: ScoredLetter[]): Promise<ScoreResult> {
     letterScore += val
   }
 
-  // Length bonus
   const lengthBonus = WORD_LENGTH_BONUS[Math.min(word.length, 10)] || 0
 
-  const totalScore = (letterScore * wordMultiplier) + lengthBonus
-
-  // Generate flavor message
-  const messages = getFlavorMessage(word.length, totalScore)
-
   return {
-    valid: true,
     word,
     letterScore,
     lengthBonus,
-    totalScore,
-    message: messages,
+    totalScore: (letterScore * wordMultiplier) + lengthBonus,
+    timeBonus: getTimeBonusForWordLength(word.length),
   }
+}
+
+export function getTimeBonusForWordLength(length: number): number {
+  if (length >= 6) return 15
+  if (length === 5) return 8
+  if (length === 4) return 5
+  if (length === 3) return 3
+  return 0
 }
 
 function getFlavorMessage(length: number, score: number): string {
