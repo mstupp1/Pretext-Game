@@ -15,6 +15,26 @@
   <div id="game-container">
     <div id="game-wrapper">
       <canvas id="game-canvas"></canvas>
+      <div id="book-stats" style="visibility: hidden">
+        <div id="hud-left">
+          <span id="level-label">Chapter</span>
+          <span id="level-value">I</span>
+        </div>
+        <div id="hud-right">
+          <span class="hud-meta-label">Time</span>
+          <span id="timer-value">1:30</span>
+        </div>
+        <div id="hud-center">
+          <span id="score-label">Score</span>
+          <div id="score-display-group">
+            <span id="score-value">0</span>
+            <span id="score-target">/ <span id="next-chapter-value">75</span></span>
+          </div>
+        </div>
+        <div id="score-progress-bar">
+          <div id="score-progress-fill"></div>
+        </div>
+      </div>
       <div id="multiplier-legend" style="visibility: hidden">
         <div class="legend-item">
           <div class="legend-tile multiplier-DoubleLetter"></div>
@@ -36,27 +56,7 @@
     </div>
     <div id="ui-overlay">
       <div id="overlay-top">
-        <div id="hud">
-          <div class="ui-container">
-            <div id="hud-left" style="visibility: hidden">
-              <span id="level-label">CHAPTER</span>
-              <span id="level-value">I</span>
-            </div>
-            <div id="hud-center" style="visibility: hidden">
-              <span id="score-label">SCORE</span>
-              <div id="score-display-group">
-                <span id="score-value">0</span>
-                <span id="score-target">/ <span id="next-chapter-value">75</span></span>
-              </div>
-            </div>
-            <div id="hud-right" style="visibility: hidden">
-              <span id="timer-value">1:30</span>
-            </div>
-          </div>
-          <div id="score-progress-bar" style="visibility: hidden">
-            <div id="score-progress-fill"></div>
-          </div>
-        </div>
+        <div id="hud"></div>
         <div id="completed-words-container" aria-label="Completed words">
           <div class="ui-container">
             <div id="completed-words-list"></div>

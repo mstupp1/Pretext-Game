@@ -1347,10 +1347,9 @@ export class Game {
 
   // ── DOM UI updates ──
 
-  /** Hide/show only the text content inside the HUD (chapter, score, timer, progress bar)
-   *  while keeping the HUD bar itself visible as layout chrome. */
+  /** Hide/show the book-top stat block and multiplier legend. */
   private setHudContentVisible(visible: boolean): void {
-    const ids = ['hud-left', 'hud-center', 'hud-right', 'score-progress-bar', 'multiplier-legend']
+    const ids = ['book-stats', 'multiplier-legend']
     for (const id of ids) {
       const el = document.getElementById(id)
       if (el) el.style.visibility = visible ? 'visible' : 'hidden'
