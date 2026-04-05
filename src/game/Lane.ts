@@ -145,6 +145,11 @@ export class Lane {
       if (this.playerLaneFillPath) ctx.fill(this.playerLaneFillPath)
     }
 
+    // Lane separator should sit behind lifted/focused letters.
+    ctx.strokeStyle = COLORS.rule
+    ctx.lineWidth = 0.5
+    ctx.stroke(this.separatorPath)
+
     // Render text stream with full effects
     if (this.stream) {
       const visible = this.stream.getVisibleChars(GAME_WIDTH)
@@ -166,11 +171,6 @@ export class Lane {
       // Reset text align
       ctx.textAlign = 'left'
     }
-
-    // Lane separator (thin rule)
-    ctx.strokeStyle = COLORS.rule
-    ctx.lineWidth = 0.5
-    ctx.stroke(this.separatorPath)
   }
 
 
@@ -289,7 +289,7 @@ export class Lane {
 
     const isLifted = ch.scale > 1.05
     const proximityAlpha = isLifted ? 1.0 : Math.min(1, 0.75 + (ch.scale - 1) * 1.0)
-    const baseAlpha = Math.min(1, ch.alpha * proximityAlpha) * edgeFade
+    const baseAlpha = (isLifted ? 1 : Math.min(1, ch.alpha * proximityAlpha)) * edgeFade
     ctx.globalAlpha = baseAlpha
 
     if (ch.rotation !== 0 || totalScale !== 1) {
@@ -310,7 +310,7 @@ export class Lane {
     const tileW = ch.width + padding * 2
     const tileH = this.config.fontSize + padding * 2
     const borderRadius = 4
-    const bgAlpha = Math.min(1, 0.4 + interactionStrength * 0.6)
+    const bgAlpha = isLifted ? 1 : Math.min(1, 0.4 + interactionStrength * 0.6)
     const colorT = Math.min(1, Math.max(0, interactionStrength * 1.2))
 
     if (ch.scale > 1.1) {
@@ -319,7 +319,8 @@ export class Lane {
       ctx.shadowOffsetY = 2 + (ch.scale - 1) * 4
     }
 
-    const colors = this.getHighlightColors(ch.multiplierType, baseAlpha, bgAlpha, colorT)
+    const colorAlpha = isLifted ? 1 : baseAlpha
+    const colors = this.getHighlightColors(ch.multiplierType, colorAlpha, bgAlpha, colorT)
 
     ctx.fillStyle = colors.baseColor
     ctx.beginPath()
@@ -383,12 +384,12 @@ export class Lane {
     depthColor: string
     charColor: string
   } {
-    let baseColor = `rgba(217, 174, 88, ${bgAlpha * baseAlpha})`
-    let borderColor = `rgba(182, 132, 46, ${baseAlpha})`
+    let baseColor = `rgba(224, 187, 79, ${bgAlpha * baseAlpha})`
+    let borderColor = `rgba(189, 143, 40, ${baseAlpha})`
     let depthColor = COLORS.tileGoldDepth
-    let r = Math.round(217 + colorT * 38)
-    let g = Math.round(174 + colorT * 68)
-    let b = Math.round(88 + colorT * 154)
+    let r = Math.round(224 + colorT * 31)
+    let g = Math.round(187 + colorT * 54)
+    let b = Math.round(79 + colorT * 176)
 
     if (multiplierType === 'DoubleLetter') {
       baseColor = `rgba(91, 155, 213, ${bgAlpha * baseAlpha})`

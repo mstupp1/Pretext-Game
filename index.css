@@ -10,9 +10,9 @@
   --text-muted:     #8B7355;
   --accent-gold:    #B8860B;
   --accent-gold-light: #D4A843;
-  --tile-gold:      #D9AE58;
-  --tile-gold-light:#E7C67A;
-  --tile-gold-border:#B6842E;
+  --tile-gold:      #E0BB4F;
+  --tile-gold-light:#F0D67E;
+  --tile-gold-border:#BD8F28;
   --accent-red:     #8B2500;
   --accent-green:   #2E5A1E;
   --rule-color:     rgba(44, 24, 16, 0.15);
@@ -34,7 +34,7 @@ html, body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: var(--bg-ivory);
+  background: #120d0a;
   font-family: var(--font-ui);
   color: var(--text-espresso);
   -webkit-font-smoothing: antialiased;
@@ -50,22 +50,49 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  isolation: isolate;
   background:
-    linear-gradient(rgba(214, 204, 186, 0.84), rgba(214, 204, 186, 0.84)),
-    url("/images/background_1.png"),
-    radial-gradient(ellipse at 50% 30%, rgba(245, 241, 232, 0.88), rgba(232, 224, 208, 0.74)),
+    linear-gradient(rgba(38, 30, 24, 0.58), rgba(30, 24, 19, 0.68)),
+    radial-gradient(ellipse at 50% 34%, rgba(118, 98, 78, 0.24), rgba(24, 18, 14, 0.84)),
+    radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 52%, rgba(0, 0, 0, 0.38) 100%),
     repeating-linear-gradient(
       0deg,
       rgba(255, 255, 255, 0),
       rgba(255, 255, 255, 0) 27px,
-      rgba(44, 24, 16, 0.1) 27px,
-      rgba(44, 24, 16, 0.1) 28px
+      rgba(255, 255, 255, 0.035) 27px,
+      rgba(255, 255, 255, 0.035) 28px
     );
-  background-position: center, 35% center, center, center;
-  background-size: cover, 56%, cover, auto;
+  background-position: center, center, center, center;
+  background-size: cover, cover, cover, auto;
   opacity: 0;
   transition: opacity 0.85s ease;
   will-change: opacity;
+}
+
+#game-container::before {
+  content: '';
+  position: absolute;
+  inset: -24px;
+  background:
+    linear-gradient(rgba(20, 15, 12, 0.18), rgba(20, 15, 12, 0.28)),
+    url("/images/background_1.png");
+  background-position: center, 35% center;
+  background-size: cover, 56%;
+  filter: blur(8px);
+  transform: scale(1.04);
+  opacity: 0.72;
+  z-index: -2;
+  pointer-events: none;
+}
+
+#game-container::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 58%, rgba(0, 0, 0, 0.34) 100%);
+  z-index: -1;
+  pointer-events: none;
 }
 
 #game-container.is-visible {

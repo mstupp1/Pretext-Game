@@ -1061,9 +1061,9 @@ export class Game {
     }
 
     const trayGradient = ctx.createLinearGradient(trayX, trayY, trayX, trayY + trayHeight)
-    trayGradient.addColorStop(0, 'rgba(241, 210, 171, 0.97)')
-    trayGradient.addColorStop(0.42, 'rgba(221, 184, 140, 0.98)')
-    trayGradient.addColorStop(1, 'rgba(184, 142, 101, 0.98)')
+    trayGradient.addColorStop(0, 'rgba(234, 201, 160, 0.97)')
+    trayGradient.addColorStop(0.42, 'rgba(212, 174, 129, 0.98)')
+    trayGradient.addColorStop(1, 'rgba(173, 131, 91, 0.98)')
     ctx.fillStyle = trayGradient
     ctx.fill(trayPath)
 
@@ -1079,21 +1079,21 @@ export class Game {
     }
 
     const trayHighlight = ctx.createLinearGradient(trayX, trayY, trayX, trayY + trayHeight)
-    trayHighlight.addColorStop(0, 'rgba(255, 250, 238, 0.48)')
-    trayHighlight.addColorStop(0.24, 'rgba(255, 250, 238, 0.24)')
-    trayHighlight.addColorStop(1, 'rgba(47, 26, 12, 0.04)')
+    trayHighlight.addColorStop(0, 'rgba(255, 248, 234, 0.42)')
+    trayHighlight.addColorStop(0.24, 'rgba(255, 248, 234, 0.2)')
+    trayHighlight.addColorStop(1, 'rgba(47, 26, 12, 0.05)')
     ctx.fillStyle = trayHighlight
     ctx.fillRect(trayX, trayY, trayWidth, trayHeight)
     ctx.restore()
 
-    ctx.strokeStyle = 'rgba(162, 124, 89, 0.58)'
+    ctx.strokeStyle = 'rgba(156, 117, 81, 0.6)'
     ctx.lineWidth = 1
     ctx.stroke(trayPath)
 
     const innerGradient = ctx.createLinearGradient(innerX, innerY, innerX, innerY + innerHeight)
-    innerGradient.addColorStop(0, 'rgba(226, 191, 149, 0.64)')
-    innerGradient.addColorStop(0.3, 'rgba(201, 163, 120, 0.46)')
-    innerGradient.addColorStop(1, 'rgba(154, 116, 80, 0.56)')
+    innerGradient.addColorStop(0, 'rgba(218, 181, 139, 0.64)')
+    innerGradient.addColorStop(0.3, 'rgba(192, 153, 110, 0.46)')
+    innerGradient.addColorStop(1, 'rgba(145, 107, 72, 0.56)')
     ctx.fillStyle = innerGradient
     ctx.fill(innerPath)
 
@@ -1106,18 +1106,18 @@ export class Game {
       ctx.globalCompositeOperation = 'source-over'
     }
     const innerHighlight = ctx.createLinearGradient(innerX, innerY, innerX, innerY + innerHeight)
-    innerHighlight.addColorStop(0, 'rgba(255, 252, 242, 0.28)')
-    innerHighlight.addColorStop(1, 'rgba(68, 42, 23, 0.02)')
+    innerHighlight.addColorStop(0, 'rgba(255, 250, 238, 0.24)')
+    innerHighlight.addColorStop(1, 'rgba(68, 42, 23, 0.025)')
     ctx.fillStyle = innerHighlight
     ctx.fillRect(innerX, innerY, innerWidth, innerHeight)
     ctx.restore()
 
-    ctx.strokeStyle = 'rgba(166, 127, 91, 0.44)'
+    ctx.strokeStyle = 'rgba(159, 120, 84, 0.46)'
     ctx.stroke(innerPath)
 
     const lipGradient = ctx.createLinearGradient(innerX, innerY + innerHeight - lipHeight, innerX, innerY + innerHeight)
-    lipGradient.addColorStop(0, 'rgba(193, 156, 115, 0.95)')
-    lipGradient.addColorStop(1, 'rgba(145, 108, 73, 0.98)')
+    lipGradient.addColorStop(0, 'rgba(184, 146, 105, 0.95)')
+    lipGradient.addColorStop(1, 'rgba(136, 99, 65, 0.98)')
     ctx.fillStyle = lipGradient
     ctx.fill(lipPath)
     ctx.strokeStyle = 'rgba(255, 231, 194, 0.08)'
