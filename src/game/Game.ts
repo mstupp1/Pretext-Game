@@ -35,6 +35,7 @@ interface FeedbackMessage {
   text: string
   success: boolean
   timer: number
+  duration: number
 }
 
 interface FloatingScore {
@@ -746,7 +747,10 @@ export class Game {
     this.showFeedback('Checking lexicon...', true)
 
     // Set a very long timer for the check so it doesn't disappear in the middle of a slow API call
-    if (this.feedback) this.feedback.timer = 10
+    if (this.feedback) {
+      this.feedback.timer = 10
+      this.feedback.duration = 10
+    }
 
     const result = await scoreWord(allLetters)
 
@@ -808,7 +812,7 @@ export class Game {
   }
 
   private showFeedback(text: string, success: boolean): void {
-    this.feedback = { text, success, timer: 2.5 }
+    this.feedback = { text, success, timer: 2.5, duration: 2.5 }
   }
 
   // ── Update loop ──
@@ -1161,14 +1165,18 @@ export class Game {
     }
 
     if (this.feedback && (this.state === 'countdown' || this.state === 'playing' || this.state === 'paused')) {
-      const fade = Math.min(1, this.feedback.timer / 0.35)
+      const progress = 1 - Math.max(0, this.feedback.timer) / Math.max(this.feedback.duration, 0.001)
+      const fade = 1 - Math.min(1, progress / 0.8)
+      const selectedPreviewTop = trayY - 34
+      const baseY = selectedPreview ? selectedPreviewTop - 12 : trayY - 8
+      const rise = this.feedback.success ? progress * 18 : progress * 8
       ctx.save()
       ctx.globalAlpha = fade
       ctx.font = CANVAS_FONTS.ui(13)
       ctx.fillStyle = this.feedback.success ? COLORS.green : COLORS.red
       ctx.textAlign = 'center'
       ctx.textBaseline = 'bottom'
-      ctx.fillText(this.feedback.text, GAME_WIDTH / 2, selectedPreview ? trayY - 36 : trayY - 8)
+      ctx.fillText(this.feedback.text, GAME_WIDTH / 2, baseY - rise)
       ctx.restore()
     }
 
