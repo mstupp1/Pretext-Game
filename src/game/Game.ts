@@ -1776,27 +1776,46 @@ export class Game {
     const tileGap = 2
     const wordGap = 12
     const scoreGap = 6
-    const scoreFont = CANVAS_FONTS.laneBold(17)
+    const scoreFont = CANVAS_FONTS.laneBold(14)
     const rowHeight = 32
     const availableWidth = pageRight - pageLeft
-    const widestEntryWidth = entries.reduce((maxWidth, entry) => {
+    const entryWidths = entries.map((entry) => {
       const scoreWidth = measureTextWidth(String(entry.score), scoreFont)
       const tilesWidth = entry.letters.length * tileSize + Math.max(0, entry.letters.length - 1) * tileGap
-      return Math.max(maxWidth, tilesWidth + scoreGap + scoreWidth)
-    }, 0)
-    const rowCapacity = Math.max(1, Math.floor((availableWidth + wordGap) / (widestEntryWidth + wordGap)))
-    const rowCount = Math.max(1, Math.ceil(entries.length / rowCapacity))
+      return {
+        scoreWidth,
+        totalWidth: tilesWidth + scoreGap + scoreWidth,
+      }
+    })
+
+    let rowCount = 1
+    let cursorX = pageLeft
+    for (let index = 0; index < entries.length; index++) {
+      const entryWidth = entryWidths[index].totalWidth
+      if (cursorX > pageLeft && cursorX + entryWidth > pageRight) {
+        rowCount++
+        cursorX = pageLeft
+      }
+      cursorX += entryWidth + wordGap
+    }
+
     const adjustedRowHeight = Math.min(rowHeight, (listBottomY - listTopY) / rowCount)
 
+    cursorX = pageLeft
+    let row = 0
     for (let index = 0; index < entries.length; index++) {
-      const row = Math.floor(index / rowCapacity)
-      const column = index % rowCapacity
-      const x = pageLeft + column * (widestEntryWidth + wordGap)
+      const entryWidth = entryWidths[index].totalWidth
+      if (cursorX > pageLeft && cursorX + entryWidth > pageRight) {
+        row++
+        cursorX = pageLeft
+      }
+
+      const x = cursorX
       const y = listTopY + row * adjustedRowHeight
-      const centerY = y + getOffset(x + widestEntryWidth * 0.5)
+      const centerY = y + getOffset(x + entryWidth * 0.5)
       const scoreText = `${entries[index].score}`
       const scoreWidth = measureTextWidth(scoreText, scoreFont)
-      const maxTileAreaWidth = Math.max(28, widestEntryWidth - scoreWidth - scoreGap)
+      const maxTileAreaWidth = Math.max(28, entryWidth - scoreWidth - scoreGap)
       const maxTiles = Math.max(1, Math.floor((maxTileAreaWidth + tileGap) / (tileSize + tileGap)))
       const lettersToRender = entries[index].letters.slice(0, maxTiles)
       const wordWidth = lettersToRender.length * tileSize + Math.max(0, lettersToRender.length - 1) * tileGap
@@ -1821,6 +1840,7 @@ export class Game {
       }
 
       renderText(ctx, scoreText, x + wordWidth + scoreGap + scoreWidth, centerY + 1, scoreFont, COLORS.sepia, 'right')
+      cursorX += entryWidth + wordGap
     }
   }
 
@@ -1873,7 +1893,7 @@ export class Game {
     ctx.font = '700 14px "Cormorant Garamond", "Palatino Linotype", Palatino, Georgia, serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText(letter.letter, centerX, centerY - 1)
+    ctx.fillText(letter.letter, x + width / 2, y + height / 2)
 
     ctx.fillStyle = COLORS.ivory
     ctx.font = '800 9px Georgia, "Times New Roman", serif'
