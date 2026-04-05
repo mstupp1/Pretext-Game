@@ -10,12 +10,12 @@ const MULTIPLIER_WEIGHTS: Array<{
   type: Exclude<MultiplierType, 'None'>
   weight: number
   cooldown: number
-  tripleCooldown?: number
+  wordMultiplierCooldown?: number
 }> = [
   { type: 'DoubleLetter', weight: 0.357, cooldown: 1 },
-  { type: 'DoubleWord', weight: 0.286, cooldown: 2 },
-  { type: 'TripleLetter', weight: 0.214, cooldown: 2, tripleCooldown: 8 },
-  { type: 'TripleWord', weight: 0.143, cooldown: 2, tripleCooldown: 10 },
+  { type: 'DoubleWord', weight: 0.286, cooldown: 2, wordMultiplierCooldown: 8 },
+  { type: 'TripleLetter', weight: 0.214, cooldown: 2 },
+  { type: 'TripleWord', weight: 0.143, cooldown: 2, wordMultiplierCooldown: 10 },
 ]
 type ActiveMultiplierType = Exclude<MultiplierType, 'None'>
 
@@ -182,7 +182,7 @@ export class TextStream {
     let inWord = false
     let highlightCooldown = 0
     let multiplierCooldown = 0
-    let tripleMultiplierCooldown = 0
+    let wordMultiplierCooldown = 0
 
     for (let i = 0; i < measured.length; i++) {
       const mc = measured[i]
@@ -204,7 +204,7 @@ export class TextStream {
       if (isLetter && highlightCooldown <= 0) {
         if (multiplierCooldown <= 0 && Math.random() < MULTIPLIER_SPAWN_RATE) {
           const availableMultipliers = MULTIPLIER_WEIGHTS.filter(option =>
-            option.tripleCooldown === undefined || tripleMultiplierCooldown <= 0
+            option.wordMultiplierCooldown === undefined || wordMultiplierCooldown <= 0
           )
           const totalWeight = availableMultipliers.reduce((sum, option) => sum + option.weight, 0)
           let pick = Math.random() * totalWeight
@@ -214,8 +214,8 @@ export class TextStream {
             if (pick <= 0) {
               multiplierType = option.type
               multiplierCooldown = option.cooldown
-              if (option.tripleCooldown !== undefined) {
-                tripleMultiplierCooldown = option.tripleCooldown
+              if (option.wordMultiplierCooldown !== undefined) {
+                wordMultiplierCooldown = option.wordMultiplierCooldown
               }
               break
             }
@@ -240,8 +240,8 @@ export class TextStream {
           if (multiplierType === 'None' && multiplierCooldown > 0) {
             multiplierCooldown--
           }
-          if (tripleMultiplierCooldown > 0) {
-            tripleMultiplierCooldown--
+          if (wordMultiplierCooldown > 0) {
+            wordMultiplierCooldown--
           }
         }
       }
