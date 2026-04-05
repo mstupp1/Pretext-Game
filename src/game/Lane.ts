@@ -346,8 +346,8 @@ export class Lane {
     const colorAlpha = isFocused ? 1 : baseAlpha
     const colors = this.getHighlightColors(ch.multiplierType, colorAlpha, bgAlpha, colorT)
     if (isFocused && ch.multiplierType === 'None') {
-      colors.baseColor = `rgba(210, 167, 66, ${edgeFade})`
-      colors.borderColor = `rgba(174, 126, 31, ${edgeFade})`
+      colors.baseColor = `rgba(216, 146, 52, ${edgeFade})`
+      colors.borderColor = `rgba(182, 106, 20, ${edgeFade})`
       colors.depthColor = COLORS.tileGoldDepth
     }
 
@@ -413,12 +413,12 @@ export class Lane {
     depthColor: string
     charColor: string
   } {
-    let baseColor = `rgba(210, 167, 66, ${bgAlpha * baseAlpha})`
-    let borderColor = `rgba(174, 126, 31, ${baseAlpha})`
-    let depthColor = COLORS.tileGoldDepth
-    let startR = 126
-    let startG = 88
-    let startB = 28
+    let baseColor = `rgba(230, 194, 116, ${bgAlpha * baseAlpha})`
+    let borderColor = `rgba(188, 141, 50, ${baseAlpha})`
+    let depthColor = 'rgba(150, 108, 34, 0.36)'
+    let startR = 110
+    let startG = 76
+    let startB = 34
     let endR = 245
     let endG = 241
     let endB = 232
