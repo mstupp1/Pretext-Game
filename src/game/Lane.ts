@@ -405,6 +405,7 @@ export class Lane {
   }
 
   private getNormalTextColor(ch: StreamChar): string {
+    if (this.isSafeZone) return COLORS.safeZoneInk
     if (ch.multiplierType === 'DoubleLetter' || ch.multiplierType === 'DoubleWord') return 'rgb(255, 255, 255)'
     if (ch.multiplierType === 'TripleLetter') return 'rgb(23, 124, 114)'
     if (ch.multiplierType === 'TripleWord') return 'rgb(115, 45, 145)'

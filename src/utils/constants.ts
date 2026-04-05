@@ -8,6 +8,7 @@ export const COLORS = {
   espresso:   '#2C1810',
   sepia:      '#5C4033',
   muted:      '#8B7355',
+  safeZoneInk:'#B6A48F',
   gold:       '#B8860B',
   goldLight:  '#D4A843',
   goldFaint:  'rgba(184, 134, 11, 0.15)',
