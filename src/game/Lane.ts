@@ -374,7 +374,7 @@ export class Lane {
     if (ch.multiplierType === 'TripleLetter') return COLORS.tlBlue
     if (ch.multiplierType === 'DoubleWord') return COLORS.dwCoral
     if (ch.multiplierType === 'TripleWord') return COLORS.twPurple
-    return COLORS.gold
+    return COLORS.tileGold
   }
 
   private getHighlightColors(multiplierType: StreamChar['multiplierType'], baseAlpha: number, bgAlpha: number, colorT: number): {
@@ -383,12 +383,12 @@ export class Lane {
     depthColor: string
     charColor: string
   } {
-    let baseColor = `rgba(184, 134, 11, ${bgAlpha * baseAlpha})`
-    let borderColor = `rgba(154, 114, 9, ${baseAlpha})`
-    let depthColor = 'rgba(100, 70, 20, 0.4)'
-    let r = Math.round(184 + colorT * 61)
-    let g = Math.round(134 + colorT * 107)
-    let b = Math.round(11 + colorT * 221)
+    let baseColor = `rgba(217, 174, 88, ${bgAlpha * baseAlpha})`
+    let borderColor = `rgba(182, 132, 46, ${baseAlpha})`
+    let depthColor = COLORS.tileGoldDepth
+    let r = Math.round(217 + colorT * 38)
+    let g = Math.round(174 + colorT * 68)
+    let b = Math.round(88 + colorT * 154)
 
     if (multiplierType === 'DoubleLetter') {
       baseColor = `rgba(91, 155, 213, ${bgAlpha * baseAlpha})`

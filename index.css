@@ -10,6 +10,9 @@
   --text-muted:     #8B7355;
   --accent-gold:    #B8860B;
   --accent-gold-light: #D4A843;
+  --tile-gold:      #D9AE58;
+  --tile-gold-light:#E7C67A;
+  --tile-gold-border:#B6842E;
   --accent-red:     #8B2500;
   --accent-green:   #2E5A1E;
   --rule-color:     rgba(44, 24, 16, 0.15);
@@ -202,9 +205,9 @@ html, body {
   font-family: var(--font-display);
   font-size: 28px;
   font-weight: 500;
-  background: var(--accent-gold);
+  background: var(--tile-gold);
   color: var(--bg-ivory);
-  border: 1px solid #9A7209;
+  border: 1px solid var(--tile-gold-border);
   border-bottom-width: 3px;
   border-radius: 4px;
   position: relative;

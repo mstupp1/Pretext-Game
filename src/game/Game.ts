@@ -1195,12 +1195,54 @@ export class Game {
     ctx.fill(tilePath)
 
     ctx.shadowColor = 'transparent'
+    ctx.save()
+    ctx.clip(tilePath)
+    if (this.trayTexture?.complete && this.trayTexture.naturalWidth > 0) {
+      ctx.globalAlpha = 0.16
+      ctx.globalCompositeOperation = 'multiply'
+      this.drawImageCover(ctx, this.trayTexture, x, y, width, height, 0.68)
+      ctx.globalCompositeOperation = 'source-over'
+    }
+
+    const grain = ctx.createLinearGradient(x, y, x + width, y)
+    grain.addColorStop(0, 'rgba(90, 58, 28, 0.08)')
+    grain.addColorStop(0.18, 'rgba(255, 240, 205, 0.04)')
+    grain.addColorStop(0.4, 'rgba(110, 70, 34, 0.1)')
+    grain.addColorStop(0.68, 'rgba(255, 246, 220, 0.03)')
+    grain.addColorStop(1, 'rgba(84, 52, 24, 0.08)')
+    ctx.fillStyle = grain
+    ctx.fillRect(x, y, width, height)
+
     const highlight = ctx.createLinearGradient(x, y, x, y + height)
-    highlight.addColorStop(0, 'rgba(255, 248, 232, 0.22)')
-    highlight.addColorStop(0.3, 'rgba(255, 248, 232, 0.06)')
+    highlight.addColorStop(0, 'rgba(255, 248, 232, 0.3)')
+    highlight.addColorStop(0.34, 'rgba(255, 248, 232, 0.08)')
     highlight.addColorStop(1, 'rgba(0, 0, 0, 0.08)')
     ctx.fillStyle = highlight
     ctx.fill(tilePath)
+
+    const sheen = ctx.createLinearGradient(x, y + 3, x, y + height * 0.58)
+    sheen.addColorStop(0, 'rgba(255, 255, 255, 0.28)')
+    sheen.addColorStop(0.36, 'rgba(255, 255, 255, 0.1)')
+    sheen.addColorStop(1, 'rgba(255, 255, 255, 0)')
+    ctx.fillStyle = sheen
+    ctx.fillRect(x + 3, y + 3, width - 6, height * 0.5)
+
+    const gloss = ctx.createRadialGradient(
+      x + width * 0.72,
+      y + height * 0.24,
+      0,
+      x + width * 0.72,
+      y + height * 0.24,
+      width * 0.22,
+    )
+    gloss.addColorStop(0, 'rgba(255, 255, 255, 0.46)')
+    gloss.addColorStop(0.45, 'rgba(255, 255, 255, 0.18)')
+    gloss.addColorStop(1, 'rgba(255, 255, 255, 0)')
+    ctx.fillStyle = gloss
+    ctx.beginPath()
+    ctx.ellipse(x + width * 0.72, y + height * 0.24, width * 0.18, height * 0.12, -0.35, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.restore()
 
     ctx.strokeStyle = border
     ctx.lineWidth = 1
@@ -1299,7 +1341,7 @@ export class Game {
       case 'TripleWord':
         return { fill: COLORS.twPurple, border: '#732D91', text: COLORS.ivory }
       default:
-        return { fill: COLORS.gold, border: '#9A7209', text: COLORS.ivory }
+        return { fill: COLORS.tileGold, border: COLORS.tileGoldBorder, text: COLORS.ivory }
     }
   }
 
