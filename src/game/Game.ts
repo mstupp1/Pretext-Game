@@ -73,6 +73,13 @@ export class Game {
   private static readonly TITLE_INTRO_DURATION = 0.85
   private static readonly FINAL_CHAPTER = ROMAN_NUMERALS.length
   private static readonly EPILOGUE_CHAPTER = Game.FINAL_CHAPTER + 1
+  private static readonly TOP_PANEL_INSET = 38
+  private static readonly TOP_PANEL_Y = 24
+  private static readonly TRAY_BOTTOM_OFFSET = 26
+  private static readonly TITLE_FOOTER_LIFT = 18
+  private static readonly GAME_OVER_FOOTER_LIFT = 24
+  private static readonly TITLE_PROMPT_DROP = 8
+  private static readonly GAME_OVER_HIGH_SCORES_LIFT = 16
 
   public state: GameState = 'title'
   public canvas: HTMLCanvasElement
@@ -1371,7 +1378,7 @@ export class Game {
     const innerPaddingX = 32
     const traySideMargin = 18
     const trayHeight = 88
-    const trayY = GAME_HEIGHT - trayHeight - 10
+    const trayY = GAME_HEIGHT - trayHeight - Game.TRAY_BOTTOM_OFFSET
     const innerWidth = slotCapacity * tileWidth + (slotCapacity - 1) * tileGap + innerPaddingX * 2
     const trayWidth = innerWidth + traySideMargin * 2
     const trayX = (GAME_WIDTH - trayWidth) / 2
@@ -1585,15 +1592,15 @@ export class Game {
       const breathe = Math.sin(this.titleTime * 2.5) * 0.3 + 0.7
       ctx.save()
       ctx.globalAlpha = sec3.alpha * breathe
-      renderText(ctx, 'Press SPACE or ENTER to begin', centerX, GAME_HEIGHT - 85 + getOffset(centerX) + sec3.slideY,
+      renderText(ctx, 'Press SPACE or ENTER to begin', centerX, GAME_HEIGHT - 85 - Game.TITLE_FOOTER_LIFT + Game.TITLE_PROMPT_DROP + getOffset(centerX) + sec3.slideY,
         CANVAS_FONTS.laneItalic(15), COLORS.sepia, 'center')
       ctx.restore()
     }
 
     // ── Credits (static, always visible) ──
-    renderText(ctx, 'Created by Myles Stupp', centerX, GAME_HEIGHT - 45 + getOffset(centerX),
+    renderText(ctx, 'Created by Myles Stupp', centerX, GAME_HEIGHT - 45 - Game.TITLE_FOOTER_LIFT + getOffset(centerX),
       CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
-    renderText(ctx, 'Powered by Pretext — chenglou/pretext', centerX, GAME_HEIGHT - 30 + getOffset(centerX),
+    renderText(ctx, 'Powered by Pretext — chenglou/pretext', centerX, GAME_HEIGHT - 30 - Game.TITLE_FOOTER_LIFT + getOffset(centerX),
       CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
   }
 
@@ -1693,7 +1700,7 @@ export class Game {
 
     // High scores
     if (this.highScores.length > 0) {
-      const hsY = centerY + 240
+      const hsY = centerY + 240 - Game.GAME_OVER_HIGH_SCORES_LIFT
       renderText(ctx, 'HIGH SCORES', centerX, hsY + getOffset(centerX),
         CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
 
@@ -1720,12 +1727,12 @@ export class Game {
     const breathe = Math.sin(Date.now() * 0.0025) * 0.3 + 0.7
     ctx.save()
     ctx.globalAlpha = breathe
-    renderCurvedText(ctx, 'Press SPACE or ENTER to play again', centerX, GAME_HEIGHT - 60,
+    renderCurvedText(ctx, 'Press SPACE or ENTER to play again', centerX, GAME_HEIGHT - 60 - Game.GAME_OVER_FOOTER_LIFT,
       CANVAS_FONTS.laneItalic(15), COLORS.sepia, getOffset, 'center')
     ctx.restore()
 
     // Return to Main Menu instruction
-    renderCurvedText(ctx, 'Press ESC to return to Main Menu', centerX, GAME_HEIGHT - 25,
+    renderCurvedText(ctx, 'Press ESC to return to Main Menu', centerX, GAME_HEIGHT - 25 - Game.GAME_OVER_FOOTER_LIFT,
       CANVAS_FONTS.laneItalic(12), COLORS.muted, getOffset, 'center')
   }
 
@@ -1780,8 +1787,8 @@ export class Game {
   }
 
   private renderBookTopPanels(ctx: CanvasRenderingContext2D): void {
-    this.renderStatsPanel(ctx, 24, 18, 220, 90)
-    this.renderLegendPanel(ctx, GAME_WIDTH - 260, 18, 236, 58)
+    this.renderStatsPanel(ctx, Game.TOP_PANEL_INSET, Game.TOP_PANEL_Y, 220, 90)
+    this.renderLegendPanel(ctx, GAME_WIDTH - 236 - Game.TOP_PANEL_INSET, Game.TOP_PANEL_Y, 236, 58)
   }
 
   private renderStatsPanel(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number): void {

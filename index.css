@@ -107,7 +107,7 @@ html, body {
   width: 900px;
   height: 640px;
   transform-origin: center center;
-  clip-path: path('M 26 614 L 26 34 Q 26 16 40 16 Q 138 13 245 14 Q 350 19 450 26 Q 550 19 655 14 Q 762 13 860 16 Q 874 16 874 34 L 874 614 Q 874 632 856 632 L 44 632 Q 26 632 26 614 Z');
+  clip-path: path('M 26 606 L 26 34 Q 26 16 40 16 Q 138 13 245 14 Q 350 19 450 26 Q 550 19 655 14 Q 762 13 860 16 Q 874 16 874 34 L 874 606 Q 874 624 860 624 Q 762 622 655 621 Q 550 624 450 628 Q 350 624 245 621 Q 138 622 40 624 Q 26 624 26 606 Z');
   filter: drop-shadow(0 20px 34px rgba(20, 12, 8, 0.22)) drop-shadow(0 44px 72px rgba(44, 24, 16, 0.2));
 }
 
