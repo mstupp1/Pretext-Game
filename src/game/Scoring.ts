@@ -3,6 +3,18 @@
 import { LETTER_VALUES, MultiplierType } from '../utils/constants'
 import { checkWordValidity } from '../utils/dictionary'
 
+const MIN_LENGTH_BONUS_WORD_LENGTH = 3
+const LENGTH_BONUS_BY_WORD_LENGTH: Record<number, number> = {
+  3: 0,
+  4: 2,
+  5: 6,
+  6: 12,
+  7: 20,
+  8: 30,
+  9: 40,
+  10: 50,
+}
+
 export interface ScoreResult {
   valid: boolean
   word: string
@@ -85,13 +97,13 @@ export function getScorePreview(letters: ScoredLetter[]): ScorePreview {
     letterScore += val
   }
 
-  const lengthBonus = 0
+  const lengthBonus = getLengthBonusForWordLength(word.length)
 
   return {
     word,
     letterScore,
     lengthBonus,
-    totalScore: (letterScore * wordMultiplier) + lengthBonus,
+    totalScore: (letterScore + lengthBonus) * wordMultiplier,
     timeBonus: getTimeBonusForWordLength(word.length),
   }
 }
@@ -102,6 +114,12 @@ export function getTimeBonusForWordLength(length: number): number {
   if (length === 4) return 5
   if (length === 3) return 3
   return 0
+}
+
+export function getLengthBonusForWordLength(length: number): number {
+  if (length <= MIN_LENGTH_BONUS_WORD_LENGTH) return 0
+
+  return LENGTH_BONUS_BY_WORD_LENGTH[Math.min(length, 10)] ?? 50
 }
 
 function getFlavorMessage(length: number, score: number): string {
