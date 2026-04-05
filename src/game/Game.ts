@@ -56,6 +56,7 @@ interface HudElements {
   timerValue: HTMLElement | null
   nextChapterValue: HTMLElement | null
   scoreProgressFill: HTMLElement | null
+  completedWordsContainer: HTMLElement | null
   completedWordsList: HTMLElement | null
 }
 
@@ -129,6 +130,7 @@ export class Game {
   private lastHudProgressWidth: string | null = null
   private lastHudTimerUrgent: boolean | null = null
   private hudContentVisible: boolean | null = null
+  private completedWordsVisible: boolean | null = null
 
   // Countdown state
   private countdownValue: number = 3
@@ -1673,10 +1675,11 @@ export class Game {
   private renderGameOver(ctx: CanvasRenderingContext2D): void {
     // Use the standard book background
     this.renderBackground(ctx)
+    this.renderGameOverWordLedger(ctx)
 
     const centerX = GAME_WIDTH * 0.75
     const getOffset = (x: number) => getPageCurvatureOffset(x, GAME_WIDTH)
-    const centerY = GAME_HEIGHT * 0.25
+    const centerY = GAME_HEIGHT * 0.22
 
     renderText(ctx, 'Finis', centerX, centerY + getOffset(centerX),
       CANVAS_FONTS.title(48), COLORS.espresso, 'center')
@@ -1685,26 +1688,15 @@ export class Game {
       CANVAS_FONTS.laneItalic(16), COLORS.sepia, 'center')
 
     // Final score
-    renderText(ctx, String(this.score), centerX, centerY + 100 + getOffset(centerX),
+    renderText(ctx, String(this.score), centerX, centerY + 94 + getOffset(centerX),
       CANVAS_FONTS.laneLight(56), COLORS.gold, 'center')
 
-    renderText(ctx, 'POINTS', centerX, centerY + 130 + getOffset(centerX),
+    renderText(ctx, 'POINTS', centerX, centerY + 124 + getOffset(centerX),
       CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
-
-    // Words found
-    if (this.wordsFound.length > 0) {
-      renderText(ctx, `${this.wordsFound.length} word${this.wordsFound.length !== 1 ? 's' : ''} composed`, centerX, centerY + 165 + getOffset(centerX),
-        CANVAS_FONTS.laneItalic(14), COLORS.sepia, 'center')
-
-      // Show words in a flowing line
-      const wordStr = this.wordsFound.slice(-8).map(w => w.map(l => l.letter).join('')).join('  ·  ')
-      renderText(ctx, wordStr, centerX, centerY + 190 + getOffset(centerX),
-        CANVAS_FONTS.laneItalic(13), COLORS.muted, 'center')
-    }
 
     // High scores
     if (this.highScores.length > 0) {
-      const hsY = centerY + 240 - Game.GAME_OVER_HIGH_SCORES_LIFT
+      const hsY = centerY + 176 - Game.GAME_OVER_HIGH_SCORES_LIFT
       renderText(ctx, 'HIGH SCORES', centerX, hsY + getOffset(centerX),
         CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
 
@@ -1731,13 +1723,82 @@ export class Game {
     const breathe = Math.sin(Date.now() * 0.0025) * 0.3 + 0.7
     ctx.save()
     ctx.globalAlpha = breathe
-    renderCurvedText(ctx, 'Press SPACE or ENTER to play again', centerX, GAME_HEIGHT - 60 - Game.GAME_OVER_FOOTER_LIFT,
+    renderCurvedText(ctx, 'Press SPACE or ENTER to play again', centerX, GAME_HEIGHT - 84 - Game.GAME_OVER_FOOTER_LIFT,
       CANVAS_FONTS.laneItalic(15), COLORS.sepia, getOffset, 'center')
     ctx.restore()
 
     // Return to Main Menu instruction
-    renderCurvedText(ctx, 'Press ESC to return to Main Menu', centerX, GAME_HEIGHT - 25 - Game.GAME_OVER_FOOTER_LIFT,
+    renderCurvedText(ctx, 'Press ESC to return to Main Menu', centerX, GAME_HEIGHT - 50 - Game.GAME_OVER_FOOTER_LIFT,
       CANVAS_FONTS.laneItalic(12), COLORS.muted, getOffset, 'center')
+  }
+
+  private renderGameOverWordLedger(ctx: CanvasRenderingContext2D): void {
+    const entries = this.wordsFound.map((letters) => {
+      const preview = getScorePreview(letters)
+      return {
+        word: preview.word,
+        score: preview.totalScore,
+      }
+    })
+
+    const pageLeft = 58
+    const pageRight = GAME_WIDTH / 2 - 54
+    const pageCenterX = (pageLeft + pageRight) / 2
+    const titleY = 74
+    const listTopY = 144
+    const listBottomY = GAME_HEIGHT - 96
+    const columnGap = 18
+    const lineHeight = entries.length > 18 ? 22 : 24
+    const rowCount = Math.max(1, Math.floor((listBottomY - listTopY) / lineHeight))
+    const columnCount = Math.max(1, Math.ceil(entries.length / rowCount))
+    const columnWidth = Math.max(
+      86,
+      (pageRight - pageLeft - columnGap * (columnCount - 1)) / columnCount,
+    )
+    const wordFont = CANVAS_FONTS.laneRegular(columnCount >= 3 ? 14 : 16)
+    const scoreFont = CANVAS_FONTS.uiSmallCaps(columnCount >= 3 ? 9 : 10)
+    const getOffset = (x: number) => getPageCurvatureOffset(x, GAME_WIDTH)
+
+    const countLabel = `${entries.length} word${entries.length === 1 ? '' : 's'} composed`
+    renderText(ctx, countLabel, pageCenterX, titleY + getOffset(pageCenterX),
+      CANVAS_FONTS.laneItalic(13), COLORS.sepia, 'center')
+    renderText(ctx, 'Words Scored', pageCenterX, titleY + 28 + getOffset(pageCenterX),
+      CANVAS_FONTS.title(30), COLORS.espresso, 'center')
+
+    ctx.strokeStyle = COLORS.rule
+    ctx.lineWidth = 0.5
+    ctx.beginPath()
+    for (let x = pageCenterX - 86; x <= pageCenterX + 86; x += 10) {
+      const offset = getOffset(x)
+      if (x === pageCenterX - 86) ctx.moveTo(x, titleY + 50 + offset)
+      else ctx.lineTo(x, titleY + 50 + offset)
+    }
+    ctx.stroke()
+
+    if (entries.length === 0) {
+      renderText(ctx, 'Compose a word to have it archived here.', pageCenterX, listTopY + 18 + getOffset(pageCenterX),
+        CANVAS_FONTS.laneItalic(14), COLORS.sepia, 'center')
+      return
+    }
+
+    for (let index = 0; index < entries.length; index++) {
+      const column = Math.floor(index / rowCount)
+      const row = index % rowCount
+      const x = pageLeft + column * (columnWidth + columnGap)
+      const y = listTopY + row * lineHeight
+      const baselineY = y + getOffset(x + columnWidth * 0.5)
+      const scoreText = `${entries[index].score}`
+      const scoreWidth = measureTextWidth(scoreText, scoreFont)
+      const maxWordWidth = Math.max(32, columnWidth - scoreWidth - 12)
+      let wordText = entries[index].word
+
+      while (wordText.length > 1 && measureTextWidth(wordText, wordFont) > maxWordWidth) {
+        wordText = wordText.slice(0, -1)
+      }
+
+      renderText(ctx, wordText, x, baselineY, wordFont, COLORS.espresso)
+      renderText(ctx, scoreText, x + columnWidth, baselineY, scoreFont, COLORS.gold, 'right')
+    }
   }
 
   private renderCountdown(ctx: CanvasRenderingContext2D): void {
@@ -1955,9 +2016,22 @@ export class Game {
     this.hudContentVisible = visible
   }
 
+  private setCompletedWordsVisible(visible: boolean): void {
+    if (this.completedWordsVisible === visible) return
+
+    if (this.hud.completedWordsContainer) {
+      this.hud.completedWordsContainer.style.visibility = visible ? 'visible' : 'hidden'
+      this.hud.completedWordsContainer.style.opacity = visible ? '1' : '0'
+      this.hud.completedWordsContainer.style.pointerEvents = visible ? 'auto' : 'none'
+    }
+
+    this.completedWordsVisible = visible
+  }
+
   private syncHudVisibility(): void {
     const shouldShowHud = this.state === 'countdown' || this.state === 'playing' || this.state === 'paused'
     this.setHudContentVisible(shouldShowHud)
+    this.setCompletedWordsVisible(this.state !== 'gameover')
   }
 
   private updateUI(): void {
@@ -2060,6 +2134,7 @@ export class Game {
       timerValue: null,
       nextChapterValue: null,
       scoreProgressFill: null,
+      completedWordsContainer: document.getElementById('completed-words-container'),
       completedWordsList: document.getElementById('completed-words-list'),
     }
   }
