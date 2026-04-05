@@ -234,7 +234,7 @@ html, body {
   height: 50px;
   font-family: var(--font-display);
   font-size: 28px;
-  font-weight: 500;
+  font-weight: 700;
   background: var(--tile-gold);
   color: var(--bg-ivory);
   border: 1px solid var(--tile-gold-border);
@@ -262,6 +262,7 @@ html, body {
   width: 24px;
   height: 28px;
   font-size: 16px;
+  font-weight: 700;
   border-width: 1px;
   border-bottom-width: 2px;
   border-radius: 2px;

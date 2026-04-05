@@ -1073,9 +1073,9 @@ export class Game {
     }
 
     const trayGradient = ctx.createLinearGradient(trayX, trayY, trayX, trayY + trayHeight)
-    trayGradient.addColorStop(0, 'rgba(232, 208, 180, 0.97)')
-    trayGradient.addColorStop(0.42, 'rgba(214, 184, 151, 0.98)')
-    trayGradient.addColorStop(1, 'rgba(182, 146, 111, 0.98)')
+    trayGradient.addColorStop(0, 'rgba(212, 184, 156, 0.97)')
+    trayGradient.addColorStop(0.42, 'rgba(188, 156, 126, 0.98)')
+    trayGradient.addColorStop(1, 'rgba(150, 116, 85, 0.98)')
     ctx.fillStyle = trayGradient
     ctx.fill(trayPath)
 
@@ -1098,14 +1098,14 @@ export class Game {
     ctx.fillRect(trayX, trayY, trayWidth, trayHeight)
     ctx.restore()
 
-    ctx.strokeStyle = 'rgba(152, 117, 86, 0.58)'
+    ctx.strokeStyle = 'rgba(129, 95, 67, 0.62)'
     ctx.lineWidth = 1
     ctx.stroke(trayPath)
 
     const innerGradient = ctx.createLinearGradient(innerX, innerY, innerX, innerY + innerHeight)
-    innerGradient.addColorStop(0, 'rgba(220, 188, 156, 0.68)')
-    innerGradient.addColorStop(0.3, 'rgba(194, 159, 124, 0.54)')
-    innerGradient.addColorStop(1, 'rgba(150, 115, 84, 0.62)')
+    innerGradient.addColorStop(0, 'rgba(196, 164, 133, 0.72)')
+    innerGradient.addColorStop(0.3, 'rgba(166, 132, 101, 0.58)')
+    innerGradient.addColorStop(1, 'rgba(122, 90, 63, 0.66)')
     ctx.fillStyle = innerGradient
     ctx.fill(innerPath)
 
@@ -1124,12 +1124,12 @@ export class Game {
     ctx.fillRect(innerX, innerY, innerWidth, innerHeight)
     ctx.restore()
 
-    ctx.strokeStyle = 'rgba(156, 120, 89, 0.46)'
+    ctx.strokeStyle = 'rgba(130, 96, 69, 0.5)'
     ctx.stroke(innerPath)
 
     const lipGradient = ctx.createLinearGradient(innerX, innerY + innerHeight - lipHeight, innerX, innerY + innerHeight)
-    lipGradient.addColorStop(0, 'rgba(190, 155, 120, 0.96)')
-    lipGradient.addColorStop(1, 'rgba(140, 103, 72, 0.99)')
+    lipGradient.addColorStop(0, 'rgba(160, 126, 95, 0.96)')
+    lipGradient.addColorStop(1, 'rgba(112, 79, 52, 0.99)')
     ctx.fillStyle = lipGradient
     ctx.fill(lipPath)
     ctx.strokeStyle = 'rgba(255, 231, 194, 0.08)'
@@ -1328,7 +1328,7 @@ export class Game {
     ctx.stroke()
 
     ctx.fillStyle = text
-    ctx.font = CANVAS_FONTS.laneMedium(30)
+    ctx.font = '800 30px "Cormorant Garamond", "Palatino Linotype", Palatino, Georgia, serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText(letter.letter, centerX, centerY - 1)
