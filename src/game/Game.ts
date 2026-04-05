@@ -858,12 +858,22 @@ export class Game {
   // ── Update loop ──
 
   public checkChapterProgression(): void {
-    const requiredScore = this.getRequiredScore()
-    if (requiredScore !== null && this.score >= requiredScore) {
-      this.chapter++
+    const previousChapter = this.chapter
+    let nextChapter = this.chapter
+    let bonusTime = 0
+    let nextRequiredScore = this.getRequiredScore(nextChapter)
+
+    while (nextRequiredScore !== null && this.score >= nextRequiredScore) {
+      nextChapter++
+      bonusTime += generateLevel(nextChapter).timeLimit
+      nextRequiredScore = this.getRequiredScore(nextChapter)
+    }
+
+    if (nextChapter > previousChapter) {
+      this.chapter = nextChapter
       audioManager.playChapterUnlock()
       this.level = generateLevel(this.chapter)
-      this.timeRemaining += this.level.timeLimit // Add chapter allotment to current time (reward for speed)
+      this.timeRemaining += bonusTime // Add each unlocked chapter's allotment to current time
 
       // Update existing lanes with new configs rather than replacing them
       for (let i = 0; i < LANE_COUNT; i++) {
@@ -874,7 +884,7 @@ export class Game {
 
       audioManager.setGameAmbiencePlaybackRate(getLevelAmbiencePlaybackRate(this.level))
 
-      // Celebration particles
+      // Only show the furthest unlocked chapter banner.
       this.particles.waveText(this.getChapterTitle(), GAME_WIDTH / 2, 104)
       this.updateUI()
 
