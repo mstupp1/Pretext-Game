@@ -337,6 +337,7 @@ export class Lane {
     const bgAlpha = isFocused ? 1 : Math.min(1, 0.4 + interactionStrength * 0.6)
     const colorT = Math.min(1, Math.max(0, interactionStrength * 1.2))
     const textT = isFocused ? 1 : Math.min(1, Math.max(0, (interactionStrength + 0.14) / 0.78))
+    const borderT = isFocused ? 1 : Math.min(1, Math.max(0, (interactionStrength - 0.06) / 0.92))
 
     if (ch.scale > 1.1) {
       ctx.shadowColor = COLORS.shadow
@@ -345,7 +346,7 @@ export class Lane {
     }
 
     const colorAlpha = isFocused ? 1 : baseAlpha
-    const colors = this.getHighlightColors(ch.multiplierType, colorAlpha, bgAlpha, colorT, textT)
+    const colors = this.getHighlightColors(ch.multiplierType, colorAlpha, bgAlpha, colorT, textT, borderT)
 
     ctx.fillStyle = colors.baseColor
     ctx.beginPath()
@@ -418,14 +419,14 @@ export class Lane {
     return COLORS.tileGold
   }
 
-  private getHighlightColors(multiplierType: StreamChar['multiplierType'], baseAlpha: number, bgAlpha: number, colorT: number, textT: number): {
+  private getHighlightColors(multiplierType: StreamChar['multiplierType'], baseAlpha: number, bgAlpha: number, colorT: number, textT: number, borderT: number): {
     baseColor: string
     borderColor: string
     depthColor: string
     charColor: string
   } {
     let baseColor = `rgba(230, 194, 116, ${bgAlpha * baseAlpha})`
-    let borderColor = `rgba(188, 141, 50, ${baseAlpha})`
+    let borderColor = `rgba(188, 141, 50, ${baseAlpha * (0.35 + borderT * 0.65)})`
     let depthColor = 'rgba(150, 108, 34, 0.36)'
     let startR = 110
     let startG = 76
@@ -436,7 +437,7 @@ export class Lane {
 
     if (multiplierType === 'DoubleLetter') {
       baseColor = `rgba(91, 155, 213, ${bgAlpha * baseAlpha})`
-      borderColor = `rgba(63, 107, 168, ${baseAlpha})`
+      borderColor = `rgba(63, 107, 168, ${baseAlpha * (0.35 + borderT * 0.65)})`
       depthColor = 'rgba(50, 85, 140, 0.4)'
       startR = 63
       startG = 107
@@ -446,7 +447,7 @@ export class Lane {
       endB = 255
     } else if (multiplierType === 'TripleLetter') {
       baseColor = `rgba(34, 166, 153, ${bgAlpha * baseAlpha})`
-      borderColor = `rgba(23, 124, 114, ${baseAlpha})`
+      borderColor = `rgba(23, 124, 114, ${baseAlpha * (0.35 + borderT * 0.65)})`
       depthColor = 'rgba(20, 100, 95, 0.4)'
       startR = 23
       startG = 124
@@ -456,7 +457,7 @@ export class Lane {
       endB = 232
     } else if (multiplierType === 'DoubleWord') {
       baseColor = `rgba(231, 76, 60, ${bgAlpha * baseAlpha})`
-      borderColor = `rgba(184, 61, 47, ${baseAlpha})`
+      borderColor = `rgba(184, 61, 47, ${baseAlpha * (0.35 + borderT * 0.65)})`
       depthColor = 'rgba(150, 50, 40, 0.4)'
       startR = 184
       startG = 61
@@ -466,7 +467,7 @@ export class Lane {
       endB = 255
     } else if (multiplierType === 'TripleWord') {
       baseColor = `rgba(142, 68, 173, ${bgAlpha * baseAlpha})`
-      borderColor = `rgba(115, 45, 145, ${baseAlpha})`
+      borderColor = `rgba(115, 45, 145, ${baseAlpha * (0.35 + borderT * 0.65)})`
       depthColor = 'rgba(90, 30, 120, 0.4)'
       startR = 115
       startG = 45
