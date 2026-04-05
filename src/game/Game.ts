@@ -6,7 +6,7 @@ import { Lane, type LaneConfig } from './Lane'
 import { scoreWord, type ScoreResult, getLetterValue, type ScoredLetter, getScorePreview } from './Scoring'
 import { generateLevel, type LevelConfig } from './Levels'
 import { ParticleSystem } from '../effects/ParticleSystem'
-import { GAME_WIDTH, GAME_HEIGHT, LANE_COUNT, LANE_HEIGHT, LANE_Y_START, COLORS, CANVAS_FONTS, ROMAN_NUMERALS, MAX_COLLECTED_LETTERS, TIME_BONUS, LEVEL_TIME } from '../utils/constants'
+import { GAME_WIDTH, GAME_HEIGHT, LANE_COUNT, LANE_HEIGHT, LANE_Y_START, COLORS, CANVAS_FONTS, REGULAR_TILE_STYLE, ROMAN_NUMERALS, MAX_COLLECTED_LETTERS, TIME_BONUS, LEVEL_TIME } from '../utils/constants'
 import { renderText, measureTextWidth, renderCurvedText, measureCharsInLine } from '../text/TextEngine'
 import { getPageCurvatureOffset } from '../text/TextStream'
 
@@ -1069,9 +1069,9 @@ export class Game {
     }
 
     const trayGradient = ctx.createLinearGradient(trayX, trayY, trayX, trayY + trayHeight)
-    trayGradient.addColorStop(0, 'rgba(234, 201, 160, 0.97)')
-    trayGradient.addColorStop(0.42, 'rgba(212, 174, 129, 0.98)')
-    trayGradient.addColorStop(1, 'rgba(173, 131, 91, 0.98)')
+    trayGradient.addColorStop(0, 'rgba(246, 224, 194, 0.97)')
+    trayGradient.addColorStop(0.42, 'rgba(232, 204, 168, 0.98)')
+    trayGradient.addColorStop(1, 'rgba(201, 166, 127, 0.98)')
     ctx.fillStyle = trayGradient
     ctx.fill(trayPath)
 
@@ -1087,21 +1087,21 @@ export class Game {
     }
 
     const trayHighlight = ctx.createLinearGradient(trayX, trayY, trayX, trayY + trayHeight)
-    trayHighlight.addColorStop(0, 'rgba(255, 248, 234, 0.42)')
-    trayHighlight.addColorStop(0.24, 'rgba(255, 248, 234, 0.2)')
-    trayHighlight.addColorStop(1, 'rgba(47, 26, 12, 0.05)')
+    trayHighlight.addColorStop(0, 'rgba(255, 251, 242, 0.52)')
+    trayHighlight.addColorStop(0.24, 'rgba(255, 251, 242, 0.28)')
+    trayHighlight.addColorStop(1, 'rgba(47, 26, 12, 0.035)')
     ctx.fillStyle = trayHighlight
     ctx.fillRect(trayX, trayY, trayWidth, trayHeight)
     ctx.restore()
 
-    ctx.strokeStyle = 'rgba(156, 117, 81, 0.6)'
+    ctx.strokeStyle = 'rgba(172, 135, 100, 0.54)'
     ctx.lineWidth = 1
     ctx.stroke(trayPath)
 
     const innerGradient = ctx.createLinearGradient(innerX, innerY, innerX, innerY + innerHeight)
-    innerGradient.addColorStop(0, 'rgba(218, 181, 139, 0.64)')
-    innerGradient.addColorStop(0.3, 'rgba(192, 153, 110, 0.46)')
-    innerGradient.addColorStop(1, 'rgba(145, 107, 72, 0.56)')
+    innerGradient.addColorStop(0, 'rgba(232, 200, 164, 0.66)')
+    innerGradient.addColorStop(0.3, 'rgba(209, 175, 136, 0.5)')
+    innerGradient.addColorStop(1, 'rgba(166, 129, 94, 0.58)')
     ctx.fillStyle = innerGradient
     ctx.fill(innerPath)
 
@@ -1114,18 +1114,18 @@ export class Game {
       ctx.globalCompositeOperation = 'source-over'
     }
     const innerHighlight = ctx.createLinearGradient(innerX, innerY, innerX, innerY + innerHeight)
-    innerHighlight.addColorStop(0, 'rgba(255, 250, 238, 0.24)')
-    innerHighlight.addColorStop(1, 'rgba(68, 42, 23, 0.025)')
+    innerHighlight.addColorStop(0, 'rgba(255, 252, 245, 0.3)')
+    innerHighlight.addColorStop(1, 'rgba(68, 42, 23, 0.02)')
     ctx.fillStyle = innerHighlight
     ctx.fillRect(innerX, innerY, innerWidth, innerHeight)
     ctx.restore()
 
-    ctx.strokeStyle = 'rgba(159, 120, 84, 0.46)'
+    ctx.strokeStyle = 'rgba(176, 140, 105, 0.42)'
     ctx.stroke(innerPath)
 
     const lipGradient = ctx.createLinearGradient(innerX, innerY + innerHeight - lipHeight, innerX, innerY + innerHeight)
-    lipGradient.addColorStop(0, 'rgba(184, 146, 105, 0.95)')
-    lipGradient.addColorStop(1, 'rgba(136, 99, 65, 0.98)')
+    lipGradient.addColorStop(0, 'rgba(204, 170, 133, 0.95)')
+    lipGradient.addColorStop(1, 'rgba(156, 121, 88, 0.98)')
     ctx.fillStyle = lipGradient
     ctx.fill(lipPath)
     ctx.strokeStyle = 'rgba(255, 231, 194, 0.08)'
@@ -1349,7 +1349,7 @@ export class Game {
       case 'TripleWord':
         return { fill: COLORS.twPurple, border: '#732D91', text: COLORS.ivory }
       default:
-        return { fill: COLORS.tileGold, border: COLORS.tileGoldBorder, text: COLORS.ivory }
+        return { fill: REGULAR_TILE_STYLE.fill, border: REGULAR_TILE_STYLE.border, text: COLORS.ivory }
     }
   }
 

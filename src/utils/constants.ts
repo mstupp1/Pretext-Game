@@ -27,6 +27,16 @@ export const COLORS = {
   twPurple:   '#8E44AD', // Purple (Triple Word) - modified for better x3 distinction
 } as const
 
+export const REGULAR_TILE_STYLE = {
+  fill: COLORS.tileGold,
+  fillRgb: [216, 146, 52] as const,
+  border: COLORS.tileGoldBorder,
+  borderRgb: [182, 106, 20] as const,
+  depth: COLORS.tileGoldDepth,
+  darkTextRgb: [110, 76, 34] as const,
+  lightTextRgb: [245, 241, 232] as const,
+} as const
+
 export type MultiplierType = 'None' | 'DoubleLetter' | 'TripleLetter' | 'DoubleWord' | 'TripleWord';
 
 // Typography

@@ -2,7 +2,7 @@
 // Enhanced with ambient typography, rotation, scaling, ripple waves, and lens effects
 
 import { TextStream, type StreamChar, getPageCurvatureOffset } from '../text/TextStream'
-import { COLORS, CANVAS_FONTS, FONTS, GAME_WIDTH, LANE_HEIGHT, SAFE_ZONE_INDICES, ORNAMENTS, FLOURISHES } from '../utils/constants'
+import { COLORS, CANVAS_FONTS, FONTS, GAME_WIDTH, LANE_HEIGHT, REGULAR_TILE_STYLE, SAFE_ZONE_INDICES, ORNAMENTS, FLOURISHES } from '../utils/constants'
 import { renderText } from '../text/TextEngine'
 import { getLetterValue } from './Scoring'
 
@@ -425,15 +425,15 @@ export class Lane {
     depthColor: string
     charColor: string
   } {
-    let baseColor = `rgba(230, 194, 116, ${bgAlpha * baseAlpha})`
-    let borderColor = `rgba(188, 141, 50, ${baseAlpha * (0.35 + borderT * 0.65)})`
-    let depthColor = 'rgba(150, 108, 34, 0.36)'
-    let startR = 110
-    let startG = 76
-    let startB = 34
-    let endR = 245
-    let endG = 241
-    let endB = 232
+    let baseColor = `rgba(${REGULAR_TILE_STYLE.fillRgb[0]}, ${REGULAR_TILE_STYLE.fillRgb[1]}, ${REGULAR_TILE_STYLE.fillRgb[2]}, ${bgAlpha * baseAlpha})`
+    let borderColor = `rgba(${REGULAR_TILE_STYLE.borderRgb[0]}, ${REGULAR_TILE_STYLE.borderRgb[1]}, ${REGULAR_TILE_STYLE.borderRgb[2]}, ${baseAlpha * (0.35 + borderT * 0.65)})`
+    let depthColor = REGULAR_TILE_STYLE.depth
+    let startR = REGULAR_TILE_STYLE.darkTextRgb[0]
+    let startG = REGULAR_TILE_STYLE.darkTextRgb[1]
+    let startB = REGULAR_TILE_STYLE.darkTextRgb[2]
+    let endR = REGULAR_TILE_STYLE.lightTextRgb[0]
+    let endG = REGULAR_TILE_STYLE.lightTextRgb[1]
+    let endB = REGULAR_TILE_STYLE.lightTextRgb[2]
 
     if (multiplierType === 'DoubleLetter') {
       baseColor = `rgba(91, 155, 213, ${bgAlpha * baseAlpha})`
