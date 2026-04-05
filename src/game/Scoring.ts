@@ -28,6 +28,7 @@ export interface ScorePreview {
   word: string
   letterScore: number
   lengthBonus: number
+  wordMultiplier: number
   totalScore: number
   timeBonus: number
 }
@@ -103,6 +104,7 @@ export function getScorePreview(letters: ScoredLetter[]): ScorePreview {
     word,
     letterScore,
     lengthBonus,
+    wordMultiplier,
     totalScore: (letterScore + lengthBonus) * wordMultiplier,
     timeBonus: getTimeBonusForWordLength(word.length),
   }

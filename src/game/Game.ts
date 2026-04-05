@@ -3,7 +3,7 @@
 import { Player } from './Player'
 import { audioManager } from '../audio/AudioManager'
 import { Lane, type LaneConfig } from './Lane'
-import { scoreWord, type ScoreResult, getLetterValue, type ScoredLetter, getScorePreview } from './Scoring'
+import { scoreWord, type ScoreResult, getLetterValue, type ScoredLetter, type ScorePreview, getScorePreview } from './Scoring'
 import { generateLevel, getLevelAmbiencePlaybackRate, type LevelConfig } from './Levels'
 import { ParticleSystem } from '../effects/ParticleSystem'
 import { GAME_WIDTH, GAME_HEIGHT, LANE_COUNT, LANE_HEIGHT, LANE_Y_START, COLORS, CANVAS_FONTS, REGULAR_TILE_STYLE, ROMAN_NUMERALS, MAX_COLLECTED_LETTERS, TIME_BONUS, STARTING_TIME } from '../utils/constants'
@@ -90,6 +90,8 @@ export class Game {
   private static readonly TOP_PANEL_INSET = 38
   private static readonly TOP_PANEL_Y = 24
   private static readonly TRAY_BOTTOM_OFFSET = 26
+  private static readonly TRAY_PREVIEW_HEIGHT = 24
+  private static readonly TRAY_PREVIEW_GAP = 10
   private static readonly TITLE_FOOTER_LIFT = 18
   private static readonly GAME_OVER_FOOTER_LIFT = 24
   private static readonly TITLE_PROMPT_DROP = 8
@@ -1224,13 +1226,13 @@ export class Game {
     })
 
     if (selectedPreview) {
-      this.renderSelectedTrayPreview(ctx, trayY, selectedPreview.totalScore, selectedPreview.timeBonus)
+      this.renderSelectedTrayPreview(ctx, trayY, selectedPreview)
     }
 
     if (this.feedback && (this.state === 'countdown' || this.state === 'playing' || this.state === 'paused')) {
       const progress = 1 - Math.max(0, this.feedback.timer) / Math.max(this.feedback.duration, 0.001)
       const fade = 1 - Math.min(1, progress / 0.8)
-      const selectedPreviewTop = trayY - 34
+      const selectedPreviewTop = trayY - Game.TRAY_PREVIEW_HEIGHT - Game.TRAY_PREVIEW_GAP
       const baseY = selectedPreview ? selectedPreviewTop - 12 : trayY - 8
       const rise = this.feedback.success ? progress * 18 : progress * 8
       ctx.save()
@@ -1478,6 +1480,87 @@ export class Game {
       default:
         return { fill: REGULAR_TILE_STYLE.fill, border: REGULAR_TILE_STYLE.border, text: COLORS.ivory }
     }
+  }
+
+  private getScorePreviewMultiplierStyle(multiplier: number): {
+    fill: string
+    border: string
+    text: string
+    glow: string
+  } {
+    if (multiplier >= 12) {
+      return {
+        fill: '#B76823',
+        border: '#D18B46',
+        text: COLORS.ivory,
+        glow: 'rgba(183, 104, 35, 0.42)',
+      }
+    }
+    if (multiplier >= 9) {
+      return {
+        fill: '#B28E2C',
+        border: '#D1B159',
+        text: COLORS.espresso,
+        glow: 'rgba(178, 142, 44, 0.34)',
+      }
+    }
+    if (multiplier >= 8) {
+      return {
+        fill: '#56742E',
+        border: '#7E9B55',
+        text: COLORS.ivory,
+        glow: 'rgba(86, 116, 46, 0.34)',
+      }
+    }
+    if (multiplier >= 6) {
+      return {
+        fill: '#2E8793',
+        border: '#5DB1BC',
+        text: COLORS.ivory,
+        glow: 'rgba(46, 135, 147, 0.34)',
+      }
+    }
+    if (multiplier >= 4) {
+      return {
+        fill: '#456E9F',
+        border: '#7DA0C8',
+        text: COLORS.ivory,
+        glow: 'rgba(69, 110, 159, 0.34)',
+      }
+    }
+    if (multiplier >= 3) {
+      return {
+        fill: '#73528E',
+        border: '#9C7AB8',
+        text: COLORS.ivory,
+        glow: 'rgba(115, 82, 142, 0.34)',
+      }
+    }
+    if (multiplier >= 2) {
+      return {
+        fill: '#9A4637',
+        border: '#BF6F60',
+        text: COLORS.ivory,
+        glow: 'rgba(154, 70, 55, 0.34)',
+      }
+    }
+    return {
+      fill: 'rgba(92, 64, 51, 0.12)',
+      border: 'rgba(92, 64, 51, 0.18)',
+      text: COLORS.sepia,
+      glow: 'rgba(92, 64, 51, 0)',
+    }
+  }
+
+  private getPreviewMultiplierTier(multiplier: number): number {
+    if (multiplier >= 12) return 6
+    if (multiplier >= 9) return 5
+    if (multiplier >= 8) return 4
+    if (multiplier >= 6) return 3
+    if (multiplier >= 4) return 2
+    if (multiplier >= 3) return 1
+    if (multiplier >= 2) return 0.5
+    return 0
   }
 
   // Ease-out cubic for smooth entrance deceleration
@@ -2111,39 +2194,134 @@ export class Game {
     })
   }
 
-  private renderSelectedTrayPreview(ctx: CanvasRenderingContext2D, trayY: number, totalScore: number, timeBonus: number): void {
-    const width = 186
-    const height = 24
+  private renderSelectedTrayPreview(ctx: CanvasRenderingContext2D, trayY: number, preview: ScorePreview): void {
+    const hasMultiplierBadge = preview.wordMultiplier > 1
+    const height = Game.TRAY_PREVIEW_HEIGHT
+    const hasTimeBonus = preview.timeBonus > 0
+    const multiplierStyle = this.getScorePreviewMultiplierStyle(preview.wordMultiplier)
+    const multiplierTier = this.getPreviewMultiplierTier(preview.wordMultiplier)
+    const pulse = multiplierTier > 0
+      ? Math.sin(Date.now() * (0.0038 + multiplierTier * 0.00022))
+      : 0
+    const badgeScale = 1 + multiplierTier * 0.022 + pulse * (0.01 + multiplierTier * 0.003)
+    const trayLetterFont = '800 18px "Cormorant Garamond", "Palatino Linotype", Palatino, Georgia, serif'
+    const operatorFont = CANVAS_FONTS.laneMedium(13)
+    const summaryFont = CANVAS_FONTS.laneMedium(15)
+    const timeFont = CANVAS_FONTS.laneMedium(14)
+    const badgeFont = CANVAS_FONTS.laneBold(14)
+    const badgeWidth = hasMultiplierBadge
+      ? Math.max(38, measureTextWidth(`×${preview.wordMultiplier}`, badgeFont) + 16)
+      : 0
+    const hasLengthBonus = preview.lengthBonus > 0
+    const baseText = String(preview.letterScore)
+    const plusGlyph = '+'
+    const bonusValueText = String(preview.lengthBonus)
+    const baseWidth = measureTextWidth(baseText, trayLetterFont)
+    const plusWidth = measureTextWidth(plusGlyph, operatorFont)
+    const bonusWidth = hasLengthBonus ? measureTextWidth(bonusValueText, trayLetterFont) : 0
+    const formulaGroupWidth = baseWidth
+      + (hasLengthBonus ? 9 + plusWidth + 9 + bonusWidth : 0)
+      + (hasMultiplierBadge ? 12 + badgeWidth : 0)
+    const pointsText = `${preview.totalScore} pts`
+    const pointsWidth = measureTextWidth(pointsText, summaryFont)
+    const timeText = hasTimeBonus ? `+${preview.timeBonus}s` : ''
+    const timeWidth = hasTimeBonus ? measureTextWidth(timeText, timeFont) : 0
+    const summaryGap = hasTimeBonus ? 18 : 0
+    const summaryBlockWidth = hasTimeBonus ? pointsWidth + summaryGap + timeWidth : pointsWidth
+    const outerPadding = 16
+    const formulaStartPadding = 20
+    const dividerGap = 10
+    const summaryPadding = 10
+    const equalsFont = CANVAS_FONTS.laneMedium(14)
+    const equalsText = '='
+    const equalsWidth = measureTextWidth(equalsText, equalsFont)
+    const summarySectionWidth = summaryBlockWidth + summaryPadding * 2
+    const width = Math.ceil(formulaGroupWidth + summarySectionWidth + outerPadding * 2 + dividerGap)
     const x = (GAME_WIDTH - width) / 2
-    const y = trayY - height - 10
+    const y = trayY - height - Game.TRAY_PREVIEW_GAP
     const path = this.createRoundedRectPath(x, y, width, height, 12)
-    const timeColor = timeBonus > 0 ? COLORS.gold : COLORS.sepia
+    const leftInset = x + formulaStartPadding
+    const dividerX = x + width - summarySectionWidth - dividerGap
+    const formulaCenterY = y + height / 2 + 0.5
+    const formulaX = leftInset + Math.max(0, (dividerX - leftInset - 8 - formulaGroupWidth) / 2)
+    const badgeCenterX = formulaX
+      + baseWidth
+      + (hasLengthBonus ? 9 + plusWidth + 9 + bonusWidth : 0)
+      + 12
+      + badgeWidth / 2
+    const badgeX = badgeCenterX - badgeWidth / 2
+    const badgeY = y + 4
+    const badgeHeight = height - 8
+    const summaryLeft = dividerX + dividerGap + summaryPadding
+    const pointsCenterX = hasTimeBonus ? summaryLeft + pointsWidth / 2 : summaryLeft + summaryBlockWidth / 2
+    const timeCenterX = summaryLeft + pointsWidth + summaryGap + timeWidth / 2
 
     ctx.save()
-    ctx.fillStyle = 'rgba(245, 241, 232, 0.84)'
-    ctx.shadowColor = 'rgba(92, 64, 51, 0.08)'
-    ctx.shadowBlur = 10
+    ctx.fillStyle = 'rgba(245, 241, 232, 0.88)'
+    ctx.shadowColor = multiplierTier > 0 ? 'rgba(92, 64, 51, 0.12)' : 'rgba(92, 64, 51, 0.08)'
+    ctx.shadowBlur = multiplierTier > 0 ? 12 : 10
     ctx.shadowOffsetY = 2
     ctx.fill(path)
     ctx.restore()
 
-    ctx.fillStyle = 'rgba(245, 241, 232, 0.74)'
+    const panelGradient = ctx.createLinearGradient(x, y, x, y + height)
+    panelGradient.addColorStop(0, 'rgba(250, 246, 238, 0.92)')
+    panelGradient.addColorStop(0.55, 'rgba(245, 241, 232, 0.88)')
+    panelGradient.addColorStop(1, 'rgba(233, 225, 210, 0.9)')
+    ctx.fillStyle = panelGradient
     ctx.fill(path)
     ctx.strokeStyle = 'rgba(92, 64, 51, 0.14)'
     ctx.lineWidth = 1
     ctx.stroke(path)
 
-    renderText(ctx, 'SELECTED', x + 18, y + 12, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted)
-    renderText(ctx, `${totalScore} pts`, x + 86, y + 12, CANVAS_FONTS.laneMedium(15), COLORS.espresso, 'center')
+    renderText(ctx, baseText, formulaX, formulaCenterY, trayLetterFont, COLORS.espresso)
+    if (hasLengthBonus) {
+      renderText(ctx, plusGlyph, formulaX + baseWidth + 9, formulaCenterY, operatorFont, COLORS.muted)
+      renderText(ctx, bonusValueText, formulaX + baseWidth + 9 + plusWidth + 9, formulaCenterY, trayLetterFont, COLORS.gold)
+    }
 
-    ctx.strokeStyle = COLORS.rule
-    ctx.lineWidth = 1
-    ctx.beginPath()
-    ctx.moveTo(x + 121, y + 5)
-    ctx.lineTo(x + 121, y + 19)
-    ctx.stroke()
+    if (hasMultiplierBadge) {
+      ctx.save()
+      ctx.translate(badgeCenterX, badgeY + badgeHeight / 2)
+      ctx.scale(badgeScale, badgeScale)
+      ctx.translate(-badgeCenterX, -(badgeY + badgeHeight / 2))
 
-    renderText(ctx, `+${timeBonus}s`, x + 152, y + 12, CANVAS_FONTS.laneMedium(15), timeColor, 'center')
+      const badgePath = this.createRoundedRectPath(badgeX, badgeY, badgeWidth, badgeHeight, 10)
+      const badgeGradient = ctx.createLinearGradient(badgeX, badgeY, badgeX, badgeY + badgeHeight)
+      badgeGradient.addColorStop(0, 'rgba(255, 255, 255, 0.18)')
+      badgeGradient.addColorStop(0.16, multiplierStyle.fill)
+      badgeGradient.addColorStop(1, multiplierStyle.fill)
+      ctx.shadowColor = multiplierStyle.glow
+      ctx.shadowBlur = multiplierTier > 0 ? 12 + multiplierTier * 3 : 0
+      ctx.shadowOffsetY = 0
+      ctx.fillStyle = badgeGradient
+      ctx.fill(badgePath)
+      ctx.shadowColor = 'transparent'
+      ctx.strokeStyle = multiplierStyle.border
+      ctx.lineWidth = 1
+      ctx.stroke(badgePath)
+      renderText(
+        ctx,
+        `×${preview.wordMultiplier}`,
+        badgeCenterX,
+        badgeY + badgeHeight / 2 + 0.5,
+        badgeFont,
+        multiplierStyle.text,
+        'center',
+      )
+      ctx.restore()
+    }
+
+    renderText(ctx, equalsText, dividerX + equalsWidth / 2, formulaCenterY, equalsFont, COLORS.muted, 'center')
+    renderText(ctx, pointsText, pointsCenterX, formulaCenterY, summaryFont, COLORS.espresso, 'center')
+
+    if (hasTimeBonus) {
+      ctx.beginPath()
+      ctx.moveTo(summaryLeft + pointsWidth + summaryGap / 2, y + 5)
+      ctx.lineTo(summaryLeft + pointsWidth + summaryGap / 2, y + height - 5)
+      ctx.stroke()
+      renderText(ctx, timeText, timeCenterX, formulaCenterY, timeFont, COLORS.gold, 'center')
+    }
   }
 
   private drawPagePanel(
