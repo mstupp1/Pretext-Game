@@ -4,7 +4,7 @@ import { Player } from './Player'
 import { audioManager } from '../audio/AudioManager'
 import { Lane, type LaneConfig } from './Lane'
 import { scoreWord, type ScoreResult, getLetterValue, type ScoredLetter, getScorePreview } from './Scoring'
-import { generateLevel, type LevelConfig } from './Levels'
+import { generateLevel, getLevelAmbiencePlaybackRate, type LevelConfig } from './Levels'
 import { ParticleSystem } from '../effects/ParticleSystem'
 import { GAME_WIDTH, GAME_HEIGHT, LANE_COUNT, LANE_HEIGHT, LANE_Y_START, COLORS, CANVAS_FONTS, REGULAR_TILE_STYLE, ROMAN_NUMERALS, MAX_COLLECTED_LETTERS, TIME_BONUS, LEVEL_TIME } from '../utils/constants'
 import { renderText, measureTextWidth, renderCurvedText, measureCharsInLine } from '../text/TextEngine'
@@ -307,6 +307,7 @@ export class Game {
     this.gameOverWordPage = 0
     this.player = new Player()
     this.loadLevel(1)
+    audioManager.playGameAmbience()
 
     this.setHudContentVisible(true)
     this.updateUI()
@@ -344,6 +345,7 @@ export class Game {
     this.timeRemaining = this.level.timeLimit
     this.player.reset()
     this.buildLanes()
+    audioManager.setGameAmbiencePlaybackRate(getLevelAmbiencePlaybackRate(this.level))
     this.updateUI()
   }
 
@@ -867,6 +869,8 @@ export class Game {
           this.lanes[i].updateConfig(this.level.laneConfigs[i])
         }
       }
+
+      audioManager.setGameAmbiencePlaybackRate(getLevelAmbiencePlaybackRate(this.level))
 
       // Celebration particles
       this.particles.waveText(this.getChapterTitle(), GAME_WIDTH / 2, 104)

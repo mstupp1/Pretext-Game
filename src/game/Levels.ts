@@ -10,6 +10,10 @@ export interface LevelConfig {
 }
 
 const FONT_STYLES = ['light', 'regular', 'medium', 'bold', 'italic', 'boldItalic'] as const
+const AMBIENCE_PLAYBACK_BASE_SPEED = 88
+const AMBIENCE_PLAYBACK_SPEED_FACTOR = 0.0035
+const AMBIENCE_PLAYBACK_MIN = 0.92
+const AMBIENCE_PLAYBACK_MAX = 1.22
 
 export function generateLevel(chapter: number): LevelConfig {
   const speedMultiplier = 1 + (chapter - 1) * 0.05
@@ -61,4 +65,15 @@ export function generateLevel(chapter: number): LevelConfig {
   }
 
   return { chapter, timeLimit, laneConfigs }
+}
+
+export function getLevelAmbiencePlaybackRate(level: LevelConfig): number {
+  const activeLaneConfigs = level.laneConfigs.filter((config) => !SAFE_ZONE_INDICES.includes(config.index))
+
+  if (activeLaneConfigs.length === 0) return 1
+
+  const averageLaneSpeed = activeLaneConfigs.reduce((sum, config) => sum + config.speed, 0) / activeLaneConfigs.length
+  const rate = 1 + (averageLaneSpeed - AMBIENCE_PLAYBACK_BASE_SPEED) * AMBIENCE_PLAYBACK_SPEED_FACTOR
+
+  return Math.max(AMBIENCE_PLAYBACK_MIN, Math.min(AMBIENCE_PLAYBACK_MAX, rate))
 }

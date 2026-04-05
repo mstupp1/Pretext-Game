@@ -12,6 +12,10 @@ export class AudioManager {
   private isAmbienceCrossfading: boolean = false;
   private ambienceFadeInVolume: number = 0;
   private ambienceLoopInterval: number | null = null;
+  private gameAmbienceVolume: number = 0;
+  private targetGameAmbienceVolume: number = 0;
+  private fadeFromGameAmbienceVolume: number = 0;
+  private gameAmbiencePlaybackRate: number = 1;
   
   private titleVolume: number = 0;
   private gameVolume: number = 0;
@@ -75,6 +79,7 @@ export class AudioManager {
 
     this.gameAmbienceAudioA = new Audio(`${import.meta.env.BASE_URL}sfx/Ambiance_2.mp3`);
     this.gameAmbienceAudioB = new Audio(`${import.meta.env.BASE_URL}sfx/Ambiance_2.mp3`);
+    this.applyGameAmbiencePlaybackRate();
 
     this.currentGameTrackIndex = Math.floor(Math.random() * this.gamePlaylist.length);
     
@@ -161,7 +166,6 @@ export class AudioManager {
         this.titleAudio.play().catch(e => console.warn('Title audio autoplay prevented:', e));
         this.titleAmbienceAudio.volume = 0;
         this.titleAmbienceAudio.play().catch(e => console.warn('Title ambience autoplay prevented:', e));
-        this.startFader();
       }
 
       if (this.targetGameVolume > 0) {
@@ -170,9 +174,15 @@ export class AudioManager {
           this.gameVolume = 0;
           gameTrack.volume = 0;
           gameTrack.play().catch(e => console.warn('Game audio autoplay prevented:', e));
-          this.startGameAmbience();
-          this.startFader();
         }
+      }
+
+      if (this.targetGameAmbienceVolume > 0) {
+        this.ensureGameAmbiencePlaying();
+      }
+
+      if (this.targetTitleVolume > 0 || this.targetGameVolume > 0 || this.targetGameAmbienceVolume > 0) {
+        this.startFader();
       }
 
       document.removeEventListener('click', handleFirstInteraction);
@@ -211,6 +221,7 @@ export class AudioManager {
   public playTitleMusic() {
     this.targetTitleVolume = this.MAX_VOLUME;
     this.targetGameVolume = 0;
+    this.targetGameAmbienceVolume = 0;
     this.startFader();
   }
 
@@ -227,13 +238,29 @@ export class AudioManager {
   
   public playGameMusic() {
     this.targetTitleVolume = 0;
-    this.startGameMusicImmediate();
+    this.targetGameVolume = this.MAX_VOLUME;
+    this.targetGameAmbienceVolume = this.MAX_VOLUME;
+    this.startGameMusicTrack();
+    this.ensureGameAmbiencePlaying();
     this.startFader();
+  }
+
+  public playGameAmbience() {
+    this.targetTitleVolume = 0;
+    this.targetGameAmbienceVolume = this.MAX_VOLUME;
+    this.ensureGameAmbiencePlaying();
+    this.startFader();
+  }
+
+  public setGameAmbiencePlaybackRate(rate: number) {
+    this.gameAmbiencePlaybackRate = Math.max(0.85, Math.min(1.35, rate));
+    this.applyGameAmbiencePlaybackRate();
   }
   
   public stopAllMusic() {
     this.targetTitleVolume = 0;
     this.targetGameVolume = 0;
+    this.targetGameAmbienceVolume = 0;
     this.startFader();
   }
 
@@ -365,11 +392,7 @@ export class AudioManager {
     this.currentGameTrackIndex = nextIndex;
   }
 
-  private startGameMusicImmediate() {
-    this.targetGameVolume = this.MAX_VOLUME;
-    this.fadeFromGameVolume = this.MAX_VOLUME;
-    this.gameVolume = this.MAX_VOLUME;
-
+  private startGameMusicTrack() {
     this.gamePlaylist.forEach(track => {
       track.pause();
       track.currentTime = 0;
@@ -379,11 +402,9 @@ export class AudioManager {
 
     const gameTrack = this.getCurrentGameTrack();
     if (this.initialized && gameTrack) {
+      gameTrack.volume = 0;
       gameTrack.play().catch(e => console.warn('Game audio play prevented:', e));
     }
-
-    this.startGameAmbience();
-    this.applyMusicVolumes();
   }
 
   private startGameAmbience() {
@@ -395,8 +416,12 @@ export class AudioManager {
     this.ambienceFadeInVolume = 0; // Reset for intro fade
     
     this.gameAmbienceAudioA.currentTime = this.AMBIENCE_TRIM_START;
+    this.gameAmbienceAudioA.volume = 0;
     this.gameAmbienceAudioA.play().catch(e => console.warn('Game ambiance A play prevented:', e));
     this.gameAmbienceAudioB.pause();
+    this.gameAmbienceAudioB.currentTime = 0;
+    this.gameAmbienceAudioB.volume = 0;
+    this.applyGameAmbiencePlaybackRate();
     
     if (this.ambienceLoopInterval) clearInterval(this.ambienceLoopInterval);
     this.ambienceLoopInterval = window.setInterval(() => this.updateAmbienceLoop(), 100);
@@ -419,6 +444,7 @@ export class AudioManager {
       if (main.currentTime >= crossfadeStartPoint && !this.isAmbienceCrossfading) {
         this.isAmbienceCrossfading = true;
         secondary.currentTime = this.AMBIENCE_TRIM_START;
+        secondary.volume = 0;
         secondary.play().catch(e => console.warn('Ambience loop secondary play prevented:', e));
       }
       
@@ -454,12 +480,16 @@ export class AudioManager {
       const gameTrack = this.getCurrentGameTrack();
       if (this.targetGameVolume > 0 && gameTrack && gameTrack.paused) {
         gameTrack.play().catch(e => console.warn('Game audio play prevented:', e));
-        this.startGameAmbience();
+      }
+
+      if (this.targetGameAmbienceVolume > 0) {
+        this.ensureGameAmbiencePlaying();
       }
     }
 
     this.fadeFromTitleVolume = this.titleVolume;
     this.fadeFromGameVolume = this.gameVolume;
+    this.fadeFromGameAmbienceVolume = this.gameAmbienceVolume;
     this.fadeStartTime = performance.now();
 
     if (this.fadeInterval !== null) {
@@ -475,12 +505,14 @@ export class AudioManager {
 
       this.titleVolume = this.lerp(this.fadeFromTitleVolume, this.targetTitleVolume, eased);
       this.gameVolume = this.lerp(this.fadeFromGameVolume, this.targetGameVolume, eased);
+      this.gameAmbienceVolume = this.lerp(this.fadeFromGameAmbienceVolume, this.targetGameAmbienceVolume, eased);
 
       this.applyMusicVolumes();
 
       if (progress >= 1) {
         this.titleVolume = this.targetTitleVolume;
         this.gameVolume = this.targetGameVolume;
+        this.gameAmbienceVolume = this.targetGameAmbienceVolume;
         this.applyMusicVolumes();
         this.pauseSilentTracks();
         this.fadeInterval = null;
@@ -506,8 +538,8 @@ export class AudioManager {
       gameTrack.volume = this.isMusicMuted ? 0 : this.gameVolume;
     }
 
-    // Apply ambiance volumes (tied to SFX mute, follows music track fade, includes own intro fade)
-    const masterAmbVolume = (this.isSfxMuted ? 0 : this.gameVolume) * this.GAME_AMBIENCE_MIX * this.ambienceFadeInVolume;
+    // Apply ambiance volumes (tied to SFX mute, includes its own fade and can run before music starts)
+    const masterAmbVolume = (this.isSfxMuted ? 0 : this.gameAmbienceVolume) * this.GAME_AMBIENCE_MIX * this.ambienceFadeInVolume;
     if (this.isAmbienceCrossfading) {
       if (this.currentAmbienceInstance === 'A') {
         this.gameAmbienceAudioA.volume = masterAmbVolume * (1 - this.ambienceFadeFactor);
@@ -535,14 +567,27 @@ export class AudioManager {
       gameTrack.pause();
     }
 
-    if (this.gameVolume === 0) {
+    if (this.gameAmbienceVolume === 0) {
       this.gameAmbienceAudioA.pause();
       this.gameAmbienceAudioB.pause();
+      this.gameAmbienceAudioA.currentTime = 0;
+      this.gameAmbienceAudioB.currentTime = 0;
       if (this.ambienceLoopInterval) {
         clearInterval(this.ambienceLoopInterval);
         this.ambienceLoopInterval = null;
       }
     }
+  }
+
+  private ensureGameAmbiencePlaying() {
+    if (!this.initialized) return;
+    if (!this.gameAmbienceAudioA.paused || !this.gameAmbienceAudioB.paused) return;
+    this.startGameAmbience();
+  }
+
+  private applyGameAmbiencePlaybackRate() {
+    this.gameAmbienceAudioA.playbackRate = this.gameAmbiencePlaybackRate;
+    this.gameAmbienceAudioB.playbackRate = this.gameAmbiencePlaybackRate;
   }
 
   private lerp(start: number, end: number, t: number): number {
