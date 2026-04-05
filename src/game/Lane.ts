@@ -425,15 +425,15 @@ export class Lane {
     depthColor: string
     charColor: string
   } {
-    let baseColor = `rgba(${REGULAR_TILE_STYLE.fillRgb[0]}, ${REGULAR_TILE_STYLE.fillRgb[1]}, ${REGULAR_TILE_STYLE.fillRgb[2]}, ${bgAlpha * baseAlpha})`
-    let borderColor = `rgba(${REGULAR_TILE_STYLE.borderRgb[0]}, ${REGULAR_TILE_STYLE.borderRgb[1]}, ${REGULAR_TILE_STYLE.borderRgb[2]}, ${baseAlpha * (0.35 + borderT * 0.65)})`
-    let depthColor = REGULAR_TILE_STYLE.depth
-    let startR = REGULAR_TILE_STYLE.darkTextRgb[0]
-    let startG = REGULAR_TILE_STYLE.darkTextRgb[1]
-    let startB = REGULAR_TILE_STYLE.darkTextRgb[2]
-    let endR = REGULAR_TILE_STYLE.lightTextRgb[0]
-    let endG = REGULAR_TILE_STYLE.lightTextRgb[1]
-    let endB = REGULAR_TILE_STYLE.lightTextRgb[2]
+    let baseColor: string = `rgba(${REGULAR_TILE_STYLE.fillRgb[0]}, ${REGULAR_TILE_STYLE.fillRgb[1]}, ${REGULAR_TILE_STYLE.fillRgb[2]}, ${bgAlpha * baseAlpha})`
+    let borderColor: string = `rgba(${REGULAR_TILE_STYLE.borderRgb[0]}, ${REGULAR_TILE_STYLE.borderRgb[1]}, ${REGULAR_TILE_STYLE.borderRgb[2]}, ${baseAlpha * (0.35 + borderT * 0.65)})`
+    let depthColor: string = REGULAR_TILE_STYLE.depth
+    let startR: number = REGULAR_TILE_STYLE.darkTextRgb[0]
+    let startG: number = REGULAR_TILE_STYLE.darkTextRgb[1]
+    let startB: number = REGULAR_TILE_STYLE.darkTextRgb[2]
+    let endR: number = REGULAR_TILE_STYLE.lightTextRgb[0]
+    let endG: number = REGULAR_TILE_STYLE.lightTextRgb[1]
+    let endB: number = REGULAR_TILE_STYLE.lightTextRgb[2]
 
     if (multiplierType === 'DoubleLetter') {
       baseColor = `rgba(91, 155, 213, ${bgAlpha * baseAlpha})`

@@ -1196,6 +1196,22 @@ export class Game {
     ctx.scale(scale, scale)
     ctx.translate(-centerX, -centerY)
 
+    const contactShadow = ctx.createRadialGradient(
+      centerX,
+      y + height + 1,
+      width * 0.12,
+      centerX,
+      y + height + 1,
+      width * 0.42,
+    )
+    contactShadow.addColorStop(0, 'rgba(44, 24, 16, 0.1)')
+    contactShadow.addColorStop(0.55, 'rgba(44, 24, 16, 0.04)')
+    contactShadow.addColorStop(1, 'rgba(44, 24, 16, 0)')
+    ctx.fillStyle = contactShadow
+    ctx.beginPath()
+    ctx.ellipse(centerX, y + height + 1, width * 0.34, height * 0.08, 0, 0, Math.PI * 2)
+    ctx.fill()
+
     ctx.shadowColor = 'rgba(44, 24, 16, 0.2)'
     ctx.shadowBlur = 10
     ctx.shadowOffsetY = 4
@@ -1206,34 +1222,58 @@ export class Game {
     ctx.save()
     ctx.clip(tilePath)
     if (this.trayTexture?.complete && this.trayTexture.naturalWidth > 0) {
-      ctx.globalAlpha = 0.16
+      ctx.globalAlpha = 0.08
       ctx.globalCompositeOperation = 'multiply'
       this.drawImageCover(ctx, this.trayTexture, x, y, width, height, 0.68)
       ctx.globalCompositeOperation = 'source-over'
     }
 
     const grain = ctx.createLinearGradient(x, y, x + width, y)
-    grain.addColorStop(0, 'rgba(90, 58, 28, 0.08)')
-    grain.addColorStop(0.18, 'rgba(255, 240, 205, 0.04)')
-    grain.addColorStop(0.4, 'rgba(110, 70, 34, 0.1)')
-    grain.addColorStop(0.68, 'rgba(255, 246, 220, 0.03)')
-    grain.addColorStop(1, 'rgba(84, 52, 24, 0.08)')
+    grain.addColorStop(0, 'rgba(90, 58, 28, 0.04)')
+    grain.addColorStop(0.18, 'rgba(255, 240, 205, 0.02)')
+    grain.addColorStop(0.4, 'rgba(110, 70, 34, 0.05)')
+    grain.addColorStop(0.68, 'rgba(255, 246, 220, 0.02)')
+    grain.addColorStop(1, 'rgba(84, 52, 24, 0.04)')
     ctx.fillStyle = grain
     ctx.fillRect(x, y, width, height)
 
+    const plasticBase = ctx.createLinearGradient(x, y, x, y + height)
+    plasticBase.addColorStop(0, 'rgba(255, 255, 255, 0.14)')
+    plasticBase.addColorStop(0.22, 'rgba(255, 255, 255, 0.04)')
+    plasticBase.addColorStop(0.55, 'rgba(255, 255, 255, 0)')
+    plasticBase.addColorStop(1, 'rgba(92, 64, 51, 0.08)')
+    ctx.fillStyle = plasticBase
+    ctx.fill(tilePath)
+
     const highlight = ctx.createLinearGradient(x, y, x, y + height)
-    highlight.addColorStop(0, 'rgba(255, 248, 232, 0.3)')
-    highlight.addColorStop(0.34, 'rgba(255, 248, 232, 0.08)')
-    highlight.addColorStop(1, 'rgba(0, 0, 0, 0.08)')
+    highlight.addColorStop(0, 'rgba(255, 252, 244, 0.52)')
+    highlight.addColorStop(0.22, 'rgba(255, 252, 244, 0.22)')
+    highlight.addColorStop(0.52, 'rgba(255, 252, 244, 0.04)')
+    highlight.addColorStop(1, 'rgba(0, 0, 0, 0.1)')
     ctx.fillStyle = highlight
     ctx.fill(tilePath)
 
-    const sheen = ctx.createLinearGradient(x, y + 3, x, y + height * 0.58)
-    sheen.addColorStop(0, 'rgba(255, 255, 255, 0.28)')
-    sheen.addColorStop(0.36, 'rgba(255, 255, 255, 0.1)')
+    const sheen = ctx.createLinearGradient(x, y + 2, x, y + height * 0.68)
+    sheen.addColorStop(0, 'rgba(255, 255, 255, 0.52)')
+    sheen.addColorStop(0.18, 'rgba(255, 255, 255, 0.28)')
+    sheen.addColorStop(0.42, 'rgba(255, 255, 255, 0.09)')
     sheen.addColorStop(1, 'rgba(255, 255, 255, 0)')
     ctx.fillStyle = sheen
-    ctx.fillRect(x + 3, y + 3, width - 6, height * 0.5)
+    ctx.fillRect(x + 2, y + 2, width - 4, height * 0.62)
+
+    const glossBand = ctx.createLinearGradient(x, y, x + width, y + height)
+    glossBand.addColorStop(0.18, 'rgba(255, 255, 255, 0)')
+    glossBand.addColorStop(0.42, 'rgba(255, 255, 255, 0.24)')
+    glossBand.addColorStop(0.56, 'rgba(255, 255, 255, 0.08)')
+    glossBand.addColorStop(0.72, 'rgba(255, 255, 255, 0)')
+    ctx.fillStyle = glossBand
+    ctx.beginPath()
+    ctx.moveTo(x + width * 0.14, y + height * 0.16)
+    ctx.lineTo(x + width * 0.62, y + height * 0.08)
+    ctx.lineTo(x + width * 0.78, y + height * 0.32)
+    ctx.lineTo(x + width * 0.28, y + height * 0.38)
+    ctx.closePath()
+    ctx.fill()
 
     const gloss = ctx.createRadialGradient(
       x + width * 0.72,
@@ -1241,14 +1281,30 @@ export class Game {
       0,
       x + width * 0.72,
       y + height * 0.24,
-      width * 0.22,
+      width * 0.26,
     )
-    gloss.addColorStop(0, 'rgba(255, 255, 255, 0.46)')
-    gloss.addColorStop(0.45, 'rgba(255, 255, 255, 0.18)')
+    gloss.addColorStop(0, 'rgba(255, 255, 255, 0.72)')
+    gloss.addColorStop(0.38, 'rgba(255, 255, 255, 0.3)')
     gloss.addColorStop(1, 'rgba(255, 255, 255, 0)')
     ctx.fillStyle = gloss
     ctx.beginPath()
-    ctx.ellipse(x + width * 0.72, y + height * 0.24, width * 0.18, height * 0.12, -0.35, 0, Math.PI * 2)
+    ctx.ellipse(x + width * 0.72, y + height * 0.24, width * 0.22, height * 0.14, -0.35, 0, Math.PI * 2)
+    ctx.fill()
+
+    const glossHotspot = ctx.createRadialGradient(
+      x + width * 0.74,
+      y + height * 0.2,
+      0,
+      x + width * 0.74,
+      y + height * 0.2,
+      width * 0.1,
+    )
+    glossHotspot.addColorStop(0, 'rgba(255, 255, 255, 0.86)')
+    glossHotspot.addColorStop(0.45, 'rgba(255, 255, 255, 0.28)')
+    glossHotspot.addColorStop(1, 'rgba(255, 255, 255, 0)')
+    ctx.fillStyle = glossHotspot
+    ctx.beginPath()
+    ctx.ellipse(x + width * 0.74, y + height * 0.2, width * 0.08, height * 0.06, -0.35, 0, Math.PI * 2)
     ctx.fill()
     ctx.restore()
 
