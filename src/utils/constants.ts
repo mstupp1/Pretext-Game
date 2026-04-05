@@ -88,7 +88,8 @@ export function getPlayerGridX(offsetFromCenter: number): number {
 }
 
 // Game settings
-export const LEVEL_TIME = 60 // seconds
+export const STARTING_TIME = 60 // seconds
+export const LEVEL_TIME = 30 // seconds
 export const TIME_BONUS = 15 // seconds added for reaching far side
 export const MAX_COLLECTED_LETTERS = 12
 export const MIN_WORD_LENGTH = 3

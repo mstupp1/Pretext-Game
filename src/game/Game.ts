@@ -6,7 +6,7 @@ import { Lane, type LaneConfig } from './Lane'
 import { scoreWord, type ScoreResult, getLetterValue, type ScoredLetter, getScorePreview } from './Scoring'
 import { generateLevel, getLevelAmbiencePlaybackRate, type LevelConfig } from './Levels'
 import { ParticleSystem } from '../effects/ParticleSystem'
-import { GAME_WIDTH, GAME_HEIGHT, LANE_COUNT, LANE_HEIGHT, LANE_Y_START, COLORS, CANVAS_FONTS, REGULAR_TILE_STYLE, ROMAN_NUMERALS, MAX_COLLECTED_LETTERS, TIME_BONUS, LEVEL_TIME } from '../utils/constants'
+import { GAME_WIDTH, GAME_HEIGHT, LANE_COUNT, LANE_HEIGHT, LANE_Y_START, COLORS, CANVAS_FONTS, REGULAR_TILE_STYLE, ROMAN_NUMERALS, MAX_COLLECTED_LETTERS, TIME_BONUS, STARTING_TIME } from '../utils/constants'
 import { renderText, measureTextWidth, renderCurvedText, measureCharsInLine } from '../text/TextEngine'
 import { getPageCurvatureOffset } from '../text/TextStream'
 
@@ -107,7 +107,7 @@ export class Game {
   // Game state
   public score: number = 0
   public chapter: number = 1
-  public timeRemaining: number = LEVEL_TIME
+  public timeRemaining: number = STARTING_TIME
   public collectedLetters: CollectedLetter[] = []
   public removedTrayLetters: RemovedTrayLetter[] = []
   public wordsFound: ScoredLetter[][] = []
@@ -342,7 +342,7 @@ export class Game {
   private loadLevel(chapter: number): void {
     this.chapter = chapter
     this.level = generateLevel(chapter)
-    this.timeRemaining = this.level.timeLimit
+    this.timeRemaining = chapter === 1 ? STARTING_TIME : this.level.timeLimit
     this.player.reset()
     this.buildLanes()
     audioManager.setGameAmbiencePlaybackRate(getLevelAmbiencePlaybackRate(this.level))
