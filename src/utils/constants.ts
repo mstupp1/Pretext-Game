@@ -13,7 +13,7 @@ export const COLORS = {
   goldLight:  '#D4A843',
   goldFaint:  'rgba(184, 134, 11, 0.15)',
   goldGlow:   'rgba(184, 134, 11, 0.35)',
-  tileGold:   '#D89234',
+  tileGold:   '#DEA13D',
   tileGoldLight: '#E8B05E',
   tileGoldBorder: '#B66A14',
   tileGoldDepth: 'rgba(132, 74, 18, 0.42)',
@@ -30,7 +30,7 @@ export const COLORS = {
 
 export const REGULAR_TILE_STYLE = {
   fill: COLORS.tileGold,
-  fillRgb: [216, 146, 52] as const,
+  fillRgb: [222, 161, 61] as const,
   border: COLORS.tileGoldBorder,
   borderRgb: [182, 106, 20] as const,
   depth: COLORS.tileGoldDepth,
