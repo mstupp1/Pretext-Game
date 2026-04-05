@@ -1736,6 +1736,7 @@ export class Game {
     const entries = this.wordsFound.map((letters) => {
       const preview = getScorePreview(letters)
       return {
+        letters,
         word: preview.word,
         score: preview.totalScore,
       }
@@ -1747,16 +1748,6 @@ export class Game {
     const titleY = 74
     const listTopY = 144
     const listBottomY = GAME_HEIGHT - 96
-    const columnGap = 18
-    const lineHeight = entries.length > 18 ? 22 : 24
-    const rowCount = Math.max(1, Math.floor((listBottomY - listTopY) / lineHeight))
-    const columnCount = Math.max(1, Math.ceil(entries.length / rowCount))
-    const columnWidth = Math.max(
-      86,
-      (pageRight - pageLeft - columnGap * (columnCount - 1)) / columnCount,
-    )
-    const wordFont = CANVAS_FONTS.laneRegular(columnCount >= 3 ? 14 : 16)
-    const scoreFont = CANVAS_FONTS.uiSmallCaps(columnCount >= 3 ? 9 : 10)
     const getOffset = (x: number) => getPageCurvatureOffset(x, GAME_WIDTH)
 
     const countLabel = `${entries.length} word${entries.length === 1 ? '' : 's'} composed`
@@ -1781,24 +1772,116 @@ export class Game {
       return
     }
 
+    const tileSize = 20
+    const tileGap = 2
+    const wordGap = 12
+    const scoreGap = 6
+    const scoreFont = CANVAS_FONTS.laneBold(17)
+    const rowHeight = 32
+    const availableWidth = pageRight - pageLeft
+    const widestEntryWidth = entries.reduce((maxWidth, entry) => {
+      const scoreWidth = measureTextWidth(String(entry.score), scoreFont)
+      const tilesWidth = entry.letters.length * tileSize + Math.max(0, entry.letters.length - 1) * tileGap
+      return Math.max(maxWidth, tilesWidth + scoreGap + scoreWidth)
+    }, 0)
+    const rowCapacity = Math.max(1, Math.floor((availableWidth + wordGap) / (widestEntryWidth + wordGap)))
+    const rowCount = Math.max(1, Math.ceil(entries.length / rowCapacity))
+    const adjustedRowHeight = Math.min(rowHeight, (listBottomY - listTopY) / rowCount)
+
     for (let index = 0; index < entries.length; index++) {
-      const column = Math.floor(index / rowCount)
-      const row = index % rowCount
-      const x = pageLeft + column * (columnWidth + columnGap)
-      const y = listTopY + row * lineHeight
-      const baselineY = y + getOffset(x + columnWidth * 0.5)
+      const row = Math.floor(index / rowCapacity)
+      const column = index % rowCapacity
+      const x = pageLeft + column * (widestEntryWidth + wordGap)
+      const y = listTopY + row * adjustedRowHeight
+      const centerY = y + getOffset(x + widestEntryWidth * 0.5)
       const scoreText = `${entries[index].score}`
       const scoreWidth = measureTextWidth(scoreText, scoreFont)
-      const maxWordWidth = Math.max(32, columnWidth - scoreWidth - 12)
-      let wordText = entries[index].word
+      const maxTileAreaWidth = Math.max(28, widestEntryWidth - scoreWidth - scoreGap)
+      const maxTiles = Math.max(1, Math.floor((maxTileAreaWidth + tileGap) / (tileSize + tileGap)))
+      const lettersToRender = entries[index].letters.slice(0, maxTiles)
+      const wordWidth = lettersToRender.length * tileSize + Math.max(0, lettersToRender.length - 1) * tileGap
 
-      while (wordText.length > 1 && measureTextWidth(wordText, wordFont) > maxWordWidth) {
-        wordText = wordText.slice(0, -1)
+      for (let letterIndex = 0; letterIndex < lettersToRender.length; letterIndex++) {
+        const tileX = x + tileSize / 2 + letterIndex * (tileSize + tileGap)
+        this.renderWordLedgerTile(
+          ctx,
+          {
+            letter: lettersToRender[letterIndex].letter.toUpperCase(),
+            value: getLetterValue(lettersToRender[letterIndex].letter),
+            multiplierType: lettersToRender[letterIndex].multiplierType,
+            floatingX: 0,
+            floatingY: 0,
+            animProgress: 1,
+          },
+          tileX,
+          centerY,
+          tileSize,
+          tileSize,
+        )
       }
 
-      renderText(ctx, wordText, x, baselineY, wordFont, COLORS.espresso)
-      renderText(ctx, scoreText, x + columnWidth, baselineY, scoreFont, COLORS.gold, 'right')
+      renderText(ctx, scoreText, x + wordWidth + scoreGap + scoreWidth, centerY + 1, scoreFont, COLORS.sepia, 'right')
     }
+  }
+
+  private renderWordLedgerTile(
+    ctx: CanvasRenderingContext2D,
+    letter: CollectedLetter,
+    centerX: number,
+    centerY: number,
+    width: number,
+    height: number,
+  ): void {
+    const { fill, border, text } = this.getTrayTilePalette(letter.multiplierType)
+    const x = centerX - width / 2
+    const y = centerY - height / 2
+    const tilePath = this.createRoundedRectPath(x, y, width, height, 2)
+
+    ctx.save()
+
+    ctx.shadowColor = 'rgba(44, 24, 16, 0.16)'
+    ctx.shadowBlur = 3
+    ctx.shadowOffsetY = 1
+    ctx.fillStyle = fill
+    ctx.fill(tilePath)
+
+    ctx.shadowColor = 'transparent'
+    ctx.save()
+    ctx.clip(tilePath)
+
+    const highlight = ctx.createLinearGradient(x, y, x, y + height)
+    highlight.addColorStop(0, 'rgba(255, 252, 244, 0.34)')
+    highlight.addColorStop(0.32, 'rgba(255, 252, 244, 0.1)')
+    highlight.addColorStop(1, 'rgba(0, 0, 0, 0.08)')
+    ctx.fillStyle = highlight
+    ctx.fill(tilePath)
+
+    ctx.restore()
+
+    ctx.strokeStyle = border
+    ctx.lineWidth = 1
+    ctx.stroke(tilePath)
+
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.14)'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.moveTo(x + 2, y + height - 1)
+    ctx.lineTo(x + width - 2, y + height - 1)
+    ctx.stroke()
+
+    ctx.fillStyle = text
+    ctx.font = '700 14px "Cormorant Garamond", "Palatino Linotype", Palatino, Georgia, serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText(letter.letter, centerX, centerY - 1)
+
+    ctx.fillStyle = COLORS.ivory
+    ctx.font = '800 9px Georgia, "Times New Roman", serif'
+    ctx.textAlign = 'right'
+    ctx.textBaseline = 'bottom'
+    ctx.fillText(String(letter.value), x + width - 2, y + height - 2)
+
+    ctx.restore()
   }
 
   private renderCountdown(ctx: CanvasRenderingContext2D): void {
