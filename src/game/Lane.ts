@@ -336,6 +336,7 @@ export class Lane {
     const borderRadius = 4
     const bgAlpha = isFocused ? 1 : Math.min(1, 0.4 + interactionStrength * 0.6)
     const colorT = Math.min(1, Math.max(0, interactionStrength * 1.2))
+    const textT = isFocused ? 1 : Math.min(1, Math.max(0, (interactionStrength + 0.14) / 0.78))
 
     if (ch.scale > 1.1) {
       ctx.shadowColor = COLORS.shadow
@@ -344,12 +345,7 @@ export class Lane {
     }
 
     const colorAlpha = isFocused ? 1 : baseAlpha
-    const colors = this.getHighlightColors(ch.multiplierType, colorAlpha, bgAlpha, colorT)
-    if (isFocused && ch.multiplierType === 'None') {
-      colors.baseColor = `rgba(216, 146, 52, ${edgeFade})`
-      colors.borderColor = `rgba(182, 106, 20, ${edgeFade})`
-      colors.depthColor = COLORS.tileGoldDepth
-    }
+    const colors = this.getHighlightColors(ch.multiplierType, colorAlpha, bgAlpha, colorT, textT)
 
     ctx.fillStyle = colors.baseColor
     ctx.beginPath()
@@ -376,6 +372,15 @@ export class Lane {
     ctx.fill()
 
     ctx.font = this.font
+    const textContrastBoost = Math.max(0, 1 - Math.abs(colorT - 0.5) / 0.5)
+    const charIsLight = colors.charColor === COLORS.ivory || colorT > 0.62
+    const underlayAlpha = (0.08 + textContrastBoost * 0.14) * baseAlpha
+    if (underlayAlpha > 0.01) {
+      ctx.fillStyle = charIsLight
+        ? `rgba(92, 64, 51, ${underlayAlpha})`
+        : `rgba(245, 241, 232, ${underlayAlpha * 0.8})`
+      ctx.fillText(ch.char, 0, 0)
+    }
     ctx.fillStyle = colors.charColor
     ctx.fillText(ch.char, 0, -1)
 
@@ -385,6 +390,12 @@ export class Lane {
       ctx.textAlign = 'right'
       ctx.textBaseline = 'bottom'
       ctx.globalAlpha = baseAlpha * Math.min(1, interactionStrength * 2)
+      if (underlayAlpha > 0.01) {
+        ctx.fillStyle = charIsLight
+          ? `rgba(92, 64, 51, ${underlayAlpha})`
+          : `rgba(245, 241, 232, ${underlayAlpha * 0.8})`
+        ctx.fillText(String(points), tileW / 2 - 3, tileH / 2 - 1)
+      }
       ctx.fillStyle = colors.charColor
       ctx.fillText(String(points), tileW / 2 - 3, tileH / 2 - 2)
     }
@@ -407,7 +418,7 @@ export class Lane {
     return COLORS.tileGold
   }
 
-  private getHighlightColors(multiplierType: StreamChar['multiplierType'], baseAlpha: number, bgAlpha: number, colorT: number): {
+  private getHighlightColors(multiplierType: StreamChar['multiplierType'], baseAlpha: number, bgAlpha: number, colorT: number, textT: number): {
     baseColor: string
     borderColor: string
     depthColor: string
@@ -465,9 +476,9 @@ export class Lane {
       endB = 232
     }
 
-    const r = Math.round(startR + (endR - startR) * colorT)
-    const g = Math.round(startG + (endG - startG) * colorT)
-    const b = Math.round(startB + (endB - startB) * colorT)
+    const r = Math.round(startR + (endR - startR) * textT)
+    const g = Math.round(startG + (endG - startG) * textT)
+    const b = Math.round(startB + (endB - startB) * textT)
 
     return {
       baseColor,
