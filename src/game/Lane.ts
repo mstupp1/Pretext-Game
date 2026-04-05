@@ -108,7 +108,7 @@ export class Lane {
 
   update(dt: number, playerX: number, playerY: number): void {
     if (this.stream) {
-      this.stream.update(dt)
+      this.stream.update(dt, GAME_WIDTH)
       const laneCenterY = this.y + this.height / 2
       const distToLane = Math.abs(playerY - laneCenterY)
       const isPlayerLane = distToLane < this.height / 2

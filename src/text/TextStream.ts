@@ -17,6 +17,20 @@ const MULTIPLIER_WEIGHTS: Array<{
   { type: 'TripleLetter', weight: 0.125, cooldown: 2, tripleCooldown: 6 },
   { type: 'TripleWord', weight: 0.125, cooldown: 2, tripleCooldown: 8 },
 ]
+type ActiveMultiplierType = Exclude<MultiplierType, 'None'>
+
+const ACTIVE_MULTIPLIER_TYPES = MULTIPLIER_WEIGHTS.map(({ type }) => type)
+const MIN_HIGHLIGHT_GAP = 6
+const REBALANCE_INTERVAL = 0.25
+
+function createEmptyMultiplierCounts(): Record<ActiveMultiplierType, number> {
+  return {
+    DoubleLetter: 0,
+    TripleLetter: 0,
+    DoubleWord: 0,
+    TripleWord: 0,
+  }
+}
 
 export function getPageCurvatureOffset(screenX: number, viewportWidth: number): number {
   const center = viewportWidth / 2
@@ -83,6 +97,9 @@ export class TextStream {
   private undulationPhaseOffset: number
   private shimmerIntensity: number
   private isIconStream: boolean
+  private targetHighlightCount: number = 0
+  private multiplierTargets: Record<ActiveMultiplierType, number> = createEmptyMultiplierCounts()
+  private rebalanceTimer: number = REBALANCE_INTERVAL
   private visibleCharsCache: {
     viewportWidth: number
     scrollOffset: number
@@ -151,6 +168,9 @@ export class TextStream {
 
     const measured = measureCharsInLine(text, this.font)
     this.chars = []
+    this.targetHighlightCount = 0
+    this.multiplierTargets = createEmptyMultiplierCounts()
+    this.rebalanceTimer = REBALANCE_INTERVAL
     let totalW = 0
 
     // Decide which chars to highlight (letters only, weighted towards vowels/common consonants)
@@ -211,6 +231,10 @@ export class TextStream {
         }
 
         if (isHighlighted) {
+          this.targetHighlightCount++
+          if (multiplierType !== 'None') {
+            this.multiplierTargets[multiplierType]++
+          }
           // Enforce a minimum gap between collectibles (e.g., 8 to 12 characters)
           highlightCooldown = 8 + Math.floor(Math.random() * 5)
           if (multiplierType === 'None' && multiplierCooldown > 0) {
@@ -276,7 +300,7 @@ export class TextStream {
     return this.scrollOffset
   }
 
-  update(dt: number): void {
+  update(dt: number, viewportWidth?: number): void {
     this.scrollOffset += this.speed * this.direction * dt
     this.rippleTime += dt
     this.globalTime += dt
@@ -310,6 +334,14 @@ export class TextStream {
 
         // Ripple wave decay
         ch.rippleAmplitude *= Math.max(0, 1 - dt * 3)
+      }
+    }
+
+    if (!this.isIconStream && viewportWidth !== undefined) {
+      this.rebalanceTimer -= dt
+      if (this.rebalanceTimer <= 0) {
+        this.rebalanceTimer = REBALANCE_INTERVAL
+        this.rebalanceCollectibles(viewportWidth)
       }
     }
   }
@@ -557,6 +589,96 @@ export class TextStream {
   getRippleOffset(ch: StreamChar): number {
     if (ch.rippleAmplitude < 0.1) return 0
     return Math.sin(this.rippleTime * 12 - ch.ripplePhase) * ch.rippleAmplitude
+  }
+
+  private rebalanceCollectibles(viewportWidth: number): void {
+    let activeHighlightCount = 0
+    const activeMultiplierCounts = createEmptyMultiplierCounts()
+
+    for (const ch of this.chars) {
+      if (ch.isCollected || !ch.isHighlighted) continue
+      activeHighlightCount++
+      if (ch.multiplierType !== 'None') {
+        activeMultiplierCounts[ch.multiplierType]++
+      }
+    }
+
+    const hasMultiplierDeficit = ACTIVE_MULTIPLIER_TYPES.some(
+      type => activeMultiplierCounts[type] < this.multiplierTargets[type]
+    )
+
+    if (!hasMultiplierDeficit && activeHighlightCount >= this.targetHighlightCount) {
+      return
+    }
+
+    const visibleChars = new Set(this.getVisibleChars(viewportWidth).map(({ char }) => char))
+    const activeHighlightIndices = this.chars
+      .filter(ch => ch.isHighlighted && !ch.isCollected)
+      .map(ch => ch.originalIndex)
+
+    for (const type of ACTIVE_MULTIPLIER_TYPES) {
+      while (activeMultiplierCounts[type] < this.multiplierTargets[type]) {
+        const candidate = this.findReplacementCandidate(visibleChars, activeHighlightIndices, true)
+        if (!candidate) break
+
+        const wasHighlighted = candidate.isHighlighted
+        candidate.isHighlighted = true
+        candidate.multiplierType = type
+
+        if (!wasHighlighted) activeHighlightCount++
+        activeMultiplierCounts[type]++
+        activeHighlightIndices.push(candidate.originalIndex)
+      }
+    }
+
+    while (activeHighlightCount < this.targetHighlightCount) {
+      const candidate = this.findReplacementCandidate(visibleChars, activeHighlightIndices, false)
+      if (!candidate) break
+
+      candidate.isHighlighted = true
+      candidate.multiplierType = 'None'
+      activeHighlightCount++
+      activeHighlightIndices.push(candidate.originalIndex)
+    }
+  }
+
+  private findReplacementCandidate(
+    visibleChars: Set<StreamChar>,
+    activeHighlightIndices: number[],
+    allowExistingHighlights: boolean
+  ): StreamChar | null {
+    const promotedHighlights: StreamChar[] = []
+    const freshHighlights: StreamChar[] = []
+
+    for (const ch of this.chars) {
+      if (!/[A-Za-z]/.test(ch.char) || ch.isCollected || ch.multiplierType !== 'None') continue
+      if (visibleChars.has(ch) || this.hasHighlightConflict(ch.originalIndex, activeHighlightIndices)) continue
+
+      if (ch.isHighlighted) {
+        if (allowExistingHighlights) promotedHighlights.push(ch)
+        continue
+      }
+
+      freshHighlights.push(ch)
+    }
+
+    const pool = promotedHighlights.length > 0 ? promotedHighlights : freshHighlights
+    if (pool.length === 0) return null
+    return pool[Math.floor(Math.random() * pool.length)]
+  }
+
+  private hasHighlightConflict(index: number, activeHighlightIndices: number[]): boolean {
+    const totalChars = this.chars.length
+
+    for (const activeIndex of activeHighlightIndices) {
+      const directDistance = Math.abs(activeIndex - index)
+      const wrappedDistance = totalChars - directDistance
+      if (Math.min(directDistance, wrappedDistance) <= MIN_HIGHLIGHT_GAP) {
+        return true
+      }
+    }
+
+    return false
   }
 
   // Find the highlighted char closest to a point
