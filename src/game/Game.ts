@@ -2215,12 +2215,17 @@ export class Game {
     const hasLengthBonus = preview.lengthBonus > 0
     const baseText = String(preview.letterScore)
     const plusGlyph = '+'
+    const openParen = '('
+    const closeParen = ')'
     const bonusValueText = String(preview.lengthBonus)
+    const openParenWidth = hasLengthBonus ? measureTextWidth(openParen, operatorFont) : 0
+    const closeParenWidth = hasLengthBonus ? measureTextWidth(closeParen, operatorFont) : 0
     const baseWidth = measureTextWidth(baseText, trayLetterFont)
     const plusWidth = measureTextWidth(plusGlyph, operatorFont)
     const bonusWidth = hasLengthBonus ? measureTextWidth(bonusValueText, trayLetterFont) : 0
-    const formulaGroupWidth = baseWidth
-      + (hasLengthBonus ? 9 + plusWidth + 9 + bonusWidth : 0)
+    const formulaGroupWidth = (hasLengthBonus ? openParenWidth + 6 : 0)
+      + baseWidth
+      + (hasLengthBonus ? 9 + plusWidth + 9 + bonusWidth + 6 + closeParenWidth : 0)
       + (hasMultiplierBadge ? 12 + badgeWidth : 0)
     const pointsText = `${preview.totalScore} pts`
     const pointsWidth = measureTextWidth(pointsText, summaryFont)
@@ -2274,10 +2279,28 @@ export class Game {
     ctx.lineWidth = 1
     ctx.stroke(path)
 
-    renderText(ctx, baseText, formulaX, formulaCenterY, trayLetterFont, COLORS.espresso)
     if (hasLengthBonus) {
-      renderText(ctx, plusGlyph, formulaX + baseWidth + 9, formulaCenterY, operatorFont, COLORS.muted)
-      renderText(ctx, bonusValueText, formulaX + baseWidth + 9 + plusWidth + 9, formulaCenterY, trayLetterFont, COLORS.gold)
+      renderText(ctx, openParen, formulaX, formulaCenterY, operatorFont, COLORS.muted)
+      renderText(ctx, baseText, formulaX + openParenWidth + 6, formulaCenterY, trayLetterFont, COLORS.espresso)
+      renderText(ctx, plusGlyph, formulaX + openParenWidth + 6 + baseWidth + 9, formulaCenterY, operatorFont, COLORS.muted)
+      renderText(
+        ctx,
+        bonusValueText,
+        formulaX + openParenWidth + 6 + baseWidth + 9 + plusWidth + 9,
+        formulaCenterY,
+        trayLetterFont,
+        COLORS.gold,
+      )
+      renderText(
+        ctx,
+        closeParen,
+        formulaX + openParenWidth + 6 + baseWidth + 9 + plusWidth + 9 + bonusWidth + 6,
+        formulaCenterY,
+        operatorFont,
+        COLORS.muted,
+      )
+    } else {
+      renderText(ctx, baseText, formulaX, formulaCenterY, trayLetterFont, COLORS.espresso)
     }
 
     if (hasMultiplierBadge) {
