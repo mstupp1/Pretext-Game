@@ -12,10 +12,10 @@ const MULTIPLIER_WEIGHTS: Array<{
   cooldown: number
   tripleCooldown?: number
 }> = [
-  { type: 'DoubleLetter', weight: 0.58, cooldown: 1 },
-  { type: 'DoubleWord', weight: 0.17, cooldown: 2 },
-  { type: 'TripleLetter', weight: 0.125, cooldown: 2, tripleCooldown: 6 },
-  { type: 'TripleWord', weight: 0.125, cooldown: 2, tripleCooldown: 8 },
+  { type: 'DoubleLetter', weight: 0.357, cooldown: 1 },
+  { type: 'DoubleWord', weight: 0.286, cooldown: 2 },
+  { type: 'TripleLetter', weight: 0.214, cooldown: 2, tripleCooldown: 4 },
+  { type: 'TripleWord', weight: 0.143, cooldown: 2, tripleCooldown: 6 },
 ]
 type ActiveMultiplierType = Exclude<MultiplierType, 'None'>
 

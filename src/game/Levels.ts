@@ -18,7 +18,7 @@ const AMBIENCE_PLAYBACK_MAX = 1.22
 export function generateLevel(chapter: number): LevelConfig {
   const speedMultiplier = 1 + (chapter - 1) * 0.05
   const baseHighlightRate = Math.max(0.05, 0.08 - (chapter - 1) * 0.002)
-  const timeLimit = LEVEL_TIME + (chapter - 1) * 15 // More time as chapters get harder
+  const timeLimit = LEVEL_TIME + (chapter - 1) * 5 // More time as chapters get harder
 
   const laneConfigs: LaneConfig[] = []
 
@@ -28,7 +28,7 @@ export function generateLevel(chapter: number): LevelConfig {
       const safeSpeed = i === 0 ? 22 : 28
       laneConfigs.push({
         index: i,
-        speed: safeSpeed, 
+        speed: safeSpeed,
         direction: i === 0 ? 1 : -1, // Alternate directions for variety
         fontSize: 18,
         fontStyle: 'regular',
@@ -44,9 +44,9 @@ export function generateLevel(chapter: number): LevelConfig {
     // so that every lane is distinctly different even at the same distance from center
     const distFromCenter = Math.abs(i - LANE_COUNT / 2)
     const speedVariance = (LANE_COUNT / 2 - distFromCenter) / (LANE_COUNT / 2)
-    
+
     // Base speed + curve + per-lane jitter + small random factor
-    const laneOffset = i * 2.5 
+    const laneOffset = i * 2.5
     const speed = (45 + speedVariance * 55 + laneOffset + Math.random() * 10) * speedMultiplier
 
     // Vary font sizes and styles
