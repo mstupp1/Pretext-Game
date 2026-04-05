@@ -1073,9 +1073,9 @@ export class Game {
     }
 
     const trayGradient = ctx.createLinearGradient(trayX, trayY, trayX, trayY + trayHeight)
-    trayGradient.addColorStop(0, 'rgba(246, 224, 194, 0.97)')
-    trayGradient.addColorStop(0.42, 'rgba(232, 204, 168, 0.98)')
-    trayGradient.addColorStop(1, 'rgba(201, 166, 127, 0.98)')
+    trayGradient.addColorStop(0, 'rgba(232, 208, 180, 0.97)')
+    trayGradient.addColorStop(0.42, 'rgba(214, 184, 151, 0.98)')
+    trayGradient.addColorStop(1, 'rgba(182, 146, 111, 0.98)')
     ctx.fillStyle = trayGradient
     ctx.fill(trayPath)
 
@@ -1098,14 +1098,14 @@ export class Game {
     ctx.fillRect(trayX, trayY, trayWidth, trayHeight)
     ctx.restore()
 
-    ctx.strokeStyle = 'rgba(172, 135, 100, 0.54)'
+    ctx.strokeStyle = 'rgba(152, 117, 86, 0.58)'
     ctx.lineWidth = 1
     ctx.stroke(trayPath)
 
     const innerGradient = ctx.createLinearGradient(innerX, innerY, innerX, innerY + innerHeight)
-    innerGradient.addColorStop(0, 'rgba(232, 200, 164, 0.66)')
-    innerGradient.addColorStop(0.3, 'rgba(209, 175, 136, 0.5)')
-    innerGradient.addColorStop(1, 'rgba(166, 129, 94, 0.58)')
+    innerGradient.addColorStop(0, 'rgba(220, 188, 156, 0.68)')
+    innerGradient.addColorStop(0.3, 'rgba(194, 159, 124, 0.54)')
+    innerGradient.addColorStop(1, 'rgba(150, 115, 84, 0.62)')
     ctx.fillStyle = innerGradient
     ctx.fill(innerPath)
 
@@ -1124,12 +1124,12 @@ export class Game {
     ctx.fillRect(innerX, innerY, innerWidth, innerHeight)
     ctx.restore()
 
-    ctx.strokeStyle = 'rgba(176, 140, 105, 0.42)'
+    ctx.strokeStyle = 'rgba(156, 120, 89, 0.46)'
     ctx.stroke(innerPath)
 
     const lipGradient = ctx.createLinearGradient(innerX, innerY + innerHeight - lipHeight, innerX, innerY + innerHeight)
-    lipGradient.addColorStop(0, 'rgba(204, 170, 133, 0.95)')
-    lipGradient.addColorStop(1, 'rgba(156, 121, 88, 0.98)')
+    lipGradient.addColorStop(0, 'rgba(190, 155, 120, 0.96)')
+    lipGradient.addColorStop(1, 'rgba(140, 103, 72, 0.99)')
     ctx.fillStyle = lipGradient
     ctx.fill(lipPath)
     ctx.strokeStyle = 'rgba(255, 231, 194, 0.08)'
@@ -1210,19 +1210,19 @@ export class Game {
       width * 0.12,
       centerX,
       y + height + 1,
-      width * 0.42,
+      width * 0.56,
     )
     contactShadow.addColorStop(0, 'rgba(44, 24, 16, 0.1)')
     contactShadow.addColorStop(0.55, 'rgba(44, 24, 16, 0.04)')
     contactShadow.addColorStop(1, 'rgba(44, 24, 16, 0)')
     ctx.fillStyle = contactShadow
     ctx.beginPath()
-    ctx.ellipse(centerX, y + height + 1, width * 0.34, height * 0.08, 0, 0, Math.PI * 2)
+    ctx.ellipse(centerX, y + height + 1, width * 0.46, height * 0.08, 0, 0, Math.PI * 2)
     ctx.fill()
 
-    ctx.shadowColor = 'rgba(44, 24, 16, 0.2)'
-    ctx.shadowBlur = 10
-    ctx.shadowOffsetY = 4
+    ctx.shadowColor = 'rgba(44, 24, 16, 0.28)'
+    ctx.shadowBlur = 16
+    ctx.shadowOffsetY = 6
     ctx.fillStyle = fill
     ctx.fill(tilePath)
 
