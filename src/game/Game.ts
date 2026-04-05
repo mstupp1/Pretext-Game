@@ -1072,6 +1072,14 @@ export class Game {
       ctx.globalAlpha = 0.38
     }
 
+    ctx.save()
+    ctx.shadowColor = 'rgba(52, 34, 22, 0.2)'
+    ctx.shadowBlur = 18
+    ctx.shadowOffsetY = 8
+    ctx.fillStyle = 'rgba(92, 64, 51, 0.08)'
+    ctx.fill(trayPath)
+    ctx.restore()
+
     const trayGradient = ctx.createLinearGradient(trayX, trayY, trayX, trayY + trayHeight)
     trayGradient.addColorStop(0, 'rgba(212, 184, 156, 0.97)')
     trayGradient.addColorStop(0.42, 'rgba(188, 156, 126, 0.98)')
