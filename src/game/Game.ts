@@ -70,6 +70,8 @@ interface RenderAssets {
 
 export class Game {
   private static readonly TITLE_INTRO_DURATION = 0.85
+  private static readonly FINAL_CHAPTER = ROMAN_NUMERALS.length
+  private static readonly EPILOGUE_CHAPTER = Game.FINAL_CHAPTER + 1
 
   public state: GameState = 'title'
   public canvas: HTMLCanvasElement
@@ -206,7 +208,8 @@ export class Game {
     if (debugPointsOpt) {
       debugPointsOpt.addEventListener('click', () => {
         audioManager.playMenuNav()
-        const nextTarget = 25 * this.chapter * (this.chapter + 3)
+        const nextTarget = this.getRequiredScore()
+        if (nextTarget === null) return
         const pointsNeeded = nextTarget - this.score
         if (pointsNeeded > 0) {
           this.score += pointsNeeded
@@ -293,6 +296,21 @@ export class Game {
     this.state = 'playing'
     this.updateUI()
     this.updateWordsUI()
+  }
+
+  private getChapterLabel(chapter: number = this.chapter): string {
+    if (chapter >= Game.EPILOGUE_CHAPTER) return 'Epilogue'
+    return ROMAN_NUMERALS[Math.min(chapter - 1, Game.FINAL_CHAPTER - 1)]
+  }
+
+  private getChapterTitle(chapter: number = this.chapter): string {
+    if (chapter >= Game.EPILOGUE_CHAPTER) return 'Epilogue'
+    return `Chapter ${this.getChapterLabel(chapter)}`
+  }
+
+  private getRequiredScore(chapter: number = this.chapter): number | null {
+    if (chapter >= Game.EPILOGUE_CHAPTER) return null
+    return 25 * chapter * (chapter + 3)
   }
 
   private loadLevel(chapter: number): void {
@@ -502,7 +520,7 @@ export class Game {
   private refreshPauseMenu(): void {
     const pauseChapter = document.getElementById('pause-chapter')
     if (pauseChapter) {
-      pauseChapter.textContent = `Chapter ${ROMAN_NUMERALS[Math.min(this.chapter - 1, 9)]}`
+      pauseChapter.textContent = this.getChapterTitle()
     }
 
     const musicOpt = document.getElementById('option-music')
@@ -796,9 +814,8 @@ export class Game {
   // ── Update loop ──
 
   public checkChapterProgression(): void {
-    // Check chapter threshold (slight progression: requirement grows by 50 each chapter)
-    const requiredScore = 25 * this.chapter * (this.chapter + 3)
-    if (this.score >= requiredScore) {
+    const requiredScore = this.getRequiredScore()
+    if (requiredScore !== null && this.score >= requiredScore) {
       this.chapter++
       audioManager.playChapterUnlock()
       this.level = generateLevel(this.chapter)
@@ -812,11 +829,11 @@ export class Game {
       }
 
       // Celebration particles
-      this.particles.waveText(`Chapter ${ROMAN_NUMERALS[Math.min(this.chapter - 1, ROMAN_NUMERALS.length - 1)]}`, GAME_WIDTH / 2, 104)
+      this.particles.waveText(this.getChapterTitle(), GAME_WIDTH / 2, 104)
       this.updateUI()
 
       const pauseChapter = document.getElementById('pause-chapter')
-      if (pauseChapter) pauseChapter.textContent = `Chapter ${ROMAN_NUMERALS[Math.min(this.chapter - 1, 9)]}`
+      if (pauseChapter) pauseChapter.textContent = this.getChapterTitle()
     }
   }
 
@@ -1531,7 +1548,7 @@ export class Game {
     renderText(ctx, 'Finis', centerX, centerY + getOffset(centerX),
       CANVAS_FONTS.title(48), COLORS.espresso, 'center')
 
-    renderText(ctx, `Chapter ${ROMAN_NUMERALS[Math.min(this.chapter - 1, 9)]} reached`, centerX, centerY + 45 + getOffset(centerX),
+    renderText(ctx, `${this.getChapterTitle()} reached`, centerX, centerY + 45 + getOffset(centerX),
       CANVAS_FONTS.laneItalic(16), COLORS.sepia, 'center')
 
     // Final score
@@ -1645,13 +1662,13 @@ export class Game {
       const right = width / 2 - 15
       const progressLeft = left + 2
       const progressWidth = width - 34
-      const chapterText = ROMAN_NUMERALS[Math.min(this.chapter - 1, 9)]
+      const chapterText = this.getChapterLabel()
       const mins = Math.floor(this.timeRemaining / 60)
       const secs = Math.floor(this.timeRemaining % 60)
       const timerText = `${mins}:${secs.toString().padStart(2, '0')}`
-      const nextTarget = 25 * this.chapter * (this.chapter + 3)
+      const nextTarget = this.getRequiredScore()
       const scoreText = String(this.score)
-      const targetText = `/ ${nextTarget}`
+      const targetText = nextTarget === null ? null : `/ ${nextTarget}`
 
       renderText(ctx, 'CHAPTER', left, 14, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted)
       renderText(ctx, 'TIME', right, 14, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted, 'right')
@@ -1667,18 +1684,24 @@ export class Game {
 
       renderText(ctx, 'SCORE', left, 55, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted)
       renderText(ctx, scoreText, left, 67, CANVAS_FONTS.laneMedium(18), COLORS.espresso)
-      const scoreWidth = measureTextWidth(scoreText, CANVAS_FONTS.laneMedium(18))
-      renderText(ctx, targetText, left + scoreWidth + 7, 67, CANVAS_FONTS.laneRegular(12), COLORS.gold)
+      if (targetText) {
+        const scoreWidth = measureTextWidth(scoreText, CANVAS_FONTS.laneMedium(18))
+        renderText(ctx, targetText, left + scoreWidth + 7, 67, CANVAS_FONTS.laneRegular(12), COLORS.gold)
+      } else {
+        renderText(ctx, 'No further threshold', right, 67, CANVAS_FONTS.laneItalic(12), COLORS.gold, 'right')
+      }
 
       ctx.save()
       ctx.beginPath()
       ctx.roundRect(progressLeft, 80, progressWidth, 2, 999)
       ctx.fillStyle = 'rgba(44, 24, 16, 0.12)'
       ctx.fill()
-      ctx.beginPath()
-      ctx.roundRect(progressLeft, 80, progressWidth * Math.min(1, this.score / nextTarget), 2, 999)
-      ctx.fillStyle = COLORS.gold
-      ctx.fill()
+      if (nextTarget !== null) {
+        ctx.beginPath()
+        ctx.roundRect(progressLeft, 80, progressWidth * Math.min(1, this.score / nextTarget), 2, 999)
+        ctx.fillStyle = COLORS.gold
+        ctx.fill()
+      }
       ctx.restore()
     })
   }
@@ -1799,11 +1822,13 @@ export class Game {
   }
 
   private updateUI(): void {
-    const nextTarget = 25 * this.chapter * (this.chapter + 3)
+    const nextTarget = this.getRequiredScore()
     const scoreText = String(this.score)
-    const levelText = ROMAN_NUMERALS[Math.min(this.chapter - 1, 9)]
-    const nextTargetText = String(nextTarget)
-    const progressWidth = `${Math.min(100, (this.score / nextTarget) * 100)}%`
+    const levelText = this.getChapterLabel()
+    const nextTargetText = nextTarget === null ? 'Epilogue' : String(nextTarget)
+    const progressWidth = nextTarget === null
+      ? '0%'
+      : `${Math.min(100, (this.score / nextTarget) * 100)}%`
     const mins = Math.floor(this.timeRemaining / 60)
     const secs = Math.floor(this.timeRemaining % 60)
     const timerText = `${mins}:${secs.toString().padStart(2, '0')}`
