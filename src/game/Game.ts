@@ -71,6 +71,18 @@ interface RenderAssets {
   edgeGradientBottom: CanvasGradient
 }
 
+interface GameOverLedgerEntry {
+  letters: ScoredLetter[]
+  score: number
+}
+
+interface GameOverLedgerPlacement {
+  entry: GameOverLedgerEntry
+  x: number
+  y: number
+  width: number
+}
+
 export class Game {
   private static readonly TITLE_INTRO_DURATION = 0.85
   private static readonly FINAL_CHAPTER = ROMAN_NUMERALS.length
@@ -131,6 +143,7 @@ export class Game {
   private lastHudTimerUrgent: boolean | null = null
   private hudContentVisible: boolean | null = null
   private completedWordsVisible: boolean | null = null
+  private gameOverWordPage: number = 0
 
   // Countdown state
   private countdownValue: number = 3
@@ -291,6 +304,7 @@ export class Game {
     this.feedback = null
     this.floatingScores = []
     this.particles.clear()
+    this.gameOverWordPage = 0
     this.player = new Player()
     this.loadLevel(1)
 
@@ -346,6 +360,7 @@ export class Game {
     audioManager.playApplause(this.chapter)
     audioManager.restartTitleMusic()
     this.state = 'gameover'
+    this.gameOverWordPage = 0
     this.saveHighScore(this.score)
     this.setHudContentVisible(false)
     this.updateUI()
@@ -373,6 +388,7 @@ export class Game {
     this.feedback = null
     this.floatingScores = []
     this.particles.clear()
+    this.gameOverWordPage = 0
     if (previousState === 'gameover') {
       audioManager.playTitleMusic()
     } else {
@@ -576,7 +592,17 @@ export class Game {
     }
 
     if (this.state === 'gameover') {
-      if (event.key === ' ' || event.key === 'Enter') {
+      if (
+        event.key === 'ArrowLeft' || event.key === 'a' || event.key === 'A'
+      ) {
+        e.preventDefault()
+        this.changeGameOverWordPage(-1)
+      } else if (
+        event.key === 'ArrowRight' || event.key === 'd' || event.key === 'D'
+      ) {
+        e.preventDefault()
+        this.changeGameOverWordPage(1)
+      } else if (event.key === ' ' || event.key === 'Enter') {
         e.preventDefault()
         this.startGame()
       } else if (event.key === 'Escape') {
@@ -1733,15 +1759,6 @@ export class Game {
   }
 
   private renderGameOverWordLedger(ctx: CanvasRenderingContext2D): void {
-    const entries = this.wordsFound.map((letters) => {
-      const preview = getScorePreview(letters)
-      return {
-        letters,
-        word: preview.word,
-        score: preview.totalScore,
-      }
-    })
-
     const pageLeft = 58
     const pageRight = GAME_WIDTH / 2 - 54
     const pageCenterX = (pageLeft + pageRight) / 2
@@ -1749,8 +1766,13 @@ export class Game {
     const listTopY = 144
     const listBottomY = GAME_HEIGHT - 96
     const getOffset = (x: number) => getPageCurvatureOffset(x, GAME_WIDTH)
+    const ledgerPages = this.getGameOverLedgerPages(pageLeft, pageRight, listTopY, listBottomY)
+    const totalPages = ledgerPages.length
+    const currentPage = Math.max(0, Math.min(this.gameOverWordPage, totalPages - 1))
+    const visibleEntries = ledgerPages[currentPage] ?? []
+    const totalWords = this.wordsFound.length
 
-    const countLabel = `${entries.length} word${entries.length === 1 ? '' : 's'} composed`
+    const countLabel = `${totalWords} word${totalWords === 1 ? '' : 's'} composed`
     renderText(ctx, countLabel, pageCenterX, titleY + getOffset(pageCenterX),
       CANVAS_FONTS.laneItalic(13), COLORS.sepia, 'center')
     renderText(ctx, 'Words Scored', pageCenterX, titleY + 28 + getOffset(pageCenterX),
@@ -1766,7 +1788,7 @@ export class Game {
     }
     ctx.stroke()
 
-    if (entries.length === 0) {
+    if (totalWords === 0) {
       renderText(ctx, 'Compose a word to have it archived here.', pageCenterX, listTopY + 18 + getOffset(pageCenterX),
         CANVAS_FONTS.laneItalic(14), COLORS.sepia, 'center')
       return
@@ -1774,50 +1796,16 @@ export class Game {
 
     const tileSize = 20
     const tileGap = 2
-    const wordGap = 12
     const scoreGap = 6
     const scoreFont = CANVAS_FONTS.laneBold(14)
-    const rowHeight = 32
-    const availableWidth = pageRight - pageLeft
-    const entryWidths = entries.map((entry) => {
-      const scoreWidth = measureTextWidth(String(entry.score), scoreFont)
-      const tilesWidth = entry.letters.length * tileSize + Math.max(0, entry.letters.length - 1) * tileGap
-      return {
-        scoreWidth,
-        totalWidth: tilesWidth + scoreGap + scoreWidth,
-      }
-    })
-
-    let rowCount = 1
-    let cursorX = pageLeft
-    for (let index = 0; index < entries.length; index++) {
-      const entryWidth = entryWidths[index].totalWidth
-      if (cursorX > pageLeft && cursorX + entryWidth > pageRight) {
-        rowCount++
-        cursorX = pageLeft
-      }
-      cursorX += entryWidth + wordGap
-    }
-
-    const adjustedRowHeight = Math.min(rowHeight, (listBottomY - listTopY) / rowCount)
-
-    cursorX = pageLeft
-    let row = 0
-    for (let index = 0; index < entries.length; index++) {
-      const entryWidth = entryWidths[index].totalWidth
-      if (cursorX > pageLeft && cursorX + entryWidth > pageRight) {
-        row++
-        cursorX = pageLeft
-      }
-
-      const x = cursorX
-      const y = listTopY + row * adjustedRowHeight
-      const centerY = y + getOffset(x + entryWidth * 0.5)
-      const scoreText = `${entries[index].score}`
+    for (const placement of visibleEntries) {
+      const { entry, x, y, width } = placement
+      const centerY = y + getOffset(x + width * 0.5)
+      const scoreText = `${entry.score}`
       const scoreWidth = measureTextWidth(scoreText, scoreFont)
-      const maxTileAreaWidth = Math.max(28, entryWidth - scoreWidth - scoreGap)
+      const maxTileAreaWidth = Math.max(28, width - scoreWidth - scoreGap)
       const maxTiles = Math.max(1, Math.floor((maxTileAreaWidth + tileGap) / (tileSize + tileGap)))
-      const lettersToRender = entries[index].letters.slice(0, maxTiles)
+      const lettersToRender = entry.letters.slice(0, maxTiles)
       const wordWidth = lettersToRender.length * tileSize + Math.max(0, lettersToRender.length - 1) * tileGap
 
       for (let letterIndex = 0; letterIndex < lettersToRender.length; letterIndex++) {
@@ -1840,8 +1828,83 @@ export class Game {
       }
 
       renderText(ctx, scoreText, x + wordWidth + scoreGap + scoreWidth, centerY + 1, scoreFont, COLORS.sepia, 'right')
+    }
+
+    if (totalPages > 1) {
+      const pageLabel = `Page ${currentPage + 1} of ${totalPages}`
+      renderText(ctx, pageLabel, pageCenterX, listBottomY + 22 + getOffset(pageCenterX),
+        CANVAS_FONTS.uiSmallCaps(9), COLORS.muted, 'center')
+      renderText(ctx, 'Use \u2190 and \u2192 to turn pages', pageCenterX, listBottomY + 40 + getOffset(pageCenterX),
+        CANVAS_FONTS.laneItalic(11), COLORS.sepia, 'center')
+    }
+  }
+
+  private getGameOverLedgerPages(
+    pageLeft: number,
+    pageRight: number,
+    listTopY: number,
+    listBottomY: number,
+  ): GameOverLedgerPlacement[][] {
+    const entries: GameOverLedgerEntry[] = this.wordsFound.map((letters) => {
+      const preview = getScorePreview(letters)
+      return {
+        letters,
+        score: preview.totalScore,
+      }
+    })
+
+    if (entries.length === 0) return [[]]
+
+    const tileSize = 20
+    const tileGap = 2
+    const wordGap = 12
+    const scoreGap = 6
+    const scoreFont = CANVAS_FONTS.laneBold(14)
+    const rowHeight = 32
+    const pages: GameOverLedgerPlacement[][] = [[]]
+    let pageIndex = 0
+    let row = 0
+    let cursorX = pageLeft
+
+    for (const entry of entries) {
+      const scoreWidth = measureTextWidth(String(entry.score), scoreFont)
+      const tilesWidth = entry.letters.length * tileSize + Math.max(0, entry.letters.length - 1) * tileGap
+      const entryWidth = tilesWidth + scoreGap + scoreWidth
+
+      if (cursorX > pageLeft && cursorX + entryWidth > pageRight) {
+        row++
+        cursorX = pageLeft
+      }
+
+      const y = listTopY + row * rowHeight
+      if (y + rowHeight > listBottomY) {
+        pageIndex++
+        pages.push([])
+        row = 0
+        cursorX = pageLeft
+      }
+
+      pages[pageIndex].push({
+        entry,
+        x: cursorX,
+        y: listTopY + row * rowHeight,
+        width: entryWidth,
+      })
       cursorX += entryWidth + wordGap
     }
+
+    return pages
+  }
+
+  private changeGameOverWordPage(direction: number): void {
+    const totalPages = this.getGameOverLedgerPages(58, GAME_WIDTH / 2 - 54, 144, GAME_HEIGHT - 96).length
+    if (totalPages <= 1) return
+
+    const nextPage = Math.max(0, Math.min(totalPages - 1, this.gameOverWordPage + direction))
+    if (nextPage === this.gameOverWordPage) return
+
+    this.gameOverWordPage = nextPage
+    audioManager.playPagesFromGameOver()
   }
 
   private renderWordLedgerTile(
