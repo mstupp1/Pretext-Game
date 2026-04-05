@@ -16,6 +16,7 @@ export class AudioManager {
   private targetGameAmbienceVolume: number = 0;
   private fadeFromGameAmbienceVolume: number = 0;
   private gameAmbiencePlaybackRate: number = 1;
+  private wasGameAmbienceActiveBeforePause: boolean = false;
   
   private titleVolume: number = 0;
   private gameVolume: number = 0;
@@ -255,6 +256,43 @@ export class AudioManager {
   public setGameAmbiencePlaybackRate(rate: number) {
     this.gameAmbiencePlaybackRate = Math.max(0.85, Math.min(1.35, rate));
     this.applyGameAmbiencePlaybackRate();
+  }
+
+  public pauseGameAmbience() {
+    this.wasGameAmbienceActiveBeforePause =
+      this.targetGameAmbienceVolume > 0 &&
+      (!this.gameAmbienceAudioA.paused || !this.gameAmbienceAudioB.paused || this.ambienceLoopInterval !== null);
+
+    if (!this.wasGameAmbienceActiveBeforePause) return;
+
+    this.gameAmbienceAudioA.pause();
+    this.gameAmbienceAudioB.pause();
+    if (this.ambienceLoopInterval) {
+      clearInterval(this.ambienceLoopInterval);
+      this.ambienceLoopInterval = null;
+    }
+  }
+
+  public resumeGameAmbience() {
+    if (!this.wasGameAmbienceActiveBeforePause || !this.initialized || this.targetGameAmbienceVolume <= 0) {
+      this.wasGameAmbienceActiveBeforePause = false;
+      return;
+    }
+
+    const main = this.currentAmbienceInstance === 'A' ? this.gameAmbienceAudioA : this.gameAmbienceAudioB;
+    const secondary = this.currentAmbienceInstance === 'A' ? this.gameAmbienceAudioB : this.gameAmbienceAudioA;
+
+    this.applyGameAmbiencePlaybackRate();
+
+    if (this.isAmbienceCrossfading) {
+      secondary.play().catch(e => console.warn('Game ambiance resume secondary play prevented:', e));
+    }
+    main.play().catch(e => console.warn('Game ambiance resume prevented:', e));
+
+    if (this.ambienceLoopInterval) clearInterval(this.ambienceLoopInterval);
+    this.ambienceLoopInterval = window.setInterval(() => this.updateAmbienceLoop(), 100);
+    this.applyMusicVolumes();
+    this.wasGameAmbienceActiveBeforePause = false;
   }
   
   public stopAllMusic() {

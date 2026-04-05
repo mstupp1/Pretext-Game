@@ -407,6 +407,7 @@ export class Game {
   private togglePause(): void {
     if (this.state === 'playing') {
       audioManager.playPause()
+      audioManager.pauseGameAmbience()
       this.state = 'paused'
       this.pauseOptionIndex = 0
       this.pauseConfirmAction = null
@@ -575,6 +576,7 @@ export class Game {
   private resumeFromPause(): void {
     this.state = 'playing'
     this.hidePauseOverlay()
+    audioManager.resumeGameAmbience()
   }
 
   // ── Input handling ──
