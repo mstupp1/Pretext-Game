@@ -434,14 +434,14 @@ html, body {
 .pause-overlay {
   pointer-events: auto;
   background:
-    linear-gradient(rgba(245, 241, 232, 0.9), rgba(245, 241, 232, 0.84)),
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 27px,
-      rgba(44, 24, 16, 0.06) 27px,
-      rgba(44, 24, 16, 0.06) 28px
+    linear-gradient(
+      180deg,
+      rgba(14, 24, 42, 0.52) 0%,
+      rgba(18, 34, 62, 0.58) 52%,
+      rgba(8, 16, 28, 0.68) 100%
     );
+  backdrop-filter: blur(14px) saturate(82%);
+  -webkit-backdrop-filter: blur(14px) saturate(82%);
 }
 
 .pause-panel {
