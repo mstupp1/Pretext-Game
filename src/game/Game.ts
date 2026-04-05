@@ -67,6 +67,7 @@ interface RenderAssets {
   spineGradient: CanvasGradient
   edgeGradientLeft: CanvasGradient
   edgeGradientRight: CanvasGradient
+  edgeGradientBottom: CanvasGradient
 }
 
 export class Game {
@@ -1040,6 +1041,9 @@ export class Game {
 
     ctx.fillStyle = this.renderAssets.edgeGradientRight
     ctx.fillRect(GAME_WIDTH - 30, 0, 30, GAME_HEIGHT)
+
+    ctx.fillStyle = this.renderAssets.edgeGradientBottom
+    ctx.fillRect(0, GAME_HEIGHT - 78, GAME_WIDTH, 78)
   }
 
   private renderBoundaryDecoration(ctx: CanvasRenderingContext2D): void {
@@ -2118,13 +2122,35 @@ export class Game {
     spineGradient.addColorStop(0.7, 'rgba(0, 0, 0, 0.05)')
     spineGradient.addColorStop(1, 'rgba(0, 0, 0, 0)')
 
-    const edgeGradientLeft = this.ctx.createLinearGradient(0, 0, 30, 0)
-    edgeGradientLeft.addColorStop(0, 'rgba(0, 0, 0, 0.06)')
-    edgeGradientLeft.addColorStop(1, 'rgba(0, 0, 0, 0)')
+    const edgeGradientLeft = this.ctx.createLinearGradient(0, 0, 85, 0)
+    edgeGradientLeft.addColorStop(0, 'rgba(44, 24, 16, 0.18)')
+    edgeGradientLeft.addColorStop(0.08, 'rgba(44, 24, 16, 0.08)')
+    edgeGradientLeft.addColorStop(0.12, 'rgba(44, 24, 16, 0.15)')
+    edgeGradientLeft.addColorStop(0.18, 'rgba(44, 24, 16, 0.06)')
+    edgeGradientLeft.addColorStop(0.28, 'rgba(44, 24, 16, 0.1)')
+    edgeGradientLeft.addColorStop(0.36, 'rgba(44, 24, 16, 0.045)')
+    edgeGradientLeft.addColorStop(0.56, 'rgba(44, 24, 16, 0.03)')
+    edgeGradientLeft.addColorStop(1, 'rgba(44, 24, 16, 0)')
 
-    const edgeGradientRight = this.ctx.createLinearGradient(GAME_WIDTH - 30, 0, GAME_WIDTH, 0)
-    edgeGradientRight.addColorStop(0, 'rgba(0, 0, 0, 0)')
-    edgeGradientRight.addColorStop(1, 'rgba(0, 0, 0, 0.06)')
+    const edgeGradientRight = this.ctx.createLinearGradient(GAME_WIDTH - 85, 0, GAME_WIDTH, 0)
+    edgeGradientRight.addColorStop(0, 'rgba(44, 24, 16, 0)')
+    edgeGradientRight.addColorStop(0.44, 'rgba(44, 24, 16, 0.03)')
+    edgeGradientRight.addColorStop(0.64, 'rgba(44, 24, 16, 0.045)')
+    edgeGradientRight.addColorStop(0.72, 'rgba(44, 24, 16, 0.1)')
+    edgeGradientRight.addColorStop(0.82, 'rgba(44, 24, 16, 0.06)')
+    edgeGradientRight.addColorStop(0.88, 'rgba(44, 24, 16, 0.15)')
+    edgeGradientRight.addColorStop(0.92, 'rgba(44, 24, 16, 0.08)')
+    edgeGradientRight.addColorStop(1, 'rgba(44, 24, 16, 0.18)')
+
+    const edgeGradientBottom = this.ctx.createLinearGradient(0, GAME_HEIGHT - 78, 0, GAME_HEIGHT)
+    edgeGradientBottom.addColorStop(0, 'rgba(44, 24, 16, 0)')
+    edgeGradientBottom.addColorStop(0.42, 'rgba(44, 24, 16, 0.03)')
+    edgeGradientBottom.addColorStop(0.62, 'rgba(44, 24, 16, 0.05)')
+    edgeGradientBottom.addColorStop(0.72, 'rgba(44, 24, 16, 0.11)')
+    edgeGradientBottom.addColorStop(0.8, 'rgba(44, 24, 16, 0.05)')
+    edgeGradientBottom.addColorStop(0.9, 'rgba(44, 24, 16, 0.14)')
+    edgeGradientBottom.addColorStop(0.95, 'rgba(44, 24, 16, 0.08)')
+    edgeGradientBottom.addColorStop(1, 'rgba(44, 24, 16, 0.18)')
 
     return {
       backgroundRulePaths,
@@ -2134,6 +2160,7 @@ export class Game {
       spineGradient,
       edgeGradientLeft,
       edgeGradientRight,
+      edgeGradientBottom,
     }
   }
 
