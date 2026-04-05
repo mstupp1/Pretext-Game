@@ -1,6 +1,6 @@
 // ── Scoring — Scrabble-style word scoring ──
 
-import { LETTER_VALUES, WORD_LENGTH_BONUS, MultiplierType } from '../utils/constants'
+import { LETTER_VALUES, MultiplierType } from '../utils/constants'
 import { checkWordValidity } from '../utils/dictionary'
 
 export interface ScoreResult {
@@ -85,7 +85,7 @@ export function getScorePreview(letters: ScoredLetter[]): ScorePreview {
     letterScore += val
   }
 
-  const lengthBonus = WORD_LENGTH_BONUS[Math.min(word.length, 10)] || 0
+  const lengthBonus = 0
 
   return {
     word,

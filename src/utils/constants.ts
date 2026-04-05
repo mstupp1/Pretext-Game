@@ -100,11 +100,6 @@ export const LETTER_VALUES: Record<string, number> = {
   S: 1, T: 1, U: 1, V: 4, W: 4, X: 8, Y: 4, Z: 10,
 }
 
-// Word length bonuses
-export const WORD_LENGTH_BONUS: Record<number, number> = {
-  3: 0, 4: 8, 5: 20, 6: 40, 7: 70, 8: 110, 9: 160, 10: 220,
-}
-
 // Ornamental characters for safe zones
 export const ORNAMENTS = ['·', '—', '·', '—', '·', '—', '·'] as const
 export const FLOURISHES = ['❧', '✦', '※', '❦', '⁂', '☙', '✿'] as const
