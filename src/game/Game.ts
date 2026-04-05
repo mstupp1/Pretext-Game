@@ -1959,7 +1959,7 @@ export class Game {
     ctx.fillText(letter.letter, x + width / 2, y + height / 2)
 
     ctx.fillStyle = COLORS.ivory
-    ctx.font = '800 9px Georgia, "Times New Roman", serif'
+    ctx.font = '800 7px Georgia, "Times New Roman", serif'
     ctx.textAlign = 'right'
     ctx.textBaseline = 'bottom'
     ctx.fillText(String(letter.value), x + width - 2, y + height - 2)
