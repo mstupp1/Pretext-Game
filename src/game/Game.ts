@@ -968,9 +968,17 @@ export class Game {
     this.renderBackground(ctx)
     this.renderBookTopPanels(ctx)
 
-    // Render lanes
+    // Render lane backgrounds and ordinary text first.
     for (const lane of this.lanes) {
-      lane.render(ctx, this.player.laneIndex, this.player.x)
+      lane.renderBase(ctx, this.player.laneIndex, this.player.x)
+    }
+
+    // Render highlighted/focused lane tiles globally on top of every lane.
+    for (const lane of this.lanes) {
+      lane.renderTopLayer(ctx)
+    }
+    for (const lane of this.lanes) {
+      lane.renderFocusedTopLayer(ctx)
     }
 
     // Render player
@@ -1657,7 +1665,13 @@ export class Game {
     this.renderBackground(ctx)
     this.renderBookTopPanels(ctx)
     for (const lane of this.lanes) {
-      lane.render(ctx, -1, -100)
+      lane.renderBase(ctx, -1, -100)
+    }
+    for (const lane of this.lanes) {
+      lane.renderTopLayer(ctx)
+    }
+    for (const lane of this.lanes) {
+      lane.renderFocusedTopLayer(ctx)
     }
 
     // Center ornament / vignette

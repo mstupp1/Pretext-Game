@@ -125,7 +125,7 @@ export class Lane {
     }
   }
 
-  render(ctx: CanvasRenderingContext2D, playerLane: number, playerX: number): void {
+  renderBase(ctx: CanvasRenderingContext2D, playerLane: number, playerX: number): void {
     const centerY = this.y + this.height / 2
 
     if (this.isSafeZone) {
@@ -163,14 +163,37 @@ export class Lane {
         this.renderNormalChar(ctx, ch, screenX, centerY)
       }
 
-      for (const { char: ch, screenX } of visible) {
-        if (ch.alpha <= 0 || (!ch.isCollected && !ch.isHighlighted)) continue
-        this.renderTopChar(ctx, ch, screenX, centerY)
-      }
-
       // Reset text align
       ctx.textAlign = 'left'
     }
+  }
+
+  renderTopLayer(ctx: CanvasRenderingContext2D): void {
+    this.renderTopLayerByFocus(ctx, false)
+  }
+
+  renderFocusedTopLayer(ctx: CanvasRenderingContext2D): void {
+    this.renderTopLayerByFocus(ctx, true)
+  }
+
+  private renderTopLayerByFocus(ctx: CanvasRenderingContext2D, focusedOnly: boolean): void {
+    if (!this.stream) return
+
+    const centerY = this.y + this.height / 2
+    const visible = this.stream.getVisibleChars(GAME_WIDTH)
+
+    ctx.textBaseline = 'middle'
+    ctx.textAlign = 'center'
+    ctx.font = this.font
+
+    for (const { char: ch, screenX } of visible) {
+      if (ch.alpha <= 0 || (!ch.isCollected && !ch.isHighlighted)) continue
+      const isFocused = !ch.isCollected && ch.scale > 1.42
+      if (focusedOnly !== isFocused) continue
+      this.renderTopChar(ctx, ch, screenX, centerY)
+    }
+
+    ctx.textAlign = 'left'
   }
 
 
@@ -288,8 +311,9 @@ export class Lane {
     ctx.translate(charCenterX, charCenterY)
 
     const isLifted = ch.scale > 1.05
+    const isFocused = ch.scale > 1.42
     const proximityAlpha = isLifted ? 1.0 : Math.min(1, 0.75 + (ch.scale - 1) * 1.0)
-    const baseAlpha = (isLifted ? 1 : Math.min(1, ch.alpha * proximityAlpha)) * edgeFade
+    const baseAlpha = (isFocused ? 1 : Math.min(1, ch.alpha * proximityAlpha)) * edgeFade
     ctx.globalAlpha = baseAlpha
 
     if (ch.rotation !== 0 || totalScale !== 1) {
@@ -310,7 +334,7 @@ export class Lane {
     const tileW = ch.width + padding * 2
     const tileH = this.config.fontSize + padding * 2
     const borderRadius = 4
-    const bgAlpha = isLifted ? 1 : Math.min(1, 0.4 + interactionStrength * 0.6)
+    const bgAlpha = isFocused ? 1 : Math.min(1, 0.4 + interactionStrength * 0.6)
     const colorT = Math.min(1, Math.max(0, interactionStrength * 1.2))
 
     if (ch.scale > 1.1) {
@@ -319,8 +343,13 @@ export class Lane {
       ctx.shadowOffsetY = 2 + (ch.scale - 1) * 4
     }
 
-    const colorAlpha = isLifted ? 1 : baseAlpha
+    const colorAlpha = isFocused ? 1 : baseAlpha
     const colors = this.getHighlightColors(ch.multiplierType, colorAlpha, bgAlpha, colorT)
+    if (isFocused && ch.multiplierType === 'None') {
+      colors.baseColor = `rgba(210, 167, 66, ${edgeFade})`
+      colors.borderColor = `rgba(174, 126, 31, ${edgeFade})`
+      colors.depthColor = COLORS.tileGoldDepth
+    }
 
     ctx.fillStyle = colors.baseColor
     ctx.beginPath()
@@ -346,8 +375,8 @@ export class Lane {
     ctx.fillStyle = this.getTileShineGradient(ctx, tileW, tileH)
     ctx.fill()
 
-    ctx.fillStyle = colors.charColor
     ctx.font = this.font
+    ctx.fillStyle = colors.charColor
     ctx.fillText(ch.char, 0, -1)
 
     const points = getLetterValue(ch.char)
@@ -384,42 +413,61 @@ export class Lane {
     depthColor: string
     charColor: string
   } {
-    let baseColor = `rgba(224, 187, 79, ${bgAlpha * baseAlpha})`
-    let borderColor = `rgba(189, 143, 40, ${baseAlpha})`
+    let baseColor = `rgba(210, 167, 66, ${bgAlpha * baseAlpha})`
+    let borderColor = `rgba(174, 126, 31, ${baseAlpha})`
     let depthColor = COLORS.tileGoldDepth
-    let r = Math.round(224 + colorT * 31)
-    let g = Math.round(187 + colorT * 54)
-    let b = Math.round(79 + colorT * 176)
+    let startR = 126
+    let startG = 88
+    let startB = 28
+    let endR = 245
+    let endG = 241
+    let endB = 232
 
     if (multiplierType === 'DoubleLetter') {
       baseColor = `rgba(91, 155, 213, ${bgAlpha * baseAlpha})`
       borderColor = `rgba(63, 107, 168, ${baseAlpha})`
       depthColor = 'rgba(50, 85, 140, 0.4)'
-      r = Math.round(63 + colorT * 192)
-      g = Math.round(107 + colorT * 148)
-      b = Math.round(168 + colorT * 87)
+      startR = 63
+      startG = 107
+      startB = 168
+      endR = 255
+      endG = 255
+      endB = 255
     } else if (multiplierType === 'TripleLetter') {
       baseColor = `rgba(34, 166, 153, ${bgAlpha * baseAlpha})`
       borderColor = `rgba(23, 124, 114, ${baseAlpha})`
       depthColor = 'rgba(20, 100, 95, 0.4)'
-      r = Math.round(23 + colorT * 222)
-      g = Math.round(124 + colorT * 117)
-      b = Math.round(114 + colorT * 118)
+      startR = 23
+      startG = 124
+      startB = 114
+      endR = 245
+      endG = 241
+      endB = 232
     } else if (multiplierType === 'DoubleWord') {
       baseColor = `rgba(231, 76, 60, ${bgAlpha * baseAlpha})`
       borderColor = `rgba(184, 61, 47, ${baseAlpha})`
       depthColor = 'rgba(150, 50, 40, 0.4)'
-      r = Math.round(184 + colorT * 71)
-      g = Math.round(61 + colorT * 194)
-      b = Math.round(47 + colorT * 208)
+      startR = 184
+      startG = 61
+      startB = 47
+      endR = 255
+      endG = 255
+      endB = 255
     } else if (multiplierType === 'TripleWord') {
       baseColor = `rgba(142, 68, 173, ${bgAlpha * baseAlpha})`
       borderColor = `rgba(115, 45, 145, ${baseAlpha})`
       depthColor = 'rgba(90, 30, 120, 0.4)'
-      r = Math.round(115 + colorT * 130)
-      g = Math.round(45 + colorT * 196)
-      b = Math.round(145 + colorT * 87)
+      startR = 115
+      startG = 45
+      startB = 145
+      endR = 245
+      endG = 241
+      endB = 232
     }
+
+    const r = Math.round(startR + (endR - startR) * colorT)
+    const g = Math.round(startG + (endG - startG) * colorT)
+    const b = Math.round(startB + (endB - startB) * colorT)
 
     return {
       baseColor,
