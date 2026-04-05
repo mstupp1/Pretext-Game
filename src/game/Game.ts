@@ -2204,13 +2204,14 @@ export class Game {
       ? Math.sin(Date.now() * (0.0038 + multiplierTier * 0.00022))
       : 0
     const badgeScale = 1 + multiplierTier * 0.022 + pulse * (0.01 + multiplierTier * 0.003)
-    const trayLetterFont = '800 18px "Cormorant Garamond", "Palatino Linotype", Palatino, Georgia, serif'
-    const operatorFont = CANVAS_FONTS.laneMedium(13)
-    const summaryFont = CANVAS_FONTS.laneMedium(15)
-    const timeFont = CANVAS_FONTS.laneMedium(14)
-    const badgeFont = CANVAS_FONTS.laneBold(14)
+    const trayValueFont = '700 14px Georgia, "Times New Roman", serif'
+    const operatorFont = CANVAS_FONTS.laneMedium(12)
+    const summaryValueFont = '700 16px Georgia, "Times New Roman", serif'
+    const summaryLabelFont = CANVAS_FONTS.laneMedium(13)
+    const timeFont = '700 15px Georgia, "Times New Roman", serif'
+    const badgeFont = '700 10px Georgia, "Times New Roman", serif'
     const badgeWidth = hasMultiplierBadge
-      ? Math.max(38, measureTextWidth(`×${preview.wordMultiplier}`, badgeFont) + 16)
+      ? Math.max(28, measureTextWidth(`×${preview.wordMultiplier}`, badgeFont) + 8)
       : 0
     const hasLengthBonus = preview.lengthBonus > 0
     const baseText = String(preview.letterScore)
@@ -2220,44 +2221,56 @@ export class Game {
     const bonusValueText = String(preview.lengthBonus)
     const openParenWidth = hasLengthBonus ? measureTextWidth(openParen, operatorFont) : 0
     const closeParenWidth = hasLengthBonus ? measureTextWidth(closeParen, operatorFont) : 0
-    const baseWidth = measureTextWidth(baseText, trayLetterFont)
+    const baseWidth = measureTextWidth(baseText, trayValueFont)
     const plusWidth = measureTextWidth(plusGlyph, operatorFont)
-    const bonusWidth = hasLengthBonus ? measureTextWidth(bonusValueText, trayLetterFont) : 0
-    const formulaGroupWidth = (hasLengthBonus ? openParenWidth + 6 : 0)
+    const bonusWidth = hasLengthBonus ? measureTextWidth(bonusValueText, trayValueFont) : 0
+    const formulaGroupWidth = (hasLengthBonus ? openParenWidth + 4 : 0)
       + baseWidth
-      + (hasLengthBonus ? 9 + plusWidth + 9 + bonusWidth + 6 + closeParenWidth : 0)
-      + (hasMultiplierBadge ? 12 + badgeWidth : 0)
-    const pointsText = `${preview.totalScore} pts`
-    const pointsWidth = measureTextWidth(pointsText, summaryFont)
+      + (hasLengthBonus ? 7 + plusWidth + 7 + bonusWidth + 4 + closeParenWidth : 0)
+      + (hasMultiplierBadge ? 14 + badgeWidth : 0)
+    const pointsValueWidth = measureTextWidth(String(preview.totalScore), summaryValueFont)
+    const pointsLabelGap = 2
+    const pointsTrailingGap = 10
+    const pointsLabelWidth = measureTextWidth('pts', summaryLabelFont)
+    const pointsWidth = pointsValueWidth + pointsLabelGap + pointsLabelWidth + pointsTrailingGap
     const timeText = hasTimeBonus ? `+${preview.timeBonus}s` : ''
     const timeWidth = hasTimeBonus ? measureTextWidth(timeText, timeFont) : 0
-    const summaryGap = hasTimeBonus ? 18 : 0
+    const summaryDividerGap = hasTimeBonus ? 12 : 0
+    const summaryGap = hasTimeBonus ? summaryDividerGap * 2 : 0
     const summaryBlockWidth = hasTimeBonus ? pointsWidth + summaryGap + timeWidth : pointsWidth
-    const outerPadding = 16
-    const formulaStartPadding = 20
-    const dividerGap = 10
-    const summaryPadding = 10
-    const equalsFont = CANVAS_FONTS.laneMedium(14)
+    const leftPadding = 18
+    const rightPadding = 18
+    const formulaToEqualsGap = 8
+    const equalsToSummaryGap = 8
+    const summaryPadding = 8
+    const equalsFont = CANVAS_FONTS.laneMedium(13)
     const equalsText = '='
     const equalsWidth = measureTextWidth(equalsText, equalsFont)
     const summarySectionWidth = summaryBlockWidth + summaryPadding * 2
-    const width = Math.ceil(formulaGroupWidth + summarySectionWidth + outerPadding * 2 + dividerGap)
+    const width = Math.ceil(
+      leftPadding
+      + formulaGroupWidth
+      + formulaToEqualsGap
+      + equalsWidth
+      + equalsToSummaryGap
+      + summarySectionWidth
+      + rightPadding
+    )
     const x = (GAME_WIDTH - width) / 2
     const y = trayY - height - Game.TRAY_PREVIEW_GAP
     const path = this.createRoundedRectPath(x, y, width, height, 12)
-    const leftInset = x + formulaStartPadding
-    const dividerX = x + width - summarySectionWidth - dividerGap
+    const formulaX = x + leftPadding
     const formulaCenterY = y + height / 2 + 0.5
-    const formulaX = leftInset + Math.max(0, (dividerX - leftInset - 8 - formulaGroupWidth) / 2)
     const badgeCenterX = formulaX
       + baseWidth
-      + (hasLengthBonus ? 9 + plusWidth + 9 + bonusWidth : 0)
-      + 12
+      + (hasLengthBonus ? 7 + plusWidth + 7 + bonusWidth + 4 + closeParenWidth : 0)
+      + 14
       + badgeWidth / 2
     const badgeX = badgeCenterX - badgeWidth / 2
     const badgeY = y + 4
     const badgeHeight = height - 8
-    const summaryLeft = dividerX + dividerGap + summaryPadding
+    const equalsCenterX = formulaX + formulaGroupWidth + formulaToEqualsGap + equalsWidth / 2
+    const summaryLeft = equalsCenterX + equalsWidth / 2 + equalsToSummaryGap + summaryPadding
     const pointsCenterX = hasTimeBonus ? summaryLeft + pointsWidth / 2 : summaryLeft + summaryBlockWidth / 2
     const timeCenterX = summaryLeft + pointsWidth + summaryGap + timeWidth / 2
 
@@ -2281,26 +2294,26 @@ export class Game {
 
     if (hasLengthBonus) {
       renderText(ctx, openParen, formulaX, formulaCenterY, operatorFont, COLORS.muted)
-      renderText(ctx, baseText, formulaX + openParenWidth + 6, formulaCenterY, trayLetterFont, COLORS.espresso)
-      renderText(ctx, plusGlyph, formulaX + openParenWidth + 6 + baseWidth + 9, formulaCenterY, operatorFont, COLORS.muted)
+      renderText(ctx, baseText, formulaX + openParenWidth + 4, formulaCenterY, trayValueFont, COLORS.espresso)
+      renderText(ctx, plusGlyph, formulaX + openParenWidth + 4 + baseWidth + 7, formulaCenterY, operatorFont, COLORS.muted)
       renderText(
         ctx,
         bonusValueText,
-        formulaX + openParenWidth + 6 + baseWidth + 9 + plusWidth + 9,
+        formulaX + openParenWidth + 4 + baseWidth + 7 + plusWidth + 7,
         formulaCenterY,
-        trayLetterFont,
-        COLORS.gold,
+        trayValueFont,
+        COLORS.green,
       )
       renderText(
         ctx,
         closeParen,
-        formulaX + openParenWidth + 6 + baseWidth + 9 + plusWidth + 9 + bonusWidth + 6,
+        formulaX + openParenWidth + 4 + baseWidth + 7 + plusWidth + 7 + bonusWidth + 4,
         formulaCenterY,
         operatorFont,
         COLORS.muted,
       )
     } else {
-      renderText(ctx, baseText, formulaX, formulaCenterY, trayLetterFont, COLORS.espresso)
+      renderText(ctx, baseText, formulaX, formulaCenterY, trayValueFont, COLORS.espresso)
     }
 
     if (hasMultiplierBadge) {
@@ -2311,7 +2324,7 @@ export class Game {
 
       const badgePath = this.createRoundedRectPath(badgeX, badgeY, badgeWidth, badgeHeight, 10)
       const badgeGradient = ctx.createLinearGradient(badgeX, badgeY, badgeX, badgeY + badgeHeight)
-      badgeGradient.addColorStop(0, 'rgba(255, 255, 255, 0.18)')
+      badgeGradient.addColorStop(0, multiplierStyle.fill)
       badgeGradient.addColorStop(0.16, multiplierStyle.fill)
       badgeGradient.addColorStop(1, multiplierStyle.fill)
       ctx.shadowColor = multiplierStyle.glow
@@ -2327,7 +2340,7 @@ export class Game {
         ctx,
         `×${preview.wordMultiplier}`,
         badgeCenterX,
-        badgeY + badgeHeight / 2 + 0.5,
+        badgeY + badgeHeight / 2,
         badgeFont,
         multiplierStyle.text,
         'center',
@@ -2335,13 +2348,15 @@ export class Game {
       ctx.restore()
     }
 
-    renderText(ctx, equalsText, dividerX + equalsWidth / 2, formulaCenterY, equalsFont, COLORS.muted, 'center')
-    renderText(ctx, pointsText, pointsCenterX, formulaCenterY, summaryFont, COLORS.espresso, 'center')
+    renderText(ctx, equalsText, equalsCenterX, formulaCenterY, equalsFont, COLORS.muted, 'center')
+    renderText(ctx, String(preview.totalScore), pointsCenterX - pointsLabelWidth / 2, formulaCenterY, summaryValueFont, COLORS.espresso, 'center')
+    renderText(ctx, 'pts', pointsCenterX + pointsValueWidth / 2 + pointsLabelGap - 1, formulaCenterY, summaryLabelFont, COLORS.espresso)
 
     if (hasTimeBonus) {
+      const summaryDividerX = summaryLeft + pointsWidth + summaryDividerGap
       ctx.beginPath()
-      ctx.moveTo(summaryLeft + pointsWidth + summaryGap / 2, y + 5)
-      ctx.lineTo(summaryLeft + pointsWidth + summaryGap / 2, y + height - 5)
+      ctx.moveTo(summaryDividerX, y + 5)
+      ctx.lineTo(summaryDividerX, y + height - 5)
       ctx.stroke()
       renderText(ctx, timeText, timeCenterX, formulaCenterY, timeFont, COLORS.gold, 'center')
     }
