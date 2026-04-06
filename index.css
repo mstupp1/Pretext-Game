@@ -134,7 +134,7 @@ html, body {
     radial-gradient(110% 90% at 18% 14%, rgba(214, 176, 142, 0.07), rgba(214, 176, 142, 0) 34%),
     radial-gradient(95% 80% at 80% 86%, rgba(44, 24, 16, 0.1), rgba(44, 24, 16, 0) 50%),
     linear-gradient(180deg, rgba(255, 245, 232, 0.03), rgba(255, 245, 232, 0) 18%, rgba(16, 8, 5, 0.06) 100%);
-  background-size: 175% 175%, cover, cover, cover, cover;
+  background-size: 112% 112%, cover, cover, cover, cover;
   background-position: center, center, center, center, center;
   background-blend-mode: overlay, multiply, screen, multiply, normal;
   clip-path: path('M 26 606 L 26 34 Q 26 16 40 16 Q 138 13 245 14 Q 350 19 450 26 Q 550 19 655 14 Q 762 13 860 16 Q 874 16 874 34 L 874 606 Q 874 624 860 624 Q 762 622 655 621 Q 550 624 450 628 Q 350 624 245 621 Q 138 622 40 624 Q 26 624 26 606 Z');
@@ -149,6 +149,7 @@ html, body {
   position: absolute;
   inset: 0;
   background:
+    radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 36%, rgba(28, 16, 11, 0.22) 64%, rgba(18, 10, 7, 0.44) 100%),
     linear-gradient(90deg, rgba(72, 46, 32, 0.2) 0, rgba(72, 46, 32, 0.08) 18px, transparent 44px, transparent calc(100% - 44px), rgba(72, 46, 32, 0.1) calc(100% - 18px), rgba(46, 27, 19, 0.22) 100%),
     linear-gradient(180deg, transparent 0, transparent calc(100% - 10px), rgba(84, 53, 37, 0.14) calc(100% - 10px), rgba(50, 30, 21, 0.22) 100%);
   clip-path: inherit;
