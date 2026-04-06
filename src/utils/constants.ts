@@ -129,3 +129,6 @@ export const ICONS = [
 
 // Roman numerals for chapter display
 export const ROMAN_NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'] as const
+
+// Points required to unlock each chapter
+export const CHAPTER_POINTS = [100, 300, 750, 1200, 1800, 2500, 3500, 5000, 7000, 10000] as const

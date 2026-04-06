@@ -6,7 +6,7 @@ import { Lane, type LaneConfig } from './Lane'
 import { scoreWord, type ScoreResult, getLetterValue, type ScoredLetter, type ScorePreview, getScorePreview } from './Scoring'
 import { generateLevel, getLevelAmbiencePlaybackRate, type LevelConfig } from './Levels'
 import { ParticleSystem } from '../effects/ParticleSystem'
-import { GAME_WIDTH, GAME_HEIGHT, LANE_COUNT, LANE_HEIGHT, LANE_Y_START, COLORS, CANVAS_FONTS, REGULAR_TILE_STYLE, ROMAN_NUMERALS, MAX_COLLECTED_LETTERS, TIME_BONUS, STARTING_TIME } from '../utils/constants'
+import { GAME_WIDTH, GAME_HEIGHT, LANE_COUNT, LANE_HEIGHT, LANE_Y_START, COLORS, CANVAS_FONTS, REGULAR_TILE_STYLE, ROMAN_NUMERALS, MAX_COLLECTED_LETTERS, TIME_BONUS, STARTING_TIME, CHAPTER_POINTS } from '../utils/constants'
 import { renderText, measureTextWidth, renderCurvedText, measureCharsInLine } from '../text/TextEngine'
 import { getPageCurvatureOffset } from '../text/TextStream'
 
@@ -336,9 +336,16 @@ export class Game {
     return `Chapter ${this.getChapterLabel(chapter)}`
   }
 
+  /**
+   * Returns the points required to unlock a specific chapter.
+   * If chapter is 1, returns the points needed to REACH Chapter II.
+   */
   private getRequiredScore(chapter: number = this.chapter): number | null {
     if (chapter >= Game.EPILOGUE_CHAPTER) return null
-    return 25 * chapter * (chapter + 3)
+    
+    // CHAPTER_POINTS[0] is the requirement for Chapter I (points needed to UNLOCK Chapter II)
+    const index = Math.min(chapter - 1, CHAPTER_POINTS.length - 1)
+    return CHAPTER_POINTS[index]
   }
 
   private loadLevel(chapter: number): void {
