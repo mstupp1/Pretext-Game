@@ -12,7 +12,7 @@ import { getPageCurvatureOffset } from '../text/TextStream'
 
 import { MultiplierType } from '../utils/constants'
 
-export type GameState = 'title' | 'countdown' | 'playing' | 'paused' | 'gameover'
+export type GameState = 'title' | 'countdown' | 'playing' | 'paused' | 'gameover-transition' | 'gameover'
 
 interface CollectedLetter {
   letter: string
@@ -96,6 +96,7 @@ export class Game {
   private static readonly GAME_OVER_FOOTER_LIFT = 24
   private static readonly TITLE_PROMPT_DROP = 8
   private static readonly GAME_OVER_HIGH_SCORES_LIFT = 16
+  private static readonly GAME_OVER_TRANSITION_DURATION = 1.6
 
   public state: GameState = 'title'
   public canvas: HTMLCanvasElement
@@ -150,6 +151,7 @@ export class Game {
   // Countdown state
   private countdownValue: number = 3
   private countdownTimer: number = 0
+  private gameOverTransitionTimer: number = 0
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas
@@ -307,8 +309,10 @@ export class Game {
     this.floatingScores = []
     this.particles.clear()
     this.gameOverWordPage = 0
+    this.gameOverTransitionTimer = 0
     this.player = new Player()
     this.loadLevel(1)
+    this.setLaneMotionScale(1)
     audioManager.playGameAmbience()
 
     this.setHudContentVisible(true)
@@ -322,6 +326,7 @@ export class Game {
   private beginPlaying(): void {
     audioManager.playGameMusic()
     this.state = 'playing'
+    this.setLaneMotionScale(1)
     this.updateUI()
     this.updateWordsUI()
   }
@@ -370,8 +375,19 @@ export class Game {
   private gameOver(): void {
     audioManager.playApplause(this.chapter)
     audioManager.restartTitleMusic()
-    this.state = 'gameover'
+    this.state = 'gameover-transition'
+    this.gameOverTransitionTimer = Game.GAME_OVER_TRANSITION_DURATION
+    this.keys.clear()
     this.gameOverWordPage = 0
+
+    const gameoverOverlay = document.getElementById('gameover-overlay')
+    if (gameoverOverlay) gameoverOverlay.style.display = 'none'
+  }
+
+  private showGameOverScreen(): void {
+    this.state = 'gameover'
+    this.gameOverTransitionTimer = 0
+    this.setLaneMotionScale(0)
     this.saveHighScore(this.score)
     this.setHudContentVisible(false)
     this.updateUI()
@@ -400,6 +416,8 @@ export class Game {
     this.floatingScores = []
     this.particles.clear()
     this.gameOverWordPage = 0
+    this.gameOverTransitionTimer = 0
+    this.setLaneMotionScale(1)
     if (previousState === 'gameover') {
       audioManager.playTitleMusic()
     } else {
@@ -588,6 +606,12 @@ export class Game {
     audioManager.resumeGameAmbience()
   }
 
+  private setLaneMotionScale(scale: number): void {
+    for (const lane of this.lanes) {
+      lane.setMotionScale(scale)
+    }
+  }
+
   // ── Input handling ──
 
   private onKeyDown(e: Event): void {
@@ -622,6 +646,10 @@ export class Game {
         e.preventDefault()
         this.returnToTitle()
       }
+      return
+    }
+
+    if (this.state === 'gameover-transition') {
       return
     }
 
@@ -938,6 +966,37 @@ export class Game {
       return
     }
 
+    if (this.state === 'gameover-transition') {
+      this.gameOverTransitionTimer = Math.max(0, this.gameOverTransitionTimer - dt)
+      const progress = 1 - this.gameOverTransitionTimer / Game.GAME_OVER_TRANSITION_DURATION
+      const easedMotionScale = Math.pow(Math.max(0, 1 - progress), 3)
+      this.setLaneMotionScale(easedMotionScale)
+
+      for (const lane of this.lanes) {
+        lane.update(dt, -100, -100)
+      }
+
+      this.particles.update(dt)
+
+      this.floatingScores = this.floatingScores.filter(fs => {
+        fs.y += fs.dy * dt
+        fs.alpha -= dt * 0.8
+        return fs.alpha > 0
+      })
+
+      if (this.feedback) {
+        this.feedback.timer -= dt
+        if (this.feedback.timer <= 0) {
+          this.feedback = null
+        }
+      }
+
+      if (this.gameOverTransitionTimer <= 0) {
+        this.showGameOverScreen()
+      }
+      return
+    }
+
     if (this.state !== 'playing') return
 
     // Timer
@@ -1029,16 +1088,23 @@ export class Game {
       return
     }
 
-    // Draw subtle paper texture
+    if (this.state === 'gameover-transition') {
+      this.renderBoardScene(ctx)
+      this.renderGameOverTransition(ctx)
+      return
+    }
+
+    this.renderBoardScene(ctx)
+  }
+
+  private renderBoardScene(ctx: CanvasRenderingContext2D): void {
     this.renderBackground(ctx)
     this.renderBookTopPanels(ctx)
 
-    // Render lane backgrounds and ordinary text first.
     for (const lane of this.lanes) {
       lane.renderBase(ctx, this.player.laneIndex, this.player.x)
     }
 
-    // Render highlighted/focused lane tiles globally on top of every lane.
     for (const lane of this.lanes) {
       lane.renderTopLayer(ctx)
     }
@@ -1046,13 +1112,9 @@ export class Game {
       lane.renderFocusedTopLayer(ctx)
     }
 
-    // Render player
     this.player.render(ctx)
-
-    // Render particles (on top of everything)
     this.particles.render(ctx)
 
-    // Render floating scores
     for (const fs of this.floatingScores) {
       ctx.save()
       ctx.globalAlpha = fs.alpha
@@ -1066,10 +1128,30 @@ export class Game {
     }
 
     ctx.textAlign = 'left'
-
-    // Top/bottom boundaries
     this.renderBoundaryDecoration(ctx)
     this.renderCanvasTray(ctx)
+  }
+
+  private renderGameOverTransition(ctx: CanvasRenderingContext2D): void {
+    const progress = 1 - this.gameOverTransitionTimer / Game.GAME_OVER_TRANSITION_DURATION
+    const alpha = Math.min(1, progress * 1.5)
+    const panelWidth = 320
+    const panelHeight = 116
+    const panelX = (GAME_WIDTH - panelWidth) / 2
+    const panelY = GAME_HEIGHT / 2 - 108
+
+    ctx.save()
+    ctx.globalAlpha = alpha * 0.62
+    ctx.fillStyle = COLORS.ivory
+    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT)
+    ctx.restore()
+
+    this.drawPagePanel(ctx, panelX, panelY, panelWidth, panelHeight, () => {
+      const lineY = 34
+      renderText(ctx, 'THE RUN IS OVER', 0, lineY, CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
+      renderText(ctx, 'Game Over', 0, lineY + 34, CANVAS_FONTS.title(34), COLORS.espresso, 'center')
+      renderText(ctx, 'The lanes settle before the ledger opens.', 0, lineY + 61, CANVAS_FONTS.laneItalic(14), COLORS.sepia, 'center')
+    })
   }
 
   private renderBackground(ctx: CanvasRenderingContext2D): void {
@@ -2436,7 +2518,7 @@ export class Game {
   private syncHudVisibility(): void {
     const shouldShowHud = this.state === 'countdown' || this.state === 'playing' || this.state === 'paused'
     this.setHudContentVisible(shouldShowHud)
-    this.setCompletedWordsVisible(this.state !== 'gameover')
+    this.setCompletedWordsVisible(this.state !== 'gameover' && this.state !== 'gameover-transition')
   }
 
   private updateUI(): void {

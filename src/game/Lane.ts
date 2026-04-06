@@ -106,6 +106,10 @@ export class Lane {
     }
   }
 
+  setMotionScale(scale: number): void {
+    this.stream?.setMotionScale(scale)
+  }
+
   update(dt: number, playerX: number, playerY: number): void {
     if (this.stream) {
       this.stream.update(dt, GAME_WIDTH)

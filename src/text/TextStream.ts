@@ -84,6 +84,7 @@ export class TextStream {
   private scrollOffset: number = 0
   private font: string
   private speed: number
+  private motionScale: number = 1
   private highlightRate: number
   private direction: 1 | -1
 
@@ -127,6 +128,10 @@ export class TextStream {
   public setSpeed(speed: number): void {
     this.speed = speed
     this.shimmerIntensity = 0.3 + (speed / 100) * 0.5
+  }
+
+  public setMotionScale(scale: number): void {
+    this.motionScale = Math.max(0, Math.min(1, scale))
   }
 
   public setDirection(direction: 1 | -1): void {
@@ -301,7 +306,7 @@ export class TextStream {
   }
 
   update(dt: number, viewportWidth?: number): void {
-    this.scrollOffset += this.speed * this.direction * dt
+    this.scrollOffset += this.speed * this.motionScale * this.direction * dt
     this.rippleTime += dt
     this.globalTime += dt
 
@@ -425,7 +430,7 @@ export class TextStream {
     // High-frequency, low-amplitude horizontal jitter
     const t = this.globalTime * 8 + ch.seed * 100
     const shimmer = (Math.sin(t) * 0.6 + Math.sin(t * 2.3) * 0.4) * this.shimmerIntensity
-    return shimmer
+    return shimmer * this.motionScale
   }
 
   // Get edge-based scale distortion
