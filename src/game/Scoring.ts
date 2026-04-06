@@ -7,12 +7,12 @@ const MIN_LENGTH_BONUS_WORD_LENGTH = 3
 const LENGTH_BONUS_BY_WORD_LENGTH: Record<number, number> = {
   3: 0,
   4: 2,
-  5: 6,
-  6: 12,
-  7: 20,
-  8: 30,
-  9: 40,
-  10: 50,
+  5: 4,
+  6: 7,
+  7: 12,
+  8: 18,
+  9: 24,
+  10: 30,
 }
 
 export interface ScoreResult {
