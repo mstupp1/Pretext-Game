@@ -590,7 +590,7 @@ export class Game {
     this.keys.add(event.key)
 
     if (this.state === 'title') {
-      if (event.key === ' ' || event.key === 'Enter') {
+      if (event.key === 'Enter') {
         e.preventDefault()
         this.startGame()
       }
@@ -608,7 +608,7 @@ export class Game {
       ) {
         e.preventDefault()
         this.changeGameOverWordPage(1)
-      } else if (event.key === ' ' || event.key === 'Enter') {
+      } else if (event.key === 'Enter') {
         e.preventDefault()
         this.startGame()
       } else if (event.key === 'Escape') {
@@ -1723,7 +1723,7 @@ export class Game {
       const breathe = Math.sin(this.titleTime * 2.5) * 0.3 + 0.7
       ctx.save()
       ctx.globalAlpha = sec3.alpha * breathe
-      renderText(ctx, 'Press SPACE or ENTER to begin', centerX, GAME_HEIGHT - 85 - Game.TITLE_FOOTER_LIFT + Game.TITLE_PROMPT_DROP + getOffset(centerX) + sec3.slideY,
+      renderText(ctx, 'Press ENTER to begin', centerX, GAME_HEIGHT - 85 - Game.TITLE_FOOTER_LIFT + Game.TITLE_PROMPT_DROP + getOffset(centerX) + sec3.slideY,
         CANVAS_FONTS.laneItalic(15), COLORS.sepia, 'center')
       ctx.restore()
     }
@@ -1848,7 +1848,7 @@ export class Game {
     const breathe = Math.sin(Date.now() * 0.0025) * 0.3 + 0.7
     ctx.save()
     ctx.globalAlpha = breathe
-    renderCurvedText(ctx, 'Press SPACE or ENTER to play again', centerX, GAME_HEIGHT - 84 - Game.GAME_OVER_FOOTER_LIFT,
+    renderCurvedText(ctx, 'Press ENTER to play again', centerX, GAME_HEIGHT - 84 - Game.GAME_OVER_FOOTER_LIFT,
       CANVAS_FONTS.laneItalic(15), COLORS.sepia, getOffset, 'center')
     ctx.restore()
 
