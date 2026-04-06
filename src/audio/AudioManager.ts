@@ -241,7 +241,9 @@ export class AudioManager {
     this.targetTitleVolume = 0;
     this.targetGameVolume = this.MAX_VOLUME;
     this.targetGameAmbienceVolume = this.MAX_VOLUME;
-    this.startGameMusicTrack();
+    if (!this.isCurrentGameTrackActive()) {
+      this.startGameMusicTrack();
+    }
     this.ensureGameAmbiencePlaying();
     this.startFader();
   }
@@ -428,6 +430,11 @@ export class AudioManager {
     }
 
     this.currentGameTrackIndex = nextIndex;
+  }
+
+  private isCurrentGameTrackActive(): boolean {
+    const gameTrack = this.getCurrentGameTrack();
+    return gameTrack !== null && !gameTrack.paused && gameTrack.currentTime > 0;
   }
 
   private startGameMusicTrack() {
