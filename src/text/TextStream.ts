@@ -39,11 +39,14 @@ const BLANK_WORD_MULTIPLIER_WEIGHTS: Array<{
   { type: 'TripleWord', weight: 0.28, cooldown: 2, wordMultiplierCooldown: 12 },
 ]
 type ActiveMultiplierType = Exclude<MultiplierType, 'None'>
+type ActivePowerUpType = Exclude<PowerUpType, 'None'>
 type StreamKind = 'text' | 'icon' | 'powerup'
 
 const ACTIVE_MULTIPLIER_TYPES = MULTIPLIER_WEIGHTS.map(({ type }) => type)
+const ACTIVE_POWER_UP_TYPES = POWER_UP_WEIGHTS.map(({ type }) => type)
 const MIN_HIGHLIGHT_GAP = 6
 const REBALANCE_INTERVAL = 0.25
+const MIN_BLANK_TARGET_COUNT = 1
 
 function createEmptyMultiplierCounts(): Record<ActiveMultiplierType, number> {
   return {
@@ -52,6 +55,17 @@ function createEmptyMultiplierCounts(): Record<ActiveMultiplierType, number> {
     DoubleWord: 0,
     TripleWord: 0,
   }
+}
+
+function hasNearbyPowerUp(types: PowerUpType[], index: number, radius: number): boolean {
+  const start = Math.max(0, index - radius)
+  const end = Math.min(types.length - 1, index + radius)
+
+  for (let i = start; i <= end; i++) {
+    if (i !== index && types[i] !== 'None') return true
+  }
+
+  return false
 }
 
 function getRandomShinyBonus(letter: string): number {
@@ -169,6 +183,7 @@ export class TextStream {
   private shimmerIntensity: number
   private streamKind: StreamKind
   private targetHighlightCount: number = 0
+  private targetBlankCount: number = 0
   private targetShinyCount: number = 0
   private multiplierTargets: Record<ActiveMultiplierType, number> = createEmptyMultiplierCounts()
   private rebalanceTimer: number = REBALANCE_INTERVAL
@@ -226,6 +241,7 @@ export class TextStream {
   private buildStream(scrollRatio?: number): void {
     // Combine multiple passages to create a long stream
     let text = ''
+    let powerUpChars: string[] = []
     let powerUpTypes: PowerUpType[] = []
     
     if (this.streamKind === 'icon') {
@@ -256,15 +272,18 @@ export class TextStream {
             }
           }
 
-          text += POWER_UP_ICONS[selected]
+          powerUpChars.push(POWER_UP_ICONS[selected])
           powerUpTypes.push(selected)
           continue
         }
 
-        text += ' '
+        powerUpChars.push(' ')
         powerUpTypes.push('None')
         if (cooldown > 0) cooldown--
       }
+
+      this.ensureMinimumPowerUpPresence(powerUpChars, powerUpTypes)
+      text = powerUpChars.join('')
     } else {
       for (let i = 0; i < 4; i++) {
         text += getRandomPassage() + '     '
@@ -274,6 +293,7 @@ export class TextStream {
     const measured = measureCharsInLine(text, this.font)
     this.chars = []
     this.targetHighlightCount = 0
+    this.targetBlankCount = 0
     this.targetShinyCount = 0
     this.multiplierTargets = createEmptyMultiplierCounts()
     this.rebalanceTimer = REBALANCE_INTERVAL
@@ -319,6 +339,7 @@ export class TextStream {
         if (Math.random() < BLANK_TILE_SPAWN_RATE) {
           isBlank = true
           isHighlighted = true
+          this.targetBlankCount++
 
           if (wordMultiplierCooldown <= 0) {
             const blankMultiplier = rollBlankWordMultiplier()
@@ -419,6 +440,10 @@ export class TextStream {
         inkDensity,
       })
       totalW = mc.x + mc.width
+    }
+
+    if (this.streamKind === 'text' && this.targetBlankCount < MIN_BLANK_TARGET_COUNT) {
+      this.ensureMinimumBlankTargets()
     }
 
     this.totalWidth = totalW
@@ -734,12 +759,16 @@ export class TextStream {
 
   private rebalanceCollectibles(viewportWidth: number): void {
     let activeHighlightCount = 0
+    let activeBlankCount = 0
     let activeShinyCount = 0
     const activeMultiplierCounts = createEmptyMultiplierCounts()
 
     for (const ch of this.chars) {
       if (ch.isCollected || !ch.isHighlighted) continue
       activeHighlightCount++
+      if (ch.isBlank) {
+        activeBlankCount++
+      }
       if (ch.isShiny) {
         activeShinyCount++
       }
@@ -753,8 +782,9 @@ export class TextStream {
     )
 
     const hasShinyDeficit = activeShinyCount < this.targetShinyCount
+    const hasBlankDeficit = activeBlankCount < this.targetBlankCount
 
-    if (!hasMultiplierDeficit && !hasShinyDeficit && activeHighlightCount >= this.targetHighlightCount) {
+    if (!hasMultiplierDeficit && !hasShinyDeficit && !hasBlankDeficit && activeHighlightCount >= this.targetHighlightCount) {
       return
     }
 
@@ -793,6 +823,24 @@ export class TextStream {
       activeShinyCount++
     }
 
+    while (activeBlankCount < this.targetBlankCount) {
+      const candidate = this.findBlankReplacementCandidate(visibleChars, activeHighlightIndices)
+      if (!candidate) break
+
+      const wasHighlighted = candidate.isHighlighted
+      candidate.isHighlighted = true
+      candidate.isBlank = true
+      candidate.isShiny = false
+      candidate.shinyBonus = 0
+      candidate.multiplierType = 'None'
+
+      if (!wasHighlighted) {
+        activeHighlightCount++
+        activeHighlightIndices.push(candidate.originalIndex)
+      }
+      activeBlankCount++
+    }
+
     while (activeHighlightCount < this.targetHighlightCount) {
       const candidate = this.findReplacementCandidate(visibleChars, activeHighlightIndices, false)
       if (!candidate) break
@@ -801,6 +849,50 @@ export class TextStream {
       candidate.multiplierType = 'None'
       activeHighlightCount++
       activeHighlightIndices.push(candidate.originalIndex)
+    }
+  }
+
+  private ensureMinimumPowerUpPresence(powerUpChars: string[], powerUpTypes: PowerUpType[]): void {
+    for (const type of ACTIVE_POWER_UP_TYPES) {
+      if (powerUpTypes.includes(type)) continue
+
+      const spacedCandidates: number[] = []
+      const fallbackCandidates: number[] = []
+
+      for (let i = 0; i < powerUpTypes.length; i++) {
+        if (powerUpTypes[i] !== 'None') continue
+        fallbackCandidates.push(i)
+        if (!hasNearbyPowerUp(powerUpTypes, i, MIN_HIGHLIGHT_GAP * 2)) {
+          spacedCandidates.push(i)
+        }
+      }
+
+      const pool = spacedCandidates.length > 0 ? spacedCandidates : fallbackCandidates
+      if (pool.length === 0) return
+
+      const chosenIndex = pool[Math.floor(Math.random() * pool.length)]
+      powerUpTypes[chosenIndex] = type
+      powerUpChars[chosenIndex] = POWER_UP_ICONS[type]
+    }
+  }
+
+  private ensureMinimumBlankTargets(): void {
+    while (this.targetBlankCount < MIN_BLANK_TARGET_COUNT) {
+      const activeHighlightIndices = this.chars
+        .filter(ch => ch.isHighlighted)
+        .map(ch => ch.originalIndex)
+      const candidate = this.findBlankReplacementCandidate(new Set<StreamChar>(), activeHighlightIndices)
+      if (!candidate) break
+
+      if (!candidate.isHighlighted) {
+        candidate.isHighlighted = true
+        this.targetHighlightCount++
+      }
+      candidate.isBlank = true
+      candidate.isShiny = false
+      candidate.shinyBonus = 0
+      candidate.multiplierType = 'None'
+      this.targetBlankCount++
     }
   }
 
@@ -824,6 +916,31 @@ export class TextStream {
       ch.rippleAmplitude = 0
       ch.ripplePhase = 0
     }
+  }
+
+  private findBlankReplacementCandidate(
+    visibleChars: Set<StreamChar>,
+    activeHighlightIndices: number[],
+  ): StreamChar | null {
+    const promotedHighlights: StreamChar[] = []
+    const freshHighlights: StreamChar[] = []
+
+    for (const ch of this.chars) {
+      if (!/[A-Za-z]/.test(ch.char) || ch.isCollected || ch.isBlank || ch.multiplierType !== 'None' || ch.isShiny) continue
+      if (visibleChars.has(ch)) continue
+
+      if (ch.isHighlighted) {
+        promotedHighlights.push(ch)
+        continue
+      }
+
+      if (this.hasHighlightConflict(ch.originalIndex, activeHighlightIndices)) continue
+      freshHighlights.push(ch)
+    }
+
+    const pool = promotedHighlights.length > 0 ? promotedHighlights : freshHighlights
+    if (pool.length === 0) return null
+    return pool[Math.floor(Math.random() * pool.length)]
   }
 
   private findShinyReplacementCandidate(
