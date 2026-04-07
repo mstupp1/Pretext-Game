@@ -1888,7 +1888,7 @@ export class Game {
     const parkedSlot = this.getTrayTileCenter(0, 1)
     return {
       x: GAME_WIDTH / 2,
-      y: parkedSlot.y + 18,
+      y: parkedSlot.y + 34,
       scale: 1.16,
     }
   }
@@ -2188,7 +2188,7 @@ export class Game {
       const instrFont = CANVAS_FONTS.laneItalic(14)
       const lines = [
         'Navigate through streams of flowing prose.',
-        'Collect letters and spell words for points.',
+        'Collect, bank, and swap letters to shape words.',
         'Score points to reach new chapters.',
       ]
 
@@ -2202,36 +2202,30 @@ export class Game {
       const rowSpacing = 22
       const keySize = 22
 
-      // ── WASD ──
-      const wasdX = centerX - 85
-      this.renderKey(ctx, 'W', wasdX, keysY - rowSpacing, keySize, keySize)
-      this.renderKey(ctx, 'A', wasdX - colSpacing, keysY, keySize, keySize)
-      this.renderKey(ctx, 'S', wasdX, keysY, keySize, keySize)
-      this.renderKey(ctx, 'D', wasdX + colSpacing, keysY, keySize, keySize)
-      renderText(ctx, 'MOVE', wasdX, keysY + 25, CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
-
-      // ── Arrows ──
-      const arrowsX = centerX + 85
+      const arrowsX = centerX
       this.renderKey(ctx, '↑', arrowsX, keysY - rowSpacing, keySize, keySize)
       this.renderKey(ctx, '←', arrowsX - colSpacing, keysY, keySize, keySize)
       this.renderKey(ctx, '↓', arrowsX, keysY, keySize, keySize)
       this.renderKey(ctx, '→', arrowsX + colSpacing, keysY, keySize, keySize)
-      renderText(ctx, 'OR', centerX, keysY, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted, 'center')
       renderText(ctx, 'MOVE', arrowsX, keysY + 25, CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
 
       // ── Actions ──
       const actionY = keysY + 60
-      const actionSpacing = 88
+      const actionSpacing = 78
 
-      const spaceX = centerX - actionSpacing
+      const spaceX = centerX - actionSpacing * 1.5
       this.renderKey(ctx, 'Space', spaceX, actionY, 52, 20)
       renderText(ctx, 'COLLECT', spaceX, actionY + 20, CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
 
-      const backX = centerX
+      const tabX = centerX - actionSpacing * 0.5
+      this.renderKey(ctx, 'Tab', tabX, actionY, 52, 20)
+      renderText(ctx, 'BANK', tabX, actionY + 20, CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
+
+      const backX = centerX + actionSpacing * 0.5
       this.renderKey(ctx, 'Bksp', backX, actionY, 52, 20)
       renderText(ctx, 'UNDO', backX, actionY + 20, CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
 
-      const enterX = centerX + actionSpacing
+      const enterX = centerX + actionSpacing * 1.5
       this.renderKey(ctx, 'Enter', enterX, actionY, 52, 20)
       renderText(ctx, 'SUBMIT', enterX, actionY + 20, CANVAS_FONTS.uiSmallCaps(7.5), COLORS.muted, 'center')
 
