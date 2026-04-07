@@ -421,12 +421,6 @@ export class Lane {
       ctx.fillRect(-tileW / 2 - 6, -tileH / 2 - 6, tileW + 12, tileH + 12)
       ctx.restore()
 
-      ctx.strokeStyle = `rgba(${shinyAccent.border[0]}, ${shinyAccent.border[1]}, ${shinyAccent.border[2]}, ${baseAlpha * 0.8})`
-      ctx.lineWidth = 1
-      ctx.beginPath()
-      ctx.roundRect(-tileW / 2 + 0.75, -tileH / 2 + 0.75, tileW - 1.5, tileH - 1.5, Math.max(2, borderRadius - 1))
-      ctx.stroke()
-
       if (!isFocused) {
         ctx.strokeStyle = `rgba(${shinyAccent.bright[0]}, ${shinyAccent.bright[1]}, ${shinyAccent.bright[2]}, ${0.24 + shinyPulse * 0.48})`
         ctx.lineWidth = 1.1 + shinyPulse * 0.7
