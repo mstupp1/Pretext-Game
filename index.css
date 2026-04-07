@@ -403,20 +403,24 @@ html, body {
   text-shadow: none;
 }
 
-.completed-word .tray-tile.multiplier-DoubleLetter {
-  border-color: #3F6BA8 !important;
+.completed-word .tray-tile.is-shiny.multiplier-DoubleLetter {
+  border: 1px solid #3F6BA8 !important;
+  border-bottom: 2px solid #3F6BA8 !important;
 }
 
-.completed-word .tray-tile.multiplier-TripleLetter {
-  border-color: #177C72 !important;
+.completed-word .tray-tile.is-shiny.multiplier-TripleLetter {
+  border: 1px solid #177C72 !important;
+  border-bottom: 2px solid #177C72 !important;
 }
 
-.completed-word .tray-tile.multiplier-DoubleWord {
-  border-color: #B83D2F !important;
+.completed-word .tray-tile.is-shiny.multiplier-DoubleWord {
+  border: 1px solid #B83D2F !important;
+  border-bottom: 2px solid #B83D2F !important;
 }
 
-.completed-word .tray-tile.multiplier-TripleWord {
-  border-color: #732D91 !important;
+.completed-word .tray-tile.is-shiny.multiplier-TripleWord {
+  border: 1px solid #732D91 !important;
+  border-bottom: 2px solid #732D91 !important;
 }
 
 @keyframes shiny-sweep {
