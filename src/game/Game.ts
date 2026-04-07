@@ -2489,7 +2489,7 @@ export class Game {
     width: number,
     height: number,
   ): void {
-    const { fill, border, text } = this.getTrayTilePalette(letter.multiplierType, letter.isShiny)
+    const { fill, border, text } = this.getTrayTilePalette(letter.multiplierType, false)
     const shinyAccent = this.getShinyTileAccent(letter.multiplierType)
     const x = centerX - width / 2
     const y = centerY - height / 2
