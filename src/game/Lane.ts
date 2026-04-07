@@ -548,13 +548,13 @@ export class Lane {
   } {
     switch (multiplierType) {
       case 'DoubleLetter':
-        return { glow: [91, 155, 213], bright: [228, 242, 255], border: [63, 107, 168], badgeFill: [202, 226, 249] }
+        return { glow: [91, 155, 213], bright: [228, 242, 255], border: [141, 188, 233], badgeFill: [202, 226, 249] }
       case 'TripleLetter':
-        return { glow: [34, 166, 153], bright: [222, 249, 244], border: [23, 124, 114], badgeFill: [184, 232, 226] }
+        return { glow: [34, 166, 153], bright: [222, 249, 244], border: [107, 230, 217], badgeFill: [184, 232, 226] }
       case 'DoubleWord':
-        return { glow: [231, 76, 60], bright: [255, 233, 228], border: [184, 61, 47], badgeFill: [248, 200, 191] }
+        return { glow: [231, 76, 60], bright: [255, 233, 228], border: [241, 154, 142], badgeFill: [248, 200, 191] }
       case 'TripleWord':
-        return { glow: [142, 68, 173], bright: [244, 231, 251], border: [115, 45, 145], badgeFill: [223, 193, 237] }
+        return { glow: [142, 68, 173], bright: [244, 231, 251], border: [200, 157, 226], badgeFill: [223, 193, 237] }
       default:
         return { glow: [240, 201, 108], bright: [250, 242, 220], border: [214, 164, 66], badgeFill: [238, 212, 140] }
     }

@@ -1459,6 +1459,9 @@ export class Game {
   ): void {
     const { fill, border, text } = this.getTrayTilePalette(letter.multiplierType, letter.isShiny)
     const shinyAccent = this.getShinyTileAccent(letter.multiplierType)
+    const borderPulse = letter.isShiny
+      ? (Math.sin(Date.now() * 0.0014 + centerX * 0.01 + centerY * 0.004) + 1) * 0.5
+      : 0
     const x = centerX - width / 2
     const y = centerY - height / 2
     const tilePath = this.createRoundedRectPath(x, y, width, height, 5)
@@ -1581,17 +1584,42 @@ export class Game {
     ctx.fill()
 
     if (letter.isShiny) {
-      const shimmerPhase = (Date.now() * 0.0015 + centerX * 0.014 + centerY * 0.009) % 1
-      const shimmerX = x - width * 0.4 + shimmerPhase * width * 1.7
-      const shimmer = ctx.createLinearGradient(shimmerX, y, shimmerX + width * 0.26, y + height)
-      shimmer.addColorStop(0, 'rgba(255, 255, 255, 0)')
-      shimmer.addColorStop(0.38, 'rgba(255, 255, 255, 0.22)')
-      shimmer.addColorStop(0.52, shinyAccent.bright)
-      shimmer.addColorStop(0.66, shinyAccent.glow)
-      shimmer.addColorStop(1, 'rgba(255, 255, 255, 0)')
+      const baseShimmer = ctx.createLinearGradient(x - width * 0.1, y + 1, x + width * 0.9, y + height - 1)
+      baseShimmer.addColorStop(0, 'rgba(255, 255, 255, 0)')
+      baseShimmer.addColorStop(0.22, 'rgba(255, 255, 255, 0.08)')
+      baseShimmer.addColorStop(0.4, shinyAccent.bright)
+      baseShimmer.addColorStop(0.58, shinyAccent.glow)
+      baseShimmer.addColorStop(0.76, 'rgba(255, 255, 255, 0.07)')
+      baseShimmer.addColorStop(1, 'rgba(255, 255, 255, 0)')
       ctx.globalCompositeOperation = 'screen'
-      ctx.fillStyle = shimmer
-      ctx.fillRect(x - 4, y - 4, width + 8, height + 8)
+      ctx.globalAlpha = 0.34
+      ctx.fillStyle = baseShimmer
+      ctx.fillRect(x - 3, y - 3, width + 6, height + 6)
+
+      const shimmerCycle = (Date.now() * 0.00024 + centerX * 0.01 + centerY * 0.006) % 1
+      const shimmerActiveWindow = 0.42
+      if (shimmerCycle < shimmerActiveWindow) {
+        const shimmerPhase = shimmerCycle / shimmerActiveWindow
+        const sweepOpacity = Math.sin(shimmerPhase * Math.PI)
+        const shimmerX = x - width * 0.9 + shimmerPhase * width * 2.8
+        const shimmer = ctx.createLinearGradient(shimmerX, y - 2, shimmerX + width * 0.6, y + height + 2)
+        shimmer.addColorStop(0, 'rgba(255, 255, 255, 0)')
+        shimmer.addColorStop(0.26, 'rgba(255, 255, 255, 0.18)')
+        shimmer.addColorStop(0.42, shinyAccent.bright)
+        shimmer.addColorStop(0.5, 'rgba(255, 255, 255, 0.55)')
+        shimmer.addColorStop(0.58, shinyAccent.glow)
+        shimmer.addColorStop(0.72, 'rgba(255, 255, 255, 0.18)')
+        shimmer.addColorStop(1, 'rgba(255, 255, 255, 0)')
+        ctx.globalCompositeOperation = 'screen'
+        ctx.globalAlpha = 0.7 * sweepOpacity
+        ctx.fillStyle = shimmer
+        ctx.fillRect(x - 6, y - 6, width + 12, height + 12)
+        ctx.globalCompositeOperation = 'lighter'
+        ctx.globalAlpha = 0.55 * sweepOpacity
+        ctx.fillStyle = shimmer
+        ctx.fillRect(x - 6, y - 6, width + 12, height + 12)
+      }
+      ctx.globalAlpha = 1
       ctx.globalCompositeOperation = 'source-over'
     }
     ctx.restore()
@@ -1604,8 +1632,8 @@ export class Game {
       ctx.save()
       ctx.strokeStyle = shinyAccent.border
       ctx.shadowColor = shinyAccent.glow
-      ctx.shadowBlur = 10
-      ctx.lineWidth = 1.6
+      ctx.shadowBlur = 6 + borderPulse * 7
+      ctx.lineWidth = 1.3 + borderPulse * 0.55
       ctx.stroke(this.createRoundedRectPath(x + 0.75, y + 0.75, width - 1.5, height - 1.5, 4))
       ctx.restore()
       ctx.strokeStyle = shinyAccent.border
@@ -1724,13 +1752,13 @@ export class Game {
   private getTrayTilePalette(multiplierType: MultiplierType, isShiny: boolean = false): { fill: string; border: string; text: string } {
     const shinyBorder = isShiny
       ? multiplierType === 'DoubleLetter'
-        ? '#3F6BA8'
+        ? '#8DBCE9'
         : multiplierType === 'TripleLetter'
-          ? '#177C72'
+          ? '#6BE6D9'
           : multiplierType === 'DoubleWord'
-            ? '#B83D2F'
+            ? '#F19A8E'
             : multiplierType === 'TripleWord'
-              ? '#732D91'
+              ? '#C89DE2'
               : REGULAR_TILE_STYLE.border
       : null
     switch (multiplierType) {
@@ -1754,13 +1782,13 @@ export class Game {
   } {
     switch (multiplierType) {
       case 'DoubleLetter':
-        return { glow: 'rgba(91, 155, 213, 0.42)', bright: 'rgba(228, 242, 255, 0.36)', border: 'rgba(63, 107, 168, 0.88)' }
+        return { glow: 'rgba(91, 155, 213, 0.42)', bright: 'rgba(228, 242, 255, 0.36)', border: 'rgba(141, 188, 233, 0.92)' }
       case 'TripleLetter':
-        return { glow: 'rgba(34, 166, 153, 0.42)', bright: 'rgba(222, 249, 244, 0.34)', border: 'rgba(23, 124, 114, 0.88)' }
+        return { glow: 'rgba(34, 166, 153, 0.42)', bright: 'rgba(222, 249, 244, 0.34)', border: 'rgba(107, 230, 217, 0.92)' }
       case 'DoubleWord':
-        return { glow: 'rgba(231, 76, 60, 0.4)', bright: 'rgba(255, 233, 228, 0.34)', border: 'rgba(184, 61, 47, 0.88)' }
+        return { glow: 'rgba(231, 76, 60, 0.4)', bright: 'rgba(255, 233, 228, 0.34)', border: 'rgba(241, 154, 142, 0.92)' }
       case 'TripleWord':
-        return { glow: 'rgba(142, 68, 173, 0.4)', bright: 'rgba(244, 231, 251, 0.34)', border: 'rgba(115, 45, 145, 0.88)' }
+        return { glow: 'rgba(142, 68, 173, 0.4)', bright: 'rgba(244, 231, 251, 0.34)', border: 'rgba(200, 157, 226, 0.92)' }
       default:
         return { glow: COLORS.shinyGlow, bright: 'rgba(255, 250, 230, 0.36)', border: 'rgba(240, 201, 108, 0.88)' }
     }
