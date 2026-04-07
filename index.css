@@ -334,6 +334,7 @@ html, body {
   font-size: 9px; /* Larger even for mini-tiles */
   bottom: 2px;
   right: 2px;
+  color: rgba(245, 241, 232, 1);
 }
 
 .tray-tile.is-shiny {
@@ -384,6 +385,14 @@ html, body {
 .tray-tile.is-boosted.multiplier-DoubleWord .tile-points {
   color: #8FE86B !important;
   text-shadow: 0 0 6px rgba(143, 232, 107, 0.38);
+}
+
+.completed-word .tray-tile.multiplier-DoubleLetter .tile-points,
+.completed-word .tray-tile.multiplier-TripleLetter .tile-points,
+.completed-word .tray-tile.multiplier-DoubleWord .tile-points,
+.completed-word .tray-tile.multiplier-TripleWord .tile-points {
+  color: rgba(245, 241, 232, 1) !important;
+  text-shadow: none;
 }
 
 @keyframes shiny-sweep {

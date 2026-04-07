@@ -1460,7 +1460,7 @@ export class Game {
     const { fill, border, text } = this.getTrayTilePalette(letter.multiplierType, letter.isShiny)
     const shinyAccent = this.getShinyTileAccent(letter.multiplierType)
     const borderPulsePhase = letter.isShiny
-      ? ((Date.now() * 0.0012 + centerX * 0.01 + centerY * 0.004) % 1)
+      ? ((Date.now() * 0.00075 + centerX * 0.01 + centerY * 0.004) % 1)
       : 0
     const borderPulse = letter.isShiny
       ? 1 - Math.abs(borderPulsePhase * 2 - 1)
