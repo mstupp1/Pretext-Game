@@ -24,8 +24,8 @@ export function generateLevel(chapter: number): LevelConfig {
 
   for (let i = 0; i < LANE_COUNT; i++) {
     if (SAFE_ZONE_INDICES.includes(i)) {
-      // Safe zones now scroll horizontally with icons - slightly different speeds for top/bottom
-      const safeSpeed = i === 0 ? 22 : 28
+      // Power-up lanes should outrun the regular text lanes.
+      const safeSpeed = (i === 0 ? 150 : 162) * speedMultiplier
       laneConfigs.push({
         index: i,
         speed: safeSpeed,

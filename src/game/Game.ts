@@ -3077,20 +3077,20 @@ export class Game {
       renderText(ctx, 'UPGRADES', -width / 2 + 12, 13, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted)
       this.renderUpgradeRow(
         ctx,
-        POWER_UP_ICONS.Wisdom,
-        'Wisdom',
-        this.wisdom,
-        `+${this.formatMultiplierBonusValue(this.multiplierBonus)} multiplier`,
+        POWER_UP_ICONS.Knowledge,
+        'Knowledge',
+        this.knowledge,
+        `+${this.baseWordBonus} base`,
         -width / 2 + 12,
         34,
         width / 2 - 12,
       )
       this.renderUpgradeRow(
         ctx,
-        POWER_UP_ICONS.Knowledge,
-        'Knowledge',
-        this.knowledge,
-        `+${this.baseWordBonus} base`,
+        POWER_UP_ICONS.Wisdom,
+        'Wisdom',
+        this.wisdom,
+        `+${this.formatMultiplierBonusValue(this.multiplierBonus)} multiplier`,
         -width / 2 + 12,
         56,
         width / 2 - 12,
