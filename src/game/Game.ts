@@ -147,6 +147,7 @@ export class Game {
   private renderAssets: RenderAssets
   private trayTexture: HTMLImageElement | null
   private timerCapacity: number = STARTING_TIME
+  private animatedChapterProgress: number = 0
   private lastHudScore: string | null = null
   private lastHudLevel: string | null = null
   private lastHudTimer: string | null = null
@@ -408,12 +409,29 @@ export class Game {
     return Math.max(0, Math.min(1, chapterScore / chapterRange))
   }
 
+  private updateAnimatedChapterProgress(dt: number): void {
+    const target = this.getChapterProgress()
+
+    if (target <= this.animatedChapterProgress) {
+      this.animatedChapterProgress = target
+      return
+    }
+
+    const smoothing = 1 - Math.exp(-dt * 10)
+    this.animatedChapterProgress += (target - this.animatedChapterProgress) * smoothing
+
+    if (Math.abs(target - this.animatedChapterProgress) < 0.001) {
+      this.animatedChapterProgress = target
+    }
+  }
+
   private loadLevel(chapter: number): void {
     this.chapter = chapter
     this.level = generateLevel(chapter)
     const chapterTime = chapter === 1 ? STARTING_TIME : this.level.timeLimit
     this.timeRemaining = chapterTime
     this.timerCapacity = chapterTime
+    this.animatedChapterProgress = this.getChapterProgress()
     this.player.reset()
     this.buildLanes()
     audioManager.setGameAmbiencePlaybackRate(getLevelAmbiencePlaybackRate(this.level))
@@ -1006,6 +1024,7 @@ export class Game {
 
   update(dt: number): void {
     this.syncHudVisibility()
+    this.updateAnimatedChapterProgress(dt)
 
     if (this.state === 'title') {
       if (!this.hasPlayedTitleIntro) {
@@ -2454,7 +2473,7 @@ export class Game {
       ctx.fillStyle = 'rgba(44, 24, 16, 0.12)'
       ctx.fill()
       if (nextTarget !== null) {
-        const chapterProgress = this.getChapterProgress()
+        const chapterProgress = this.animatedChapterProgress
         ctx.beginPath()
         ctx.roundRect(progressLeft, 65, progressWidth * chapterProgress, 3, 999)
         ctx.fillStyle = COLORS.gold
@@ -2834,7 +2853,7 @@ export class Game {
     const scoreText = String(this.score)
     const levelText = this.getChapterLabel()
     const nextTargetText = nextTarget === null ? 'Epilogue' : String(nextTarget)
-    const chapterProgress = this.getChapterProgress()
+    const chapterProgress = this.animatedChapterProgress
     const progressWidth = nextTarget === null
       ? '100%'
       : `${chapterProgress * 100}%`
