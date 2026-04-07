@@ -7,6 +7,7 @@ import { ICONS, MultiplierType, POWER_UP_ICONS, PowerUpType } from '../utils/con
 
 const MULTIPLIER_SPAWN_RATE = 0.018
 const SHINY_SPAWN_RATE = 0.05
+const POWER_UP_SPAWN_RATE = 0.0018
 const MULTIPLIER_WEIGHTS: Array<{
   type: Exclude<MultiplierType, 'None'>
   weight: number
@@ -17,6 +18,14 @@ const MULTIPLIER_WEIGHTS: Array<{
   { type: 'DoubleWord', weight: 0.286, cooldown: 2, wordMultiplierCooldown: 10 },
   { type: 'TripleLetter', weight: 0.214, cooldown: 2 },
   { type: 'TripleWord', weight: 0.143, cooldown: 2, wordMultiplierCooldown: 12 },
+]
+const POWER_UP_WEIGHTS: Array<{
+  type: Exclude<PowerUpType, 'None'>
+  weight: number
+  cooldown: number
+}> = [
+  { type: 'Wisdom', weight: 0.5, cooldown: 180 },
+  { type: 'Knowledge', weight: 0.5, cooldown: 220 },
 ]
 type ActiveMultiplierType = Exclude<MultiplierType, 'None'>
 type StreamKind = 'text' | 'icon' | 'powerup'
@@ -172,20 +181,32 @@ export class TextStream {
         text += pool.pop() + '       '
       }
     } else if (this.streamKind === 'powerup') {
-      const sequenceLength = 260
-      let cooldown = 18 + Math.floor(Math.random() * 10)
+      const sequenceLength = 1200
+      let cooldown = 120 + Math.floor(Math.random() * 80)
 
       for (let i = 0; i < sequenceLength; i++) {
-        if (cooldown <= 0) {
-          const powerUpType: Exclude<PowerUpType, 'None'> = Math.random() < 0.5 ? 'Wisdom' : 'Knowledge'
-          text += POWER_UP_ICONS[powerUpType]
-          powerUpTypes.push(powerUpType)
-          cooldown = 30 + Math.floor(Math.random() * 18)
-        } else {
-          text += ' '
-          powerUpTypes.push('None')
-          cooldown--
+        if (cooldown <= 0 && Math.random() < POWER_UP_SPAWN_RATE) {
+          const totalWeight = POWER_UP_WEIGHTS.reduce((sum, option) => sum + option.weight, 0)
+          let pick = Math.random() * totalWeight
+          let selected: Exclude<PowerUpType, 'None'> = 'Wisdom'
+
+          for (const option of POWER_UP_WEIGHTS) {
+            pick -= option.weight
+            if (pick <= 0) {
+              selected = option.type
+              cooldown = option.cooldown + Math.floor(Math.random() * 90)
+              break
+            }
+          }
+
+          text += POWER_UP_ICONS[selected]
+          powerUpTypes.push(selected)
+          continue
         }
+
+        text += ' '
+        powerUpTypes.push('None')
+        if (cooldown > 0) cooldown--
       }
     } else {
       for (let i = 0; i < 4; i++) {

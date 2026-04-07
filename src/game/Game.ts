@@ -2861,15 +2861,20 @@ export class Game {
   }
 
   private renderBookTopPanels(ctx: CanvasRenderingContext2D): void {
-    const statsWidth = 228
+    const upgradesWidth = 168
+    const upgradesHeight = 66
+    const statsWidth = 184
     const statsHeight = 76
-    const legendWidth = 236
-    const legendHeight = 96
-    const statsX = Game.TOP_PANEL_INSET
+    const legendWidth = 186
+    const legendHeight = 58
+    const panelGap = 10
+    const upgradesX = Game.TOP_PANEL_INSET
+    const statsX = upgradesX + upgradesWidth + panelGap
     const legendX = GAME_WIDTH - legendWidth - Game.TOP_PANEL_INSET
-    const timerCenterX = (statsX + statsWidth + legendX) / 2
+    const timerCenterX = GAME_WIDTH / 2
     const timerCenterY = Game.TOP_PANEL_Y + 52
 
+    this.renderUpgradesPanel(ctx, upgradesX, Game.TOP_PANEL_Y, upgradesWidth, upgradesHeight)
     this.renderStatsPanel(ctx, statsX, Game.TOP_PANEL_Y, statsWidth, statsHeight)
     this.renderLegendPanel(ctx, legendX, Game.TOP_PANEL_Y, legendWidth, legendHeight)
     this.renderTimerDial(ctx, timerCenterX, timerCenterY, 84)
@@ -3042,41 +3047,39 @@ export class Game {
 
   private renderLegendPanel(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number): void {
     const items = [
-      { label: 'Double Letter', color: COLORS.dlLight, border: '#3F6BA8', x: -width / 2 + 16, y: 18 },
-      { label: 'Triple Letter', color: COLORS.tlBlue, border: '#177C72', x: -width / 2 + 126, y: 18 },
-      { label: 'Double Word', color: COLORS.dwCoral, border: '#B83D2F', x: -width / 2 + 16, y: 38 },
-      { label: 'Triple Word', color: COLORS.twPurple, border: '#732D91', x: -width / 2 + 126, y: 38 },
+      { label: 'Double Letter', color: COLORS.dlLight, border: '#3F6BA8', x: -width / 2 + 12, y: 18 },
+      { label: 'Triple Letter', color: COLORS.tlBlue, border: '#177C72', x: -width / 2 + 100, y: 18 },
+      { label: 'Double Word', color: COLORS.dwCoral, border: '#B83D2F', x: -width / 2 + 12, y: 38 },
+      { label: 'Triple Word', color: COLORS.twPurple, border: '#732D91', x: -width / 2 + 100, y: 38 },
     ] as const
 
     this.drawPagePanel(ctx, x, y, width, height, () => {
       for (const item of items) {
         ctx.beginPath()
-        ctx.roundRect(item.x, item.y - 7, 12, 12, 2)
+        ctx.roundRect(item.x, item.y - 6, 10, 10, 2)
         ctx.fillStyle = item.color
         ctx.fill()
         ctx.strokeStyle = item.border
         ctx.lineWidth = 1
         ctx.stroke()
 
-        renderText(ctx, item.label, item.x + 18, item.y, CANVAS_FONTS.laneItalic(12), COLORS.muted)
+        renderText(ctx, item.label, item.x + 15, item.y - 0.5, CANVAS_FONTS.laneItalic(11), COLORS.muted)
       }
+    })
+  }
 
-      ctx.strokeStyle = 'rgba(44, 24, 16, 0.08)'
-      ctx.lineWidth = 1
-      ctx.beginPath()
-      ctx.moveTo(-width / 2 + 16, 52)
-      ctx.lineTo(width / 2 - 16, 52)
-      ctx.stroke()
-
-      renderText(ctx, 'UPGRADES', -width / 2 + 16, 66, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted)
+  private renderUpgradesPanel(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number): void {
+    this.drawPagePanel(ctx, x, y, width, height, () => {
+      renderText(ctx, 'UPGRADES', -width / 2 + 12, 11, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted)
       this.renderUpgradeRow(
         ctx,
         POWER_UP_ICONS.Wisdom,
         'Wisdom',
         this.wisdom,
-        `+${this.formatMultiplierValue(this.multiplierBonus)} mult`,
-        -width / 2 + 18,
-        80,
+        `+${this.formatMultiplierValue(this.multiplierBonus)} multiplier`,
+        -width / 2 + 12,
+        28,
+        width / 2 - 12,
       )
       this.renderUpgradeRow(
         ctx,
@@ -3084,8 +3087,9 @@ export class Game {
         'Knowledge',
         this.knowledge,
         `+${this.baseWordBonus} base`,
-        -width / 2 + 126,
-        80,
+        -width / 2 + 12,
+        49,
+        width / 2 - 12,
       )
     })
   }
@@ -3098,17 +3102,19 @@ export class Game {
     bonusText: string,
     x: number,
     y: number,
+    rightX: number,
   ): void {
     ctx.save()
-    ctx.textAlign = 'center'
+    ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
-    ctx.font = CANVAS_FONTS.icons(10)
+    ctx.font = CANVAS_FONTS.icons(9)
     ctx.fillStyle = COLORS.safeZoneInk
-    ctx.fillText(icon, x + 6, y)
+    ctx.fillText(icon, x, y)
     ctx.restore()
 
-    renderText(ctx, `${label} ${value}`, x + 16, y, CANVAS_FONTS.laneItalic(12), COLORS.sepia)
-    renderText(ctx, bonusText, x + 16, y + 11, CANVAS_FONTS.uiSmallCaps(7), COLORS.gold)
+    renderText(ctx, label, x + 18, y - 3, CANVAS_FONTS.laneItalic(11.5), COLORS.sepia)
+    renderText(ctx, String(value), rightX, y - 2, CANVAS_FONTS.laneBold(18), COLORS.espresso, 'right')
+    renderText(ctx, bonusText, rightX, y + 9, CANVAS_FONTS.uiSmallCaps(6.5), COLORS.gold, 'right')
   }
 
   private renderSelectedTrayPreview(ctx: CanvasRenderingContext2D, trayY: number, preview: ScorePreview): void {
