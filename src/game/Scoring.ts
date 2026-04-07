@@ -46,7 +46,7 @@ export interface ScoreModifiers {
 }
 
 function roundScoreValue(value: number): number {
-  return Math.round(value * 100) / 100
+  return Math.round(value)
 }
 
 export async function scoreWord(letters: ScoredLetter[], modifiers: ScoreModifiers = { baseWordBonus: 0, multiplierBonus: 0 }): Promise<ScoreResult> {

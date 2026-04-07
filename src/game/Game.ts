@@ -361,8 +361,7 @@ export class Game {
   }
 
   private formatScoreValue(value: number): string {
-    const rounded = Math.round(value * 100) / 100
-    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/\.?0+$/, '')
+    return String(value)
   }
 
   private formatMultiplierValue(value: number): string {
