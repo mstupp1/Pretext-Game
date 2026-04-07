@@ -361,6 +361,19 @@ export class Game {
     return CHAPTER_POINTS[index]
   }
 
+  private getChapterProgress(): number {
+    const nextTarget = this.getRequiredScore()
+    if (nextTarget === null) return 1
+
+    const previousTarget = this.chapter <= 1
+      ? 0
+      : (this.getRequiredScore(this.chapter - 1) ?? 0)
+    const chapterRange = Math.max(1, nextTarget - previousTarget)
+    const chapterScore = this.score - previousTarget
+
+    return Math.max(0, Math.min(1, chapterScore / chapterRange))
+  }
+
   private loadLevel(chapter: number): void {
     this.chapter = chapter
     this.level = generateLevel(chapter)
@@ -2323,8 +2336,9 @@ export class Game {
       ctx.fillStyle = 'rgba(44, 24, 16, 0.12)'
       ctx.fill()
       if (nextTarget !== null) {
+        const chapterProgress = this.getChapterProgress()
         ctx.beginPath()
-        ctx.roundRect(progressLeft, 65, progressWidth * Math.min(1, this.score / nextTarget), 3, 999)
+        ctx.roundRect(progressLeft, 65, progressWidth * chapterProgress, 3, 999)
         ctx.fillStyle = COLORS.gold
         ctx.fill()
       } else {
@@ -2702,9 +2716,10 @@ export class Game {
     const scoreText = String(this.score)
     const levelText = this.getChapterLabel()
     const nextTargetText = nextTarget === null ? 'Epilogue' : String(nextTarget)
+    const chapterProgress = this.getChapterProgress()
     const progressWidth = nextTarget === null
-      ? '0%'
-      : `${Math.min(100, (this.score / nextTarget) * 100)}%`
+      ? '100%'
+      : `${chapterProgress * 100}%`
     const timerText = this.getTimerText()
     const isTimerUrgent = this.timeRemaining <= 15
 
