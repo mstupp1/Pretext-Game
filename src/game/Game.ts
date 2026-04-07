@@ -59,6 +59,11 @@ interface CompletedWordRecord {
   chapter: number
 }
 
+interface ScorePreviewLayout {
+  width: number
+  height: number
+}
+
 type PauseConfirmAction = 'restart' | 'quit' | null
 
 interface HudElements {
@@ -2203,7 +2208,10 @@ export class Game {
     const pageRight = GAME_WIDTH / 2 - 54
     const pageCenterX = (pageLeft + pageRight) / 2
     const titleY = 74
-    const listTopY = 144
+    const masterworkEntry = this.getHighestScoringWord()
+    const masterworkTopY = 112
+    const masterworkHeight = masterworkEntry ? this.renderGameOverMasterwork(ctx, pageLeft, pageRight, pageCenterX, masterworkTopY) : 0
+    const listTopY = masterworkTopY + masterworkHeight + (masterworkEntry ? 28 : 32)
     const listBottomY = GAME_HEIGHT - 96
     const getOffset = (x: number) => getPageCurvatureOffset(x, GAME_WIDTH)
     const ledgerPages = this.getGameOverLedgerPages(pageLeft, pageRight, listTopY, listBottomY)
@@ -2298,6 +2306,82 @@ export class Game {
       renderText(ctx, 'Use \u2190 and \u2192 to turn pages', pageCenterX, listBottomY + 40 + getOffset(pageCenterX),
         CANVAS_FONTS.laneItalic(11), COLORS.sepia, 'center')
     }
+  }
+
+  private renderGameOverMasterwork(
+    ctx: CanvasRenderingContext2D,
+    pageLeft: number,
+    pageRight: number,
+    pageCenterX: number,
+    topY: number,
+  ): number {
+    const entry = this.getHighestScoringWord()
+    if (!entry) return 0
+
+    const preview = getScorePreview(entry.letters)
+    const previewLayout = this.measureScorePreviewLayout(preview)
+    const tileSize = 28
+    const tileGap = 4
+    const wordWidth = entry.letters.length * tileSize + Math.max(0, entry.letters.length - 1) * tileGap
+    const labelY = topY
+    const tilesCenterY = topY + 26
+    const previewY = topY + 48
+    const blockWidth = Math.max(wordWidth, previewLayout.width)
+    const startX = pageCenterX - wordWidth / 2
+    const blockLeft = Math.max(pageLeft, pageCenterX - blockWidth / 2 - 6)
+    const blockRight = Math.min(pageRight, pageCenterX + blockWidth / 2 + 6)
+    const getOffset = (x: number) => getPageCurvatureOffset(x, GAME_WIDTH)
+
+    renderText(ctx, 'Masterwork', pageCenterX, labelY + getOffset(pageCenterX),
+      CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
+
+    ctx.strokeStyle = COLORS.rule
+    ctx.lineWidth = 0.5
+    ctx.beginPath()
+    for (let x = blockLeft; x <= blockRight; x += 10) {
+      const offset = getOffset(x)
+      if (x === blockLeft) ctx.moveTo(x, labelY + 10 + offset)
+      else ctx.lineTo(x, labelY + 10 + offset)
+    }
+    ctx.stroke()
+
+    entry.letters.forEach((letter, index) => {
+      const tileCenterX = startX + tileSize / 2 + index * (tileSize + tileGap)
+      const tileCenterY = tilesCenterY + getOffset(tileCenterX)
+      this.renderWordLedgerTile(
+        ctx,
+        {
+          letter: letter.letter.toUpperCase(),
+          value: letter.value,
+          multiplierType: letter.multiplierType,
+          isShiny: letter.isShiny,
+          floatingX: 0,
+          floatingY: 0,
+          animProgress: 1,
+        },
+        tileCenterX,
+        tileCenterY,
+        tileSize,
+        tileSize,
+      )
+    })
+
+    this.renderScorePreviewPanel(ctx, pageCenterX - previewLayout.width / 2, previewY + getOffset(pageCenterX), preview)
+    return previewY + previewLayout.height - topY
+  }
+
+  private getHighestScoringWord(): CompletedWordRecord | null {
+    if (this.wordsFound.length === 0) return null
+
+    return this.wordsFound.reduce<CompletedWordRecord>((best, entry) => {
+      if (entry.score !== best.score) {
+        return entry.score > best.score ? entry : best
+      }
+      if (entry.letters.length !== best.letters.length) {
+        return entry.letters.length > best.letters.length ? entry : best
+      }
+      return entry.chapter >= best.chapter ? entry : best
+    }, this.wordsFound[0])
   }
 
   private getGameOverLedgerPages(
@@ -2747,8 +2831,68 @@ export class Game {
   }
 
   private renderSelectedTrayPreview(ctx: CanvasRenderingContext2D, trayY: number, preview: ScorePreview): void {
+    const layout = this.measureScorePreviewLayout(preview)
+    const x = (GAME_WIDTH - layout.width) / 2
+    const y = trayY - layout.height - Game.TRAY_PREVIEW_GAP
+    this.renderScorePreviewPanel(ctx, x, y, preview)
+  }
+
+  private measureScorePreviewLayout(preview: ScorePreview): ScorePreviewLayout {
     const hasMultiplierBadge = preview.wordMultiplier > 1
-    const height = Game.TRAY_PREVIEW_HEIGHT
+    const hasTimeBonus = preview.timeBonus > 0
+    const trayValueFont = '700 14px Georgia, "Times New Roman", serif'
+    const operatorFont = CANVAS_FONTS.laneMedium(12)
+    const summaryValueFont = '700 16px Georgia, "Times New Roman", serif'
+    const summaryLabelFont = CANVAS_FONTS.laneMedium(13)
+    const timeFont = '700 15px Georgia, "Times New Roman", serif'
+    const badgeFont = '700 10px Georgia, "Times New Roman", serif'
+    const badgeWidth = hasMultiplierBadge
+      ? Math.max(28, measureTextWidth(`×${preview.wordMultiplier}`, badgeFont) + 8)
+      : 0
+    const hasLengthBonus = preview.lengthBonus > 0
+    const openParenWidth = hasLengthBonus ? measureTextWidth('(', operatorFont) : 0
+    const closeParenWidth = hasLengthBonus ? measureTextWidth(')', operatorFont) : 0
+    const baseWidth = measureTextWidth(String(preview.letterScore), trayValueFont)
+    const plusWidth = measureTextWidth('+', operatorFont)
+    const bonusWidth = hasLengthBonus ? measureTextWidth(String(preview.lengthBonus), trayValueFont) : 0
+    const formulaGroupWidth = (hasLengthBonus ? openParenWidth + 4 : 0)
+      + baseWidth
+      + (hasLengthBonus ? 7 + plusWidth + 7 + bonusWidth + 4 + closeParenWidth : 0)
+      + (hasMultiplierBadge ? 14 + badgeWidth : 0)
+    const pointsValueWidth = measureTextWidth(String(preview.totalScore), summaryValueFont)
+    const pointsLabelGap = 2
+    const pointsTrailingGap = 10
+    const pointsLabelWidth = measureTextWidth('pts', summaryLabelFont)
+    const pointsWidth = pointsValueWidth + pointsLabelGap + pointsLabelWidth + pointsTrailingGap
+    const timeWidth = hasTimeBonus ? measureTextWidth(`+${preview.timeBonus}s`, timeFont) : 0
+    const summaryDividerGap = hasTimeBonus ? 12 : 0
+    const summaryGap = hasTimeBonus ? summaryDividerGap * 2 : 0
+    const summaryBlockWidth = hasTimeBonus ? pointsWidth + summaryGap + timeWidth : pointsWidth
+    const leftPadding = 18
+    const rightPadding = 18
+    const formulaToEqualsGap = 8
+    const equalsToSummaryGap = 8
+    const summaryPadding = 8
+    const equalsWidth = measureTextWidth('=', CANVAS_FONTS.laneMedium(13))
+    const summarySectionWidth = summaryBlockWidth + summaryPadding * 2
+
+    return {
+      width: Math.ceil(
+        leftPadding
+        + formulaGroupWidth
+        + formulaToEqualsGap
+        + equalsWidth
+        + equalsToSummaryGap
+        + summarySectionWidth
+        + rightPadding
+      ),
+      height: Game.TRAY_PREVIEW_HEIGHT,
+    }
+  }
+
+  private renderScorePreviewPanel(ctx: CanvasRenderingContext2D, x: number, y: number, preview: ScorePreview): void {
+    const layout = this.measureScorePreviewLayout(preview)
+    const hasMultiplierBadge = preview.wordMultiplier > 1
     const hasTimeBonus = preview.timeBonus > 0
     const multiplierStyle = this.getScorePreviewMultiplierStyle(preview.wordMultiplier)
     const multiplierTier = this.getPreviewMultiplierTier(preview.wordMultiplier)
@@ -2767,14 +2911,11 @@ export class Game {
       : 0
     const hasLengthBonus = preview.lengthBonus > 0
     const baseText = String(preview.letterScore)
-    const plusGlyph = '+'
-    const openParen = '('
-    const closeParen = ')'
     const bonusValueText = String(preview.lengthBonus)
-    const openParenWidth = hasLengthBonus ? measureTextWidth(openParen, operatorFont) : 0
-    const closeParenWidth = hasLengthBonus ? measureTextWidth(closeParen, operatorFont) : 0
+    const openParenWidth = hasLengthBonus ? measureTextWidth('(', operatorFont) : 0
+    const closeParenWidth = hasLengthBonus ? measureTextWidth(')', operatorFont) : 0
     const baseWidth = measureTextWidth(baseText, trayValueFont)
-    const plusWidth = measureTextWidth(plusGlyph, operatorFont)
+    const plusWidth = measureTextWidth('+', operatorFont)
     const bonusWidth = hasLengthBonus ? measureTextWidth(bonusValueText, trayValueFont) : 0
     const formulaGroupWidth = (hasLengthBonus ? openParenWidth + 4 : 0)
       + baseWidth
@@ -2791,28 +2932,12 @@ export class Game {
     const summaryGap = hasTimeBonus ? summaryDividerGap * 2 : 0
     const summaryBlockWidth = hasTimeBonus ? pointsWidth + summaryGap + timeWidth : pointsWidth
     const leftPadding = 18
-    const rightPadding = 18
     const formulaToEqualsGap = 8
     const equalsToSummaryGap = 8
     const summaryPadding = 8
     const equalsFont = CANVAS_FONTS.laneMedium(13)
-    const equalsText = '='
-    const equalsWidth = measureTextWidth(equalsText, equalsFont)
-    const summarySectionWidth = summaryBlockWidth + summaryPadding * 2
-    const width = Math.ceil(
-      leftPadding
-      + formulaGroupWidth
-      + formulaToEqualsGap
-      + equalsWidth
-      + equalsToSummaryGap
-      + summarySectionWidth
-      + rightPadding
-    )
-    const x = (GAME_WIDTH - width) / 2
-    const y = trayY - height - Game.TRAY_PREVIEW_GAP
-    const path = this.createRoundedRectPath(x, y, width, height, 12)
     const formulaX = x + leftPadding
-    const formulaCenterY = y + height / 2 + 0.5
+    const formulaCenterY = y + layout.height / 2 + 0.5
     const badgeCenterX = formulaX
       + baseWidth
       + (hasLengthBonus ? 7 + plusWidth + 7 + bonusWidth + 4 + closeParenWidth : 0)
@@ -2820,11 +2945,13 @@ export class Game {
       + badgeWidth / 2
     const badgeX = badgeCenterX - badgeWidth / 2
     const badgeY = y + 4
-    const badgeHeight = height - 8
+    const badgeHeight = layout.height - 8
+    const equalsWidth = measureTextWidth('=', equalsFont)
     const equalsCenterX = formulaX + formulaGroupWidth + formulaToEqualsGap + equalsWidth / 2
     const summaryLeft = equalsCenterX + equalsWidth / 2 + equalsToSummaryGap + summaryPadding
     const pointsCenterX = hasTimeBonus ? summaryLeft + pointsWidth / 2 : summaryLeft + summaryBlockWidth / 2
     const timeCenterX = summaryLeft + pointsWidth + summaryGap + timeWidth / 2
+    const path = this.createRoundedRectPath(x, y, layout.width, layout.height, 12)
 
     ctx.save()
     ctx.fillStyle = 'rgba(245, 241, 232, 0.88)'
@@ -2834,7 +2961,7 @@ export class Game {
     ctx.fill(path)
     ctx.restore()
 
-    const panelGradient = ctx.createLinearGradient(x, y, x, y + height)
+    const panelGradient = ctx.createLinearGradient(x, y, x, y + layout.height)
     panelGradient.addColorStop(0, 'rgba(250, 246, 238, 0.92)')
     panelGradient.addColorStop(0.55, 'rgba(245, 241, 232, 0.88)')
     panelGradient.addColorStop(1, 'rgba(233, 225, 210, 0.9)')
@@ -2845,9 +2972,9 @@ export class Game {
     ctx.stroke(path)
 
     if (hasLengthBonus) {
-      renderText(ctx, openParen, formulaX, formulaCenterY, operatorFont, COLORS.muted)
+      renderText(ctx, '(', formulaX, formulaCenterY, operatorFont, COLORS.muted)
       renderText(ctx, baseText, formulaX + openParenWidth + 4, formulaCenterY, trayValueFont, COLORS.espresso)
-      renderText(ctx, plusGlyph, formulaX + openParenWidth + 4 + baseWidth + 7, formulaCenterY, operatorFont, COLORS.muted)
+      renderText(ctx, '+', formulaX + openParenWidth + 4 + baseWidth + 7, formulaCenterY, operatorFont, COLORS.muted)
       renderText(
         ctx,
         bonusValueText,
@@ -2858,7 +2985,7 @@ export class Game {
       )
       renderText(
         ctx,
-        closeParen,
+        ')',
         formulaX + openParenWidth + 4 + baseWidth + 7 + plusWidth + 7 + bonusWidth + 4,
         formulaCenterY,
         operatorFont,
@@ -2888,19 +3015,11 @@ export class Game {
       ctx.strokeStyle = multiplierStyle.border
       ctx.lineWidth = 1
       ctx.stroke(badgePath)
-      renderText(
-        ctx,
-        `×${preview.wordMultiplier}`,
-        badgeCenterX,
-        badgeY + badgeHeight / 2,
-        badgeFont,
-        multiplierStyle.text,
-        'center',
-      )
+      renderText(ctx, `×${preview.wordMultiplier}`, badgeCenterX, badgeY + badgeHeight / 2, badgeFont, multiplierStyle.text, 'center')
       ctx.restore()
     }
 
-    renderText(ctx, equalsText, equalsCenterX, formulaCenterY, equalsFont, COLORS.muted, 'center')
+    renderText(ctx, '=', equalsCenterX, formulaCenterY, equalsFont, COLORS.muted, 'center')
     renderText(ctx, String(preview.totalScore), pointsCenterX - pointsLabelWidth / 2, formulaCenterY, summaryValueFont, COLORS.espresso, 'center')
     renderText(ctx, 'pts', pointsCenterX + pointsValueWidth / 2 + pointsLabelGap - 1, formulaCenterY, summaryLabelFont, COLORS.espresso)
 
@@ -2908,7 +3027,7 @@ export class Game {
       const summaryDividerX = summaryLeft + pointsWidth + summaryDividerGap
       ctx.beginPath()
       ctx.moveTo(summaryDividerX, y + 5)
-      ctx.lineTo(summaryDividerX, y + height - 5)
+      ctx.lineTo(summaryDividerX, y + layout.height - 5)
       ctx.stroke()
       renderText(ctx, timeText, timeCenterX, formulaCenterY, timeFont, COLORS.gold, 'center')
     }
