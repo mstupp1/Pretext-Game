@@ -482,6 +482,8 @@ export class TextStream {
         this.rebalanceTimer = REBALANCE_INTERVAL
         this.rebalanceCollectibles(viewportWidth)
       }
+    } else if (this.streamKind === 'powerup' && viewportWidth !== undefined) {
+      this.recycleCollectedPowerUps(viewportWidth)
     }
   }
 
@@ -799,6 +801,28 @@ export class TextStream {
       candidate.multiplierType = 'None'
       activeHighlightCount++
       activeHighlightIndices.push(candidate.originalIndex)
+    }
+  }
+
+  private recycleCollectedPowerUps(viewportWidth: number): void {
+    const visibleChars = new Set(this.getVisibleChars(viewportWidth).map(({ char }) => char))
+
+    for (const ch of this.chars) {
+      if (ch.powerUpType === 'None' || !ch.isCollected) continue
+      if (visibleChars.has(ch) || ch.alpha > 0.02) continue
+
+      ch.isCollected = false
+      ch.alpha = 1
+      ch.scale = 1
+      ch.targetScale = 1
+      ch.dy = 0
+      ch.targetDy = 0
+      ch.dx = 0
+      ch.targetDx = 0
+      ch.rotation = 0
+      ch.targetRotation = 0
+      ch.rippleAmplitude = 0
+      ch.ripplePhase = 0
     }
   }
 
