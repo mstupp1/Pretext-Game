@@ -347,6 +347,16 @@ export class Lane {
     const colorT = Math.min(1, Math.max(0, interactionStrength * 1.2))
     const textT = isFocused ? 1 : Math.min(1, Math.max(0, (interactionStrength + 0.14) / 0.78))
     const borderT = isFocused ? 1 : Math.min(1, Math.max(0, (interactionStrength - 0.06) / 0.92))
+    const shinyBeat = ch.isShiny
+      ? ((Date.now() * 0.00235 + ch.seed * 0.9) % 1)
+      : 0
+    const shinyPulse = ch.isShiny
+      ? Math.max(
+          0,
+          1 - Math.abs(shinyBeat - 0.16) / 0.1,
+          1 - Math.abs(shinyBeat - 0.3) / 0.08,
+        )
+      : 0
 
     if (ch.scale > 1.1) {
       ctx.shadowColor = COLORS.shadow
@@ -358,9 +368,10 @@ export class Lane {
     const colors = this.getHighlightColors(ch.multiplierType, colorAlpha, bgAlpha, colorT, textT, borderT)
 
     if (ch.isShiny) {
-      const halo = ctx.createRadialGradient(0, 0, tileW * 0.12, 0, 0, Math.max(tileW, tileH) * 0.92)
-      halo.addColorStop(0, `rgba(240, 201, 108, ${baseAlpha * 0.26})`)
-      halo.addColorStop(0.58, `rgba(240, 201, 108, ${baseAlpha * 0.12})`)
+      const haloAlpha = baseAlpha * (0.22 + shinyPulse * 0.28 + (1 - interactionStrength) * 0.15)
+      const halo = ctx.createRadialGradient(0, 0, tileW * 0.12, 0, 0, Math.max(tileW, tileH) * 0.98)
+      halo.addColorStop(0, `rgba(240, 201, 108, ${haloAlpha})`)
+      halo.addColorStop(0.58, `rgba(240, 201, 108, ${haloAlpha * 0.68})`)
       halo.addColorStop(1, 'rgba(240, 201, 108, 0)')
       ctx.fillStyle = halo
       ctx.beginPath()
@@ -414,6 +425,32 @@ export class Lane {
       ctx.beginPath()
       ctx.roundRect(-tileW / 2 + 0.75, -tileH / 2 + 0.75, tileW - 1.5, tileH - 1.5, Math.max(2, borderRadius - 1))
       ctx.stroke()
+
+      if (!isFocused) {
+        ctx.strokeStyle = `rgba(255, 245, 214, ${0.24 + shinyPulse * 0.48})`
+        ctx.lineWidth = 1.1 + shinyPulse * 0.7
+        ctx.beginPath()
+        ctx.roundRect(
+          -tileW / 2 - 1.5,
+          -tileH / 2 - 1.5,
+          tileW + 3,
+          tileH + 3,
+          Math.max(3, borderRadius + 1),
+        )
+        ctx.stroke()
+
+        ctx.strokeStyle = `rgba(240, 201, 108, ${0.12 + shinyPulse * 0.3})`
+        ctx.lineWidth = 1 + shinyPulse * 0.45
+        ctx.beginPath()
+        ctx.roundRect(
+          -tileW / 2 - 3.25,
+          -tileH / 2 - 3.25,
+          tileW + 6.5,
+          tileH + 6.5,
+          Math.max(4, borderRadius + 2),
+        )
+        ctx.stroke()
+      }
     }
 
     ctx.font = this.font
@@ -446,12 +483,20 @@ export class Lane {
     }
 
     if (ch.isShiny) {
-      ctx.globalAlpha = baseAlpha
-      ctx.fillStyle = COLORS.ivory
       ctx.font = '700 9px Georgia, "Times New Roman", serif'
       ctx.textAlign = 'left'
       ctx.textBaseline = 'top'
-      ctx.fillText('+1', -tileW / 2 + 4, -tileH / 2 + 3)
+      const shinyBadgeX = -tileW / 2 + 4
+      const shinyBadgeY = -tileH / 2 - 2
+      ctx.globalAlpha = baseAlpha
+      if (underlayAlpha > 0.01) {
+        ctx.fillStyle = charIsLight
+          ? `rgba(92, 64, 51, ${underlayAlpha})`
+          : `rgba(245, 241, 232, ${underlayAlpha * 0.8})`
+        ctx.fillText('+1', shinyBadgeX, shinyBadgeY + 1)
+      }
+      ctx.fillStyle = colors.charColor
+      ctx.fillText('+1', shinyBadgeX, shinyBadgeY)
     }
 
     ctx.restore()
