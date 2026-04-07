@@ -1,49 +1,120 @@
-// ── Compact word list for validation ──
-// Common English words (3-10 letters). This is a curated subset for gameplay.
-const WORD_SET = new Set<string>()
+const MIN_WORD_LENGTH = 3
+const MAX_WORD_LENGTH = 27
+const TOTAL_WORD_COUNT = 173_016
+const COMMON_WORD_LENGTHS = [3, 4, 5, 6, 7, 8]
+const WORD_LIST_LENGTHS = new Set([
+  3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
+  14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 27,
+])
 
-const WORDS = `the and for are but not you all any can had her was one our out day has his how its let may new now old see way who boy did get got has him his how its let man new now old our own say she too use dad mom run set try won yet big far few got hot let long low own red sit top war arm art bag bar bed bit box bus cup cut dry ear eat end far fit fly fun gas gun hat hit hot ice ill jam joy key kid lay leg lie lip lot map mix net nor odd oil pan per pet pie pin pop pot pull ran raw red rid ring row rub sad sat she sir six sky son sun ten tip top van war wet win yes zoo able also area army away back ball band bank base bath bear beat been beer bell below best bill bird bite blow blue boat body bomb bond bone book born boss both burn call came camp card care case cash cast cell cent chat city club coal coat code cold come cook cool copy core cost crew crop dark data deal dead dear deep deny desk diet dirt dish disk do done door down draw drew drop drug drug dual dust duty each earn east easy edge else even ever evil exam exit face fact fail fair fall farm fast fate fear feed feel feet fell fill film find fine fire firm fish five flat flew flow food foot ford form four free from fuel full fund gain game gave gift girl give glad goal goes gold golf gone good grey grew grip grow gulf hair half hall hand hang hard harm hate have head hear heat held help here hero high hill hold hole home hope host hour huge hung hunt hurt idea inch into iron item jack jane john join joke judge jump june jury just keen keep kent key kick kill kind king knee knew lack laid lake land lane last late lead left less life lift like line link list live loan lock long look lord lose loss lost love low luck made main make male many mark mass mate may meal mean meet mile mind mine miss mode mood moon most move much must name navy near neck need news next nice nine none norm nose note okay once only onto open oral over pace pack page paid pair palm part pass past path paul peak pick pine plan play plot plus poem poll pool poor pope port post pour pray pull push quit race rain rang rank rare rate reach read real rely rent rest rice rich ride ring rise risk road rock role roll root rose rule rush safe said sake sale salt same sand sang save seat seed seek seem seen self sell send sept ship shop shot show shut side sign sing site size slip slow snow soft soil sold sole some song soon sort soul spot star stay step stop such suit sure swim take talk tank tape task team tell tend term test text than them then thin this thus till time tiny told tone took tool tour town tree trip true turn twin type ugly unit upon used user vast very wake walk wall want warm wash wave wear week well went were west what when whom wide wife wild will wind wine wing wire wise wish with wood word wore work yard yeah year your zone about above abuse acted admit adult after again agree ahead alarm allow alone along alter among anger angle apart apple apply arena argue aside asset avoid award aware badly basis beach began begin being below board bound brain brand bread break brief bring broad broke brown build buyer cable carry catch cause chain chair cheap check chief child china chose civil claim class clean clear climb close coach coast could count court cover crack craft crash cream crime cross crowd crown cycle daily dance death delay depth dirty doubt dozen draft drain drama drawn dream dress drink drive drugs early earth eight elect email empty enemy enjoy enough enter entry equal error essay event every exact exist extra faith false fault fewer fight final first fixed flame flash flesh flies float floor focus force forth found frame frank fresh front fruit fully funny glass grace grade grand grant grass great green gross guard guess guide happy heart heavy hence horse hotel house human ideal image imply index inner input issue joint judge known label large laser later laugh layer learn least leave legal level light limit lives local loose lower lucky lunch maker manor march match mayor media mercy might minor minus model money month moral motor mount mouse mouth moved movie music named needs nerve never newly night noise nor north north nurse occur ocean offer often order other ought outer owner paint panel paper patch pause peace phase phone photo piano piece pilot pitch place plain plane plant plate plaza plead point pound power press price pride prime print prior proof prove pupil queen quick quiet quite quote radio raise range rapid ratio reach ready refer reign relax reply right river roman rough round route royal rural sadly saint scale scene score sense serve seven shall shape share sharp shift shine shirt shock shoot short shout sight since sixth sixty skill sleep slide small smart smile smoke solar solve sorry south space spare speak speed spend spent split spoke sport squad staff stage stake stand start state steam steel stick still stock stone stood store storm story strip stuck study stuff style sugar suite super sweet swing table teach teeth thank theme there thick thing think third those three throw tight title today total touch tough tower track trade trail train treat trend trial tried truck truly trust truth twice union unite unity until upper upset urban usage usual valid value video virus visit vital voice waste watch water wheel where which while white whole whose woman women worry worse worst worth would wound write wrong wrote yield young youth`
+const WORD_BUCKETS = new Map<number, Set<string>>()
+const WORD_BUCKET_LOADS = new Map<number, Promise<Set<string>>>()
 
-WORDS.split(/\s+/).forEach(w => {
-  if (w.length >= 3) WORD_SET.add(w.toUpperCase())
-})
+function normalizeWord(word: string): string {
+  return word.trim().toUpperCase()
+}
 
-// Add more common short words
-const EXTRAS = `ace act add age ago aid aim air ale all amp ant ape apt arc ark ash ate awe axe bad bag ban bar bat bay bed bet bid big bin bit bog bow box bud bug bun bus cab cam can cap car cat cob cod cog cop cow coy cry cub cue cup cur cut dab dam dew dew did dig dim din dip doe dot dry dub dud due dug dun duo dye ear eat eel egg ego elk elm emu end era eve ewe eye fab fan far fax fed fee few fig fin fir fit fix fly foe fog for fox fry fun fur gag gal gap gas gel gem get gig gin gnu god got gum gun gut guy gym had ham has hat hay hem hen her hew hid him hip hit hog hop hot how hub hue hug hum hut ice icy ill imp ink inn ion ire irk ivy jab jag jam jar jaw jay jet jig job jog jot joy jug jut keg key kid kin kit lab lad lag lap law lax lay lea led leg let lid lie lip lit log lot low lug map mar mat maw may men met mid mix mob mod mop mow mud mug nab nag nap nay net new nil nip nit nod nor not now nun nut oak oar oat odd ode off oft oil old one opt orb ore our out owe owl own pad pal pan pap par pat paw pay pea peg pen per pet pew pie pig pin pit ply pod pop pot pow pox pro pry pub pug pun pup pus put rag ram ran rap rat raw ray red ref rib rid rig rim rip rob rod roe rot row rub rug rum run rut rye sac sad sag sap sat saw say sea set sew shy sin sip sir sit six ski sly sob sod son sop sot sow soy spa spy sty sub sue sum sun sup tab tad tag tan tap tar tax tea ten the tie tin tip toe ton too top tot tow toy try tub tug tun two urn use van vat vet vex via vie vim vow wad wag war was wax way web wed wet who wig win wit woe wok won woo wow yak yam yap yaw yea yes yet yew yon you zap zed zen zip zoo`
+function isAlphabeticWord(word: string): boolean {
+  return /^[A-Z]+$/.test(word)
+}
 
-EXTRAS.split(/\s+/).forEach(w => {
-  if (w.length >= 3) WORD_SET.add(w.toUpperCase())
-})
+function getWordListPath(length: number): string {
+  return `${import.meta.env.BASE_URL}wordlists/${length}.txt`
+}
 
-// Async check using free dictionary API with local cache
-export async function checkWordValidity(word: string): Promise<boolean> {
-  const upper = word.toUpperCase()
-  
-  // Fast path: already in our local set
-  if (WORD_SET.has(upper)) return true
+async function loadWordBucket(length: number): Promise<Set<string>> {
+  const cachedBucket = WORD_BUCKETS.get(length)
+  if (cachedBucket) return cachedBucket
 
-  try {
-    const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word}`)
-    
-    // 200 OK means the dictionary found it
-    if (response.ok) {
-      WORD_SET.add(upper) // Cache for future lookups
-      return true
+  const pendingLoad = WORD_BUCKET_LOADS.get(length)
+  if (pendingLoad) return pendingLoad
+
+  if (!WORD_LIST_LENGTHS.has(length)) {
+    const emptyBucket = new Set<string>()
+    WORD_BUCKETS.set(length, emptyBucket)
+    return emptyBucket
+  }
+
+  const loadPromise = fetch(getWordListPath(length))
+    .then(async response => {
+      if (!response.ok) {
+        console.error(`Failed to load word list for length ${length}: ${response.status}`)
+        return new Set<string>()
+      }
+
+      const bucket = new Set<string>()
+      const contents = await response.text()
+
+      for (const entry of contents.split(/\r?\n/)) {
+        const normalized = normalizeWord(entry)
+        if (normalized.length === length && isAlphabeticWord(normalized)) {
+          bucket.add(normalized)
+        }
+      }
+
+      return bucket
+    })
+    .catch(error => {
+      console.error(`Unable to load local word list for length ${length}:`, error)
+      return new Set<string>()
+    })
+    .then(bucket => {
+      WORD_BUCKETS.set(length, bucket)
+      WORD_BUCKET_LOADS.delete(length)
+      return bucket
+    })
+
+  WORD_BUCKET_LOADS.set(length, loadPromise)
+  return loadPromise
+}
+
+function scheduleCommonWordListPreload(): void {
+  if (typeof window === 'undefined') return
+
+  const preload = () => {
+    for (const length of COMMON_WORD_LENGTHS) {
+      void loadWordBucket(length)
     }
-    
-    // 404 means word not found
-    return false
-  } catch (error) {
-    console.error('Dictionary API error:', error)
-    // If the API fails (e.g., no internet), we just fall back to whatever is in the local set
+  }
+
+  const idleWindow = window as Window & {
+    requestIdleCallback?: (callback: () => void) => number
+  }
+
+  if (idleWindow.requestIdleCallback) {
+    idleWindow.requestIdleCallback(preload)
+    return
+  }
+
+  globalThis.setTimeout(preload, 0)
+}
+
+scheduleCommonWordListPreload()
+
+export async function checkWordValidity(word: string): Promise<boolean> {
+  const normalized = normalizeWord(word)
+
+  if (
+    normalized.length < MIN_WORD_LENGTH ||
+    normalized.length > MAX_WORD_LENGTH ||
+    !isAlphabeticWord(normalized)
+  ) {
     return false
   }
+
+  const cachedBucket = WORD_BUCKETS.get(normalized.length)
+  if (cachedBucket) return cachedBucket.has(normalized)
+
+  const bucket = await loadWordBucket(normalized.length)
+  return bucket.has(normalized)
 }
 
 export function isValidWordLocal(word: string): boolean {
-  return WORD_SET.has(word.toUpperCase())
+  const normalized = normalizeWord(word)
+  const cachedBucket = WORD_BUCKETS.get(normalized.length)
+  return cachedBucket?.has(normalized) ?? false
 }
 
 export function getWordCount(): number {
-  return WORD_SET.size
+  return TOTAL_WORD_COUNT
 }

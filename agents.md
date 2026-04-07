@@ -8,7 +8,7 @@ This document contains architectural details, key mechanics, and technical const
 **Core Tech Stack:**
 - **Canvas Rendering:** `@chenglou/pretext` (for character-by-character measurement and wrapping).
 - **Tooling:** Vite, TypeScript (Vanilla).
-- **Validation:** Free Dictionary API (`api.dictionaryapi.dev`) with a local fallback cache.
+- **Validation:** Vendored ENABLE-style word lists from `MagicOctopusUrn/wordListsByLength`, loaded locally by word length at runtime.
 
 ## 🏛️ Architecture & Key Files
 The source code is located in `src/`.
@@ -28,7 +28,7 @@ This class manages the lifecycle and physics of all scrolling characters. It rel
 Manages transitions (`title` -> `playing` -> `gameover`).
 - **Word Collection:** Characters acquired by the `Player` are stored in a word tray.
 - **Progression:** The player's current chapter determines the game speed and time limits (handled via `loadLevel()`). Instead of advancing by crossing lanes, chapters advance automatically via total score thresholds (e.g., `chapter * 50`).
-- **Submission Lock:** `submitWord()` incorporates an asynchronous API flow using `isSubmitting` bounds to prevent spamming the dictionary request.
+- **Submission Lock:** `submitWord()` incorporates an asynchronous validation flow using `isSubmitting` bounds to prevent duplicate submissions while a word list bucket is loading.
 
 ## ✨ Aesthetic Rules & Constraints
 - **Color Palette:** Strictly maintains an academic/library theme.
