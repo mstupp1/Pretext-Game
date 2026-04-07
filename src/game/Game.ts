@@ -1638,9 +1638,9 @@ export class Game {
       const badgeX = x + (width - badgeWidth) / 2
       const badgeY = y - 6
       const badgePath = this.createRoundedRectPath(badgeX, badgeY, badgeWidth, badgeHeight, 999)
-      ctx.fillStyle = shinyAccent.bright
+      ctx.fillStyle = shinyAccent.border
       ctx.fill(badgePath)
-      ctx.strokeStyle = shinyAccent.border
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.42)'
       ctx.lineWidth = 1
       ctx.stroke(badgePath)
       ctx.fillStyle = COLORS.ivory
