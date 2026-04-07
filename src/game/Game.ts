@@ -64,6 +64,10 @@ interface ScorePreviewLayout {
   height: number
 }
 
+interface ScorePreviewPanelOptions {
+  compact?: boolean
+}
+
 type PauseConfirmAction = 'restart' | 'quit' | null
 
 interface HudElements {
@@ -2209,7 +2213,7 @@ export class Game {
     const pageCenterX = (pageLeft + pageRight) / 2
     const titleY = 74
     const masterworkEntry = this.getHighestScoringWord()
-    const masterworkTopY = 112
+    const masterworkTopY = 140
     const masterworkHeight = masterworkEntry ? this.renderGameOverMasterwork(ctx, pageLeft, pageRight, pageCenterX, masterworkTopY) : 0
     const listTopY = masterworkTopY + masterworkHeight + (masterworkEntry ? 28 : 32)
     const listBottomY = GAME_HEIGHT - 96
@@ -2319,31 +2323,19 @@ export class Game {
     if (!entry) return 0
 
     const preview = getScorePreview(entry.letters)
-    const previewLayout = this.measureScorePreviewLayout(preview)
-    const tileSize = 28
-    const tileGap = 4
+    const previewLayout = this.measureScorePreviewLayout(preview, { compact: true })
+    const tileSize = 20
+    const tileGap = 2
     const wordWidth = entry.letters.length * tileSize + Math.max(0, entry.letters.length - 1) * tileGap
     const labelY = topY
-    const tilesCenterY = topY + 26
-    const previewY = topY + 48
+    const tilesCenterY = topY + 24
+    const previewY = topY + 42
     const blockWidth = Math.max(wordWidth, previewLayout.width)
     const startX = pageCenterX - wordWidth / 2
-    const blockLeft = Math.max(pageLeft, pageCenterX - blockWidth / 2 - 6)
-    const blockRight = Math.min(pageRight, pageCenterX + blockWidth / 2 + 6)
     const getOffset = (x: number) => getPageCurvatureOffset(x, GAME_WIDTH)
 
     renderText(ctx, 'Masterwork', pageCenterX, labelY + getOffset(pageCenterX),
       CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
-
-    ctx.strokeStyle = COLORS.rule
-    ctx.lineWidth = 0.5
-    ctx.beginPath()
-    for (let x = blockLeft; x <= blockRight; x += 10) {
-      const offset = getOffset(x)
-      if (x === blockLeft) ctx.moveTo(x, labelY + 10 + offset)
-      else ctx.lineTo(x, labelY + 10 + offset)
-    }
-    ctx.stroke()
 
     entry.letters.forEach((letter, index) => {
       const tileCenterX = startX + tileSize / 2 + index * (tileSize + tileGap)
@@ -2366,7 +2358,7 @@ export class Game {
       )
     })
 
-    this.renderScorePreviewPanel(ctx, pageCenterX - previewLayout.width / 2, previewY + getOffset(pageCenterX), preview)
+    this.renderScorePreviewPanel(ctx, pageCenterX - previewLayout.width / 2, previewY + getOffset(pageCenterX), preview, { compact: true })
     return previewY + previewLayout.height - topY
   }
 
@@ -2837,17 +2829,19 @@ export class Game {
     this.renderScorePreviewPanel(ctx, x, y, preview)
   }
 
-  private measureScorePreviewLayout(preview: ScorePreview): ScorePreviewLayout {
+  private measureScorePreviewLayout(preview: ScorePreview, options: ScorePreviewPanelOptions = {}): ScorePreviewLayout {
+    const compact = options.compact ?? false
     const hasMultiplierBadge = preview.wordMultiplier > 1
     const hasTimeBonus = preview.timeBonus > 0
-    const trayValueFont = '700 14px Georgia, "Times New Roman", serif'
-    const operatorFont = CANVAS_FONTS.laneMedium(12)
-    const summaryValueFont = '700 16px Georgia, "Times New Roman", serif'
-    const summaryLabelFont = CANVAS_FONTS.laneMedium(13)
-    const timeFont = '700 15px Georgia, "Times New Roman", serif'
-    const badgeFont = '700 10px Georgia, "Times New Roman", serif'
+    const height = compact ? 20 : Game.TRAY_PREVIEW_HEIGHT
+    const trayValueFont = compact ? '700 12px Georgia, "Times New Roman", serif' : '700 14px Georgia, "Times New Roman", serif'
+    const operatorFont = compact ? CANVAS_FONTS.laneMedium(10) : CANVAS_FONTS.laneMedium(12)
+    const summaryValueFont = compact ? '700 14px Georgia, "Times New Roman", serif' : '700 16px Georgia, "Times New Roman", serif'
+    const summaryLabelFont = compact ? CANVAS_FONTS.laneMedium(11) : CANVAS_FONTS.laneMedium(13)
+    const timeFont = compact ? '700 13px Georgia, "Times New Roman", serif' : '700 15px Georgia, "Times New Roman", serif'
+    const badgeFont = compact ? '700 9px Georgia, "Times New Roman", serif' : '700 10px Georgia, "Times New Roman", serif'
     const badgeWidth = hasMultiplierBadge
-      ? Math.max(28, measureTextWidth(`×${preview.wordMultiplier}`, badgeFont) + 8)
+      ? Math.max(compact ? 24 : 28, measureTextWidth(`×${preview.wordMultiplier}`, badgeFont) + (compact ? 6 : 8))
       : 0
     const hasLengthBonus = preview.lengthBonus > 0
     const openParenWidth = hasLengthBonus ? measureTextWidth('(', operatorFont) : 0
@@ -2855,25 +2849,28 @@ export class Game {
     const baseWidth = measureTextWidth(String(preview.letterScore), trayValueFont)
     const plusWidth = measureTextWidth('+', operatorFont)
     const bonusWidth = hasLengthBonus ? measureTextWidth(String(preview.lengthBonus), trayValueFont) : 0
-    const formulaGroupWidth = (hasLengthBonus ? openParenWidth + 4 : 0)
+    const formulaInset = compact ? 3 : 4
+    const formulaPad = compact ? 5 : 7
+    const badgeGap = compact ? 10 : 14
+    const formulaGroupWidth = (hasLengthBonus ? openParenWidth + formulaInset : 0)
       + baseWidth
-      + (hasLengthBonus ? 7 + plusWidth + 7 + bonusWidth + 4 + closeParenWidth : 0)
-      + (hasMultiplierBadge ? 14 + badgeWidth : 0)
+      + (hasLengthBonus ? formulaPad + plusWidth + formulaPad + bonusWidth + formulaInset + closeParenWidth : 0)
+      + (hasMultiplierBadge ? badgeGap + badgeWidth : 0)
     const pointsValueWidth = measureTextWidth(String(preview.totalScore), summaryValueFont)
-    const pointsLabelGap = 2
-    const pointsTrailingGap = 10
+    const pointsLabelGap = compact ? 1 : 2
+    const pointsTrailingGap = compact ? 8 : 10
     const pointsLabelWidth = measureTextWidth('pts', summaryLabelFont)
     const pointsWidth = pointsValueWidth + pointsLabelGap + pointsLabelWidth + pointsTrailingGap
     const timeWidth = hasTimeBonus ? measureTextWidth(`+${preview.timeBonus}s`, timeFont) : 0
-    const summaryDividerGap = hasTimeBonus ? 12 : 0
+    const summaryDividerGap = hasTimeBonus ? (compact ? 10 : 12) : 0
     const summaryGap = hasTimeBonus ? summaryDividerGap * 2 : 0
     const summaryBlockWidth = hasTimeBonus ? pointsWidth + summaryGap + timeWidth : pointsWidth
-    const leftPadding = 18
-    const rightPadding = 18
-    const formulaToEqualsGap = 8
-    const equalsToSummaryGap = 8
-    const summaryPadding = 8
-    const equalsWidth = measureTextWidth('=', CANVAS_FONTS.laneMedium(13))
+    const leftPadding = compact ? 14 : 18
+    const rightPadding = compact ? 14 : 18
+    const formulaToEqualsGap = compact ? 6 : 8
+    const equalsToSummaryGap = compact ? 6 : 8
+    const summaryPadding = compact ? 6 : 8
+    const equalsWidth = measureTextWidth('=', compact ? CANVAS_FONTS.laneMedium(11) : CANVAS_FONTS.laneMedium(13))
     const summarySectionWidth = summaryBlockWidth + summaryPadding * 2
 
     return {
@@ -2886,12 +2883,19 @@ export class Game {
         + summarySectionWidth
         + rightPadding
       ),
-      height: Game.TRAY_PREVIEW_HEIGHT,
+      height,
     }
   }
 
-  private renderScorePreviewPanel(ctx: CanvasRenderingContext2D, x: number, y: number, preview: ScorePreview): void {
-    const layout = this.measureScorePreviewLayout(preview)
+  private renderScorePreviewPanel(
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    preview: ScorePreview,
+    options: ScorePreviewPanelOptions = {},
+  ): void {
+    const compact = options.compact ?? false
+    const layout = this.measureScorePreviewLayout(preview, options)
     const hasMultiplierBadge = preview.wordMultiplier > 1
     const hasTimeBonus = preview.timeBonus > 0
     const multiplierStyle = this.getScorePreviewMultiplierStyle(preview.wordMultiplier)
@@ -2899,15 +2903,17 @@ export class Game {
     const pulse = multiplierTier > 0
       ? Math.sin(Date.now() * (0.0038 + multiplierTier * 0.00022))
       : 0
-    const badgeScale = 1 + multiplierTier * 0.022 + pulse * (0.01 + multiplierTier * 0.003)
-    const trayValueFont = '700 14px Georgia, "Times New Roman", serif'
-    const operatorFont = CANVAS_FONTS.laneMedium(12)
-    const summaryValueFont = '700 16px Georgia, "Times New Roman", serif'
-    const summaryLabelFont = CANVAS_FONTS.laneMedium(13)
-    const timeFont = '700 15px Georgia, "Times New Roman", serif'
-    const badgeFont = '700 10px Georgia, "Times New Roman", serif'
+    const badgeScale = compact
+      ? 1 + multiplierTier * 0.016 + pulse * (0.007 + multiplierTier * 0.002)
+      : 1 + multiplierTier * 0.022 + pulse * (0.01 + multiplierTier * 0.003)
+    const trayValueFont = compact ? '700 12px Georgia, "Times New Roman", serif' : '700 14px Georgia, "Times New Roman", serif'
+    const operatorFont = compact ? CANVAS_FONTS.laneMedium(10) : CANVAS_FONTS.laneMedium(12)
+    const summaryValueFont = compact ? '700 14px Georgia, "Times New Roman", serif' : '700 16px Georgia, "Times New Roman", serif'
+    const summaryLabelFont = compact ? CANVAS_FONTS.laneMedium(11) : CANVAS_FONTS.laneMedium(13)
+    const timeFont = compact ? '700 13px Georgia, "Times New Roman", serif' : '700 15px Georgia, "Times New Roman", serif'
+    const badgeFont = compact ? '700 9px Georgia, "Times New Roman", serif' : '700 10px Georgia, "Times New Roman", serif'
     const badgeWidth = hasMultiplierBadge
-      ? Math.max(28, measureTextWidth(`×${preview.wordMultiplier}`, badgeFont) + 8)
+      ? Math.max(compact ? 24 : 28, measureTextWidth(`×${preview.wordMultiplier}`, badgeFont) + (compact ? 6 : 8))
       : 0
     const hasLengthBonus = preview.lengthBonus > 0
     const baseText = String(preview.letterScore)
@@ -2917,35 +2923,38 @@ export class Game {
     const baseWidth = measureTextWidth(baseText, trayValueFont)
     const plusWidth = measureTextWidth('+', operatorFont)
     const bonusWidth = hasLengthBonus ? measureTextWidth(bonusValueText, trayValueFont) : 0
-    const formulaGroupWidth = (hasLengthBonus ? openParenWidth + 4 : 0)
+    const formulaInset = compact ? 3 : 4
+    const formulaPad = compact ? 5 : 7
+    const badgeGap = compact ? 10 : 14
+    const formulaGroupWidth = (hasLengthBonus ? openParenWidth + formulaInset : 0)
       + baseWidth
-      + (hasLengthBonus ? 7 + plusWidth + 7 + bonusWidth + 4 + closeParenWidth : 0)
-      + (hasMultiplierBadge ? 14 + badgeWidth : 0)
+      + (hasLengthBonus ? formulaPad + plusWidth + formulaPad + bonusWidth + formulaInset + closeParenWidth : 0)
+      + (hasMultiplierBadge ? badgeGap + badgeWidth : 0)
     const pointsValueWidth = measureTextWidth(String(preview.totalScore), summaryValueFont)
-    const pointsLabelGap = 2
-    const pointsTrailingGap = 10
+    const pointsLabelGap = compact ? 1 : 2
+    const pointsTrailingGap = compact ? 8 : 10
     const pointsLabelWidth = measureTextWidth('pts', summaryLabelFont)
     const pointsWidth = pointsValueWidth + pointsLabelGap + pointsLabelWidth + pointsTrailingGap
     const timeText = hasTimeBonus ? `+${preview.timeBonus}s` : ''
     const timeWidth = hasTimeBonus ? measureTextWidth(timeText, timeFont) : 0
-    const summaryDividerGap = hasTimeBonus ? 12 : 0
+    const summaryDividerGap = hasTimeBonus ? (compact ? 10 : 12) : 0
     const summaryGap = hasTimeBonus ? summaryDividerGap * 2 : 0
     const summaryBlockWidth = hasTimeBonus ? pointsWidth + summaryGap + timeWidth : pointsWidth
-    const leftPadding = 18
-    const formulaToEqualsGap = 8
-    const equalsToSummaryGap = 8
-    const summaryPadding = 8
-    const equalsFont = CANVAS_FONTS.laneMedium(13)
+    const leftPadding = compact ? 14 : 18
+    const formulaToEqualsGap = compact ? 6 : 8
+    const equalsToSummaryGap = compact ? 6 : 8
+    const summaryPadding = compact ? 6 : 8
+    const equalsFont = compact ? CANVAS_FONTS.laneMedium(11) : CANVAS_FONTS.laneMedium(13)
     const formulaX = x + leftPadding
     const formulaCenterY = y + layout.height / 2 + 0.5
     const badgeCenterX = formulaX
       + baseWidth
-      + (hasLengthBonus ? 7 + plusWidth + 7 + bonusWidth + 4 + closeParenWidth : 0)
-      + 14
+      + (hasLengthBonus ? formulaPad + plusWidth + formulaPad + bonusWidth + formulaInset + closeParenWidth : 0)
+      + badgeGap
       + badgeWidth / 2
     const badgeX = badgeCenterX - badgeWidth / 2
-    const badgeY = y + 4
-    const badgeHeight = layout.height - 8
+    const badgeY = y + (compact ? 3 : 4)
+    const badgeHeight = layout.height - (compact ? 6 : 8)
     const equalsWidth = measureTextWidth('=', equalsFont)
     const equalsCenterX = formulaX + formulaGroupWidth + formulaToEqualsGap + equalsWidth / 2
     const summaryLeft = equalsCenterX + equalsWidth / 2 + equalsToSummaryGap + summaryPadding

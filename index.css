@@ -330,6 +330,14 @@ html, body {
   box-shadow: 0 1px 3px var(--shadow-warm);
 }
 
+.completed-word .tray-tile.is-shiny {
+  box-shadow: 0 1px 3px var(--shadow-warm);
+}
+
+.completed-word .tray-tile.is-shiny::before {
+  display: none;
+}
+
 .completed-word .tray-tile .tile-points {
   font-size: 9px; /* Larger even for mini-tiles */
   bottom: 2px;
@@ -393,6 +401,22 @@ html, body {
 .completed-word .tray-tile.multiplier-TripleWord .tile-points {
   color: rgba(245, 241, 232, 1) !important;
   text-shadow: none;
+}
+
+.completed-word .tray-tile.multiplier-DoubleLetter {
+  border-color: #3F6BA8 !important;
+}
+
+.completed-word .tray-tile.multiplier-TripleLetter {
+  border-color: #177C72 !important;
+}
+
+.completed-word .tray-tile.multiplier-DoubleWord {
+  border-color: #B83D2F !important;
+}
+
+.completed-word .tray-tile.multiplier-TripleWord {
+  border-color: #732D91 !important;
 }
 
 @keyframes shiny-sweep {
