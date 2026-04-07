@@ -15,6 +15,7 @@ import { MultiplierType } from '../utils/constants'
 export type GameState = 'title' | 'countdown' | 'playing' | 'paused' | 'gameover-transition' | 'gameover'
 
 interface CollectedLetter {
+  id: number
   letter: string
   value: number
   multiplierType: MultiplierType
@@ -23,6 +24,7 @@ interface CollectedLetter {
   floatingX: number
   floatingY: number
   animProgress: number
+  entryScale: number
 }
 
 interface RemovedTrayLetter {
@@ -30,6 +32,21 @@ interface RemovedTrayLetter {
   x: number
   y: number
   progress: number
+}
+
+interface TrayTileTransition {
+  letter: CollectedLetter
+  fromX: number
+  fromY: number
+  toX: number
+  toY: number
+  fromScale: number
+  toScale: number
+  fromAlpha: number
+  toAlpha: number
+  progress: number
+  hideStaticInTray?: boolean
+  hideStaticInBank?: boolean
 }
 
 interface FeedbackMessage {
@@ -136,6 +153,8 @@ export class Game {
   public timeRemaining: number = STARTING_TIME
   public collectedLetters: CollectedLetter[] = []
   public removedTrayLetters: RemovedTrayLetter[] = []
+  private bankedLetter: CollectedLetter | null = null
+  private trayTileTransitions: TrayTileTransition[] = []
   public wordsFound: CompletedWordRecord[] = []
   public usedWords: Set<string> = new Set()    // words used this run (no repeats)
   public feedback: FeedbackMessage | null = null
@@ -175,6 +194,7 @@ export class Game {
   private completedWordsVisible: boolean | null = null
   private gameOverWordPage: number = 0
   private letterValueBonuses: Partial<Record<string, number>> = {}
+  private nextCollectedLetterId: number = 1
 
   // Countdown state
   private countdownValue: number = 3
@@ -365,6 +385,8 @@ export class Game {
     this.usedWords = new Set()
     this.collectedLetters = []
     this.removedTrayLetters = []
+    this.bankedLetter = null
+    this.trayTileTransitions = []
     this.feedback = null
     this.floatingScores = []
     this.timerBonusIndicator = null
@@ -520,6 +542,8 @@ export class Game {
     this.isSubmitting = false
     this.collectedLetters = []
     this.removedTrayLetters = []
+    this.bankedLetter = null
+    this.trayTileTransitions = []
     this.wordsFound = []
     this.usedWords = new Set()
     this.resetRunLetterBonuses()
@@ -864,6 +888,10 @@ export class Game {
           e.preventDefault()
           this.removeLastLetter()
           break
+        case 'Tab':
+          e.preventDefault()
+          this.bankOrSwapLastLetter()
+          break
         case ' ':
           e.preventDefault()
           this.tryCollectLetter()
@@ -881,7 +909,7 @@ export class Game {
 
   private tryCollectLetter(): void {
     if (this.collectCooldown > 0) return
-    if (this.collectedLetters.length >= MAX_COLLECTED_LETTERS) {
+    if (this.getTotalHeldLetters() >= MAX_COLLECTED_LETTERS) {
       this.showFeedback('Tray full — submit or clear first', false)
       return
     }
@@ -893,15 +921,14 @@ export class Game {
     if (collected) {
       collected.isCollected = true
       const letter = collected.char.toUpperCase()
-      this.collectedLetters.push({
+      this.collectedLetters.push(this.createCollectedLetter({
         letter,
         value: this.getCurrentLetterValue(letter),
         multiplierType: collected.multiplierType,
         isShiny: collected.isShiny,
         floatingX: this.player.x,
         floatingY: this.player.y,
-        animProgress: 0,
-      })
+      }))
       this.collectCooldown = 0.15
       audioManager.playSelectLetter()
 
@@ -970,6 +997,8 @@ export class Game {
       // Clear all letters after successful submit
       this.collectedLetters = []
       this.removedTrayLetters = []
+      this.bankedLetter = null
+      this.trayTileTransitions = []
 
       const shinyMsg = shinyUpgrades.length > 0 ? ` Shiny: ${shinyUpgrades.join(', ')}.` : ''
       this.showFeedback(`${result.word}: +${result.totalScore}  ${result.message}${shinyMsg}`, true)
@@ -998,18 +1027,91 @@ export class Game {
       const removedIndex = this.collectedLetters.length - 1
       const removed = this.collectedLetters.pop()
       if (removed) {
-        const position = this.getTrayTileCenter(removedIndex, removedIndex + 1)
-        const settled = this.titleEaseOut(removed.animProgress)
-        const startY = removed.floatingY + getPageCurvatureOffset(removed.floatingX, GAME_WIDTH)
+        const position = this.getCollectedLetterRenderState(removed, removedIndex, removedIndex + 1)
         this.removedTrayLetters.push({
           letter: removed,
-          x: removed.floatingX + (position.x - removed.floatingX) * settled,
-          y: startY + (position.y - startY) * settled,
+          x: position.x,
+          y: position.y,
           progress: 0,
         })
       }
       audioManager.playBackspace()
     }
+  }
+
+  private bankOrSwapLastLetter(): void {
+    if (this.trayTileTransitions.length > 0) return
+    if (this.collectedLetters.length === 0 && this.bankedLetter === null) return
+
+    const bankPose = this.getBankedTilePose()
+
+    if (this.collectedLetters.length === 0) {
+      const banked = this.bankedLetter
+      if (!banked) return
+
+      this.bankedLetter = null
+      const target = this.getTrayTileCenter(this.collectedLetters.length, this.collectedLetters.length + 1)
+      this.prepareLetterForSettledTrayRender(banked, target)
+      this.collectedLetters.push(banked)
+      this.trayTileTransitions.push({
+        letter: banked,
+        fromX: bankPose.x,
+        fromY: bankPose.y,
+        toX: target.x,
+        toY: target.y,
+        fromScale: bankPose.scale,
+        toScale: 1,
+        fromAlpha: 1,
+        toAlpha: 1,
+        progress: 0,
+        hideStaticInTray: true,
+      })
+      audioManager.playSelectLetter()
+      return
+    }
+
+    const removedIndex = this.collectedLetters.length - 1
+    const selected = this.collectedLetters.pop()
+    if (!selected) return
+
+    const selectedPose = this.getCollectedLetterRenderState(selected, removedIndex, removedIndex + 1)
+    const previousBanked = this.bankedLetter
+
+    this.bankedLetter = selected
+    this.trayTileTransitions.push({
+      letter: selected,
+      fromX: selectedPose.x,
+      fromY: selectedPose.y,
+      toX: bankPose.x,
+      toY: bankPose.y,
+      fromScale: selectedPose.scale,
+      toScale: bankPose.scale,
+      fromAlpha: 1,
+      toAlpha: 1,
+      progress: 0,
+      hideStaticInBank: true,
+    })
+
+    if (previousBanked) {
+      const target = this.getTrayTileCenter(this.collectedLetters.length, this.collectedLetters.length + 1)
+      this.prepareLetterForSettledTrayRender(previousBanked, target)
+      this.collectedLetters.push(previousBanked)
+      this.trayTileTransitions.push({
+        letter: previousBanked,
+        fromX: bankPose.x,
+        fromY: bankPose.y,
+        toX: target.x,
+        toY: target.y,
+        fromScale: bankPose.scale,
+        toScale: 1,
+        fromAlpha: 1,
+        toAlpha: 1,
+        progress: 0,
+        hideStaticInTray: true,
+      })
+    }
+
+    audioManager.playSelectLetter()
   }
 
   private showFeedback(text: string, success: boolean): void {
@@ -1176,6 +1278,10 @@ export class Game {
     this.removedTrayLetters = this.removedTrayLetters.filter((letter) => {
       letter.progress = Math.min(1, letter.progress + dt * 4.5)
       return letter.progress < 1
+    })
+    this.trayTileTransitions = this.trayTileTransitions.filter((transition) => {
+      transition.progress = Math.min(1, transition.progress + dt * 5.5)
+      return transition.progress < 1
     })
 
     // Floating scores
@@ -1357,6 +1463,8 @@ export class Game {
     const selectedPreview = this.collectedLetters.length > 0
       ? getScorePreview(this.collectedLetters.map(({ letter, value, multiplierType, isShiny }) => ({ letter, value, multiplierType, isShiny })))
       : null
+    const hiddenTrayTiles = this.getHiddenTransitionTileIds('tray')
+    const hiddenBankTileIds = this.getHiddenTransitionTileIds('bank')
 
     ctx.save()
     if (this.state === 'countdown') {
@@ -1434,21 +1542,10 @@ export class Game {
     ctx.strokeStyle = 'rgba(255, 231, 194, 0.08)'
     ctx.stroke(lipPath)
 
-    const tileBottomY = innerY + innerHeight - lipHeight - 2
-    const totalLettersWidth = this.collectedLetters.length > 0
-      ? this.collectedLetters.length * tileWidth + (this.collectedLetters.length - 1) * tileGap
-      : 0
-    const startX = innerX + (innerWidth - totalLettersWidth) / 2
-
     this.collectedLetters.forEach((letter, index) => {
-      const targetX = startX + index * (tileWidth + tileGap) + tileWidth / 2
-      const targetY = tileBottomY - tileHeight / 2
-      const t = this.titleEaseOut(letter.animProgress)
-      const startY = letter.floatingY + getPageCurvatureOffset(letter.floatingX, GAME_WIDTH)
-      const x = letter.floatingX + (targetX - letter.floatingX) * t
-      const y = startY + (targetY - startY) * t
-      const scale = 0.74 + 0.26 * t
-      this.renderCanvasTrayTile(ctx, letter, x, y, tileWidth, tileHeight, scale)
+      if (hiddenTrayTiles.has(letter.id)) return
+      const pose = this.getCollectedLetterRenderState(letter, index, this.collectedLetters.length)
+      this.renderCanvasTrayTile(ctx, letter, pose.x, pose.y, tileWidth, tileHeight, pose.scale)
     })
 
     this.removedTrayLetters.forEach((letter) => {
@@ -1457,6 +1554,20 @@ export class Game {
       const alpha = 1 - t
       const scale = 1 - t * 0.03
       this.renderCanvasTrayTile(ctx, letter.letter, letter.x, driftY, tileWidth, tileHeight, scale, alpha)
+    })
+
+    const bankPose = this.getBankedTilePose()
+    if (this.bankedLetter && !hiddenBankTileIds.has(this.bankedLetter.id)) {
+      this.renderCanvasTrayTile(ctx, this.bankedLetter, bankPose.x, bankPose.y, tileWidth, tileHeight, bankPose.scale)
+    }
+
+    this.trayTileTransitions.forEach((transition) => {
+      const t = this.titleEaseOut(transition.progress)
+      const x = transition.fromX + (transition.toX - transition.fromX) * t
+      const y = transition.fromY + (transition.toY - transition.fromY) * t
+      const scale = transition.fromScale + (transition.toScale - transition.fromScale) * t
+      const alpha = transition.fromAlpha + (transition.toAlpha - transition.fromAlpha) * t
+      this.renderCanvasTrayTile(ctx, transition.letter, x, y, tileWidth, tileHeight, scale, alpha)
     })
 
     if (selectedPreview) {
@@ -1773,6 +1884,15 @@ export class Game {
     }
   }
 
+  private getBankedTilePose(): { x: number; y: number; scale: number } {
+    const parkedSlot = this.getTrayTileCenter(0, 1)
+    return {
+      x: GAME_WIDTH / 2,
+      y: parkedSlot.y + 18,
+      scale: 1.16,
+    }
+  }
+
   private getTrayTileCenter(index: number, totalLetters: number): { x: number; y: number } {
     const { tileWidth, tileHeight, tileGap, innerX, innerY, innerWidth, innerHeight, lipHeight } = this.getTrayMetrics()
     const tileBottomY = innerY + innerHeight - lipHeight - 2
@@ -1784,6 +1904,57 @@ export class Game {
     return {
       x: startX + index * (tileWidth + tileGap) + tileWidth / 2,
       y: tileBottomY - tileHeight / 2,
+    }
+  }
+
+  private getCollectedLetterRenderState(
+    letter: CollectedLetter,
+    index: number,
+    totalLetters: number,
+  ): { x: number; y: number; scale: number } {
+    const target = this.getTrayTileCenter(index, totalLetters)
+    const t = this.titleEaseOut(letter.animProgress)
+    const startY = letter.floatingY + getPageCurvatureOffset(letter.floatingX, GAME_WIDTH)
+
+    return {
+      x: letter.floatingX + (target.x - letter.floatingX) * t,
+      y: startY + (target.y - startY) * t,
+      scale: letter.entryScale + (1 - letter.entryScale) * t,
+    }
+  }
+
+  private getHiddenTransitionTileIds(location: 'tray' | 'bank'): Set<number> {
+    const hiddenIds = new Set<number>()
+    for (const transition of this.trayTileTransitions) {
+      if (location === 'tray' && transition.hideStaticInTray) {
+        hiddenIds.add(transition.letter.id)
+      }
+      if (location === 'bank' && transition.hideStaticInBank) {
+        hiddenIds.add(transition.letter.id)
+      }
+    }
+    return hiddenIds
+  }
+
+  private getTotalHeldLetters(): number {
+    return this.collectedLetters.length + (this.bankedLetter ? 1 : 0)
+  }
+
+  private prepareLetterForSettledTrayRender(letter: CollectedLetter, target: { x: number; y: number }): void {
+    letter.floatingX = target.x
+    letter.floatingY = target.y - getPageCurvatureOffset(target.x, GAME_WIDTH)
+    letter.animProgress = 1
+    letter.entryScale = 1
+  }
+
+  private createCollectedLetter(
+    input: Omit<CollectedLetter, 'id' | 'animProgress' | 'entryScale'>,
+  ): CollectedLetter {
+    return {
+      id: this.nextCollectedLetterId++,
+      ...input,
+      animProgress: 0,
+      entryScale: 0.74,
     }
   }
 
@@ -2287,6 +2458,7 @@ export class Game {
           this.renderWordLedgerTile(
             ctx,
             {
+              id: -1,
               letter: lettersToRender[letterIndex].letter.toUpperCase(),
               value: lettersToRender[letterIndex].value,
               multiplierType: lettersToRender[letterIndex].multiplierType,
@@ -2294,6 +2466,7 @@ export class Game {
               floatingX: 0,
               floatingY: 0,
               animProgress: 1,
+              entryScale: 1,
             },
             tileX,
             centerY,
@@ -2346,6 +2519,7 @@ export class Game {
       this.renderWordLedgerTile(
         ctx,
         {
+          id: -1,
           letter: letter.letter.toUpperCase(),
           value: letter.value,
           multiplierType: letter.multiplierType,
@@ -2353,6 +2527,7 @@ export class Game {
           floatingX: 0,
           floatingY: 0,
           animProgress: 1,
+          entryScale: 1,
         },
         tileCenterX,
         tileCenterY,
