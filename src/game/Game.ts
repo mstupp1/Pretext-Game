@@ -2163,10 +2163,13 @@ export class Game {
       CANVAS_FONTS.laneItalic(16), COLORS.sepia, 'center')
 
     // Final score
-    renderText(ctx, String(this.score), centerX, centerY + 94 + getOffset(centerX),
+    const finalScoreY = centerY + 88
+    const pointsLabelY = finalScoreY + 42
+
+    renderText(ctx, String(this.score), centerX, finalScoreY + getOffset(centerX),
       CANVAS_FONTS.laneLight(56), COLORS.gold, 'center')
 
-    renderText(ctx, 'POINTS', centerX, centerY + 124 + getOffset(centerX),
+    renderText(ctx, 'POINTS', centerX, pointsLabelY + getOffset(centerX),
       CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
 
     // High scores
