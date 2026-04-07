@@ -22,6 +22,8 @@ export const COLORS = {
   tileGoldDepth: 'rgba(132, 74, 18, 0.42)',
   red:        '#8B2500',
   green:      '#2E5A1E',
+  boostGreen: '#8FE86B',
+  boostGreenGlow: 'rgba(143, 232, 107, 0.42)',
   rule:       'rgba(44, 24, 16, 0.15)',
   shadow:     'rgba(92, 64, 51, 0.12)',
   // Multipliers

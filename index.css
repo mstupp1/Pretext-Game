@@ -312,6 +312,11 @@ html, body {
   line-height: 1;
 }
 
+.tray-tile.is-boosted .tile-points {
+  color: #8FE86B;
+  text-shadow: 0 0 6px rgba(143, 232, 107, 0.38);
+}
+
 /* ── Mini Tiles for Completed Words ── */
 
 .completed-word .tray-tile {
@@ -390,6 +395,12 @@ html, body {
 }
 .multiplier-DoubleLetter .tile-points, .multiplier-DoubleWord .tile-points {
   color: rgba(44, 24, 16, 0.8) !important;
+}
+
+.tray-tile.is-boosted.multiplier-DoubleLetter .tile-points,
+.tray-tile.is-boosted.multiplier-DoubleWord .tile-points {
+  color: #8FE86B !important;
+  text-shadow: 0 0 6px rgba(143, 232, 107, 0.38);
 }
 
 @keyframes shiny-sweep {

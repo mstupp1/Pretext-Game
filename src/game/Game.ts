@@ -317,6 +317,10 @@ export class Game {
     return Array.from(empoweredLetters.keys()).map((letter) => `${letter} now ${this.getCurrentLetterValue(letter)}`)
   }
 
+  private isBoostedLetterValue(letter: string, value: number): boolean {
+    return value > getLetterValue(letter)
+  }
+
   // ── State transitions ──
 
   startGame(): void {
@@ -1581,7 +1585,15 @@ export class Game {
     ctx.font = '700 14px Georgia, "Times New Roman", serif'
     ctx.textAlign = 'right'
     ctx.textBaseline = 'bottom'
+    if (this.isBoostedLetterValue(letter.letter, letter.value)) {
+      ctx.shadowColor = COLORS.boostGreenGlow
+      ctx.shadowBlur = 8
+      ctx.shadowOffsetX = 0
+      ctx.shadowOffsetY = 0
+      ctx.fillStyle = COLORS.boostGreen
+    }
     ctx.fillText(String(letter.value), x + width - 4, y + height - 6)
+    ctx.shadowBlur = 0
 
     if (letter.isShiny) {
       ctx.fillStyle = COLORS.ivory
@@ -2326,7 +2338,15 @@ export class Game {
     ctx.font = '800 7px Georgia, "Times New Roman", serif'
     ctx.textAlign = 'right'
     ctx.textBaseline = 'bottom'
+    if (this.isBoostedLetterValue(letter.letter, letter.value)) {
+      ctx.shadowColor = COLORS.boostGreenGlow
+      ctx.shadowBlur = 5
+      ctx.shadowOffsetX = 0
+      ctx.shadowOffsetY = 0
+      ctx.fillStyle = COLORS.boostGreen
+    }
     ctx.fillText(String(letter.value), x + width - 2, y + height - 2)
+    ctx.shadowBlur = 0
 
     if (letter.isShiny) {
       ctx.fillStyle = COLORS.ivory
@@ -2884,6 +2904,9 @@ export class Game {
           }
           if (word[j].isShiny) {
             tile.classList.add('is-shiny')
+          }
+          if (this.isBoostedLetterValue(char, value)) {
+            tile.classList.add('is-boosted')
           }
           tile.innerHTML = `${char}<span class="tile-points">${value}</span>`
           wordContainer.appendChild(tile)

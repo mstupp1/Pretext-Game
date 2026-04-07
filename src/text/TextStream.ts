@@ -6,7 +6,7 @@ import { getRandomPassage } from './passages'
 import { ICONS, MultiplierType } from '../utils/constants'
 
 const MULTIPLIER_SPAWN_RATE = 0.018
-const SHINY_SPAWN_RATE = 0.143
+const SHINY_SPAWN_RATE = 0.05
 const MULTIPLIER_WEIGHTS: Array<{
   type: Exclude<MultiplierType, 'None'>
   weight: number

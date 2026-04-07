@@ -467,6 +467,7 @@ export class Lane {
     ctx.fillText(ch.char, 0, -1)
 
     const points = this.resolveLetterValue(ch.char)
+    const isBoostedValue = points > getLetterValue(ch.char)
     if (points > 0) {
       ctx.font = this.pointsFont
       ctx.textAlign = 'right'
@@ -478,8 +479,17 @@ export class Lane {
           : `rgba(245, 241, 232, ${underlayAlpha * 0.8})`
         ctx.fillText(String(points), tileW / 2 - 3, tileH / 2 - 1)
       }
-      ctx.fillStyle = colors.charColor
+      if (isBoostedValue) {
+        ctx.shadowColor = COLORS.boostGreenGlow
+        ctx.shadowBlur = 8
+        ctx.shadowOffsetX = 0
+        ctx.shadowOffsetY = 0
+      }
+      ctx.fillStyle = isBoostedValue ? COLORS.boostGreen : colors.charColor
       ctx.fillText(String(points), tileW / 2 - 3, tileH / 2 - 2)
+      if (isBoostedValue) {
+        ctx.shadowBlur = 0
+      }
     }
 
     if (ch.isShiny) {
