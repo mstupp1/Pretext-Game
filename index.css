@@ -331,6 +331,42 @@ html, body {
   right: 2px;
 }
 
+.tray-tile.is-shiny {
+  box-shadow:
+    0 0 0 1px rgba(240, 201, 108, 0.8) inset,
+    0 0 14px rgba(240, 201, 108, 0.28),
+    0 4px 8px var(--shadow-warm);
+  overflow: hidden;
+}
+
+.tray-tile.is-shiny::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 18%, rgba(255, 249, 230, 0.3) 44%, rgba(240, 201, 108, 0.18) 56%, transparent 72%);
+  transform: translateX(-130%);
+  animation: shiny-sweep 3.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.tray-tile.is-shiny::after {
+  content: '+1';
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  color: rgba(245, 241, 232, 0.96);
+  line-height: 1;
+  pointer-events: none;
+}
+
+.completed-word .tray-tile.is-shiny::after {
+  top: 2px;
+  left: 2px;
+  font-size: 6px;
+}
+
 /* ── Multiplier Styles ── */
 .multiplier-DoubleLetter {
   background: #5B9BD5 !important;
@@ -354,6 +390,24 @@ html, body {
 }
 .multiplier-DoubleLetter .tile-points, .multiplier-DoubleWord .tile-points {
   color: rgba(44, 24, 16, 0.8) !important;
+}
+
+@keyframes shiny-sweep {
+  0%, 18% {
+    transform: translateX(-130%);
+    opacity: 0;
+  }
+  24% {
+    opacity: 1;
+  }
+  42% {
+    transform: translateX(130%);
+    opacity: 1;
+  }
+  54%, 100% {
+    transform: translateX(130%);
+    opacity: 0;
+  }
 }
 
 /* ── Title Screen & Game Over (rendered as canvas overlays, but some fallback) ── */

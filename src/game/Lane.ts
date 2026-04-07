@@ -32,6 +32,7 @@ export class Lane {
   private pointsFont: string
   private tileShineGradientCache: Map<string, CanvasGradient> = new Map()
   private effectsActive: boolean = false
+  private resolveLetterValue: (letter: string) => number = getLetterValue
 
   constructor(config: LaneConfig, yPosition: number) {
     this.config = config
@@ -108,6 +109,10 @@ export class Lane {
 
   setMotionScale(scale: number): void {
     this.stream?.setMotionScale(scale)
+  }
+
+  setLetterValueResolver(resolver: (letter: string) => number): void {
+    this.resolveLetterValue = resolver
   }
 
   update(dt: number, playerX: number, playerY: number): void {
@@ -352,6 +357,17 @@ export class Lane {
     const colorAlpha = isFocused ? 1 : baseAlpha
     const colors = this.getHighlightColors(ch.multiplierType, colorAlpha, bgAlpha, colorT, textT, borderT)
 
+    if (ch.isShiny) {
+      const halo = ctx.createRadialGradient(0, 0, tileW * 0.12, 0, 0, Math.max(tileW, tileH) * 0.92)
+      halo.addColorStop(0, `rgba(240, 201, 108, ${baseAlpha * 0.26})`)
+      halo.addColorStop(0.58, `rgba(240, 201, 108, ${baseAlpha * 0.12})`)
+      halo.addColorStop(1, 'rgba(240, 201, 108, 0)')
+      ctx.fillStyle = halo
+      ctx.beginPath()
+      ctx.ellipse(0, 0, tileW * 0.72, tileH * 0.78, 0, 0, Math.PI * 2)
+      ctx.fill()
+    }
+
     ctx.fillStyle = colors.baseColor
     ctx.beginPath()
     ctx.roundRect(-tileW / 2, -tileH / 2, tileW, tileH, borderRadius)
@@ -376,6 +392,30 @@ export class Lane {
     ctx.fillStyle = this.getTileShineGradient(ctx, tileW, tileH)
     ctx.fill()
 
+    if (ch.isShiny) {
+      const tilePath = new Path2D()
+      tilePath.roundRect(-tileW / 2, -tileH / 2, tileW, tileH, borderRadius)
+      const shimmerPhase = (Date.now() * 0.0016 + ch.seed * 5.3) % 1
+      const shimmerX = -tileW + shimmerPhase * tileW * 2
+      const shimmer = ctx.createLinearGradient(shimmerX - tileW * 0.24, -tileH / 2, shimmerX + tileW * 0.1, tileH / 2)
+      shimmer.addColorStop(0, 'rgba(255, 255, 255, 0)')
+      shimmer.addColorStop(0.38, `rgba(255, 248, 224, ${baseAlpha * 0.38})`)
+      shimmer.addColorStop(0.55, `rgba(240, 201, 108, ${baseAlpha * 0.22})`)
+      shimmer.addColorStop(0.72, 'rgba(255, 255, 255, 0)')
+      ctx.save()
+      ctx.clip(tilePath)
+      ctx.globalCompositeOperation = 'screen'
+      ctx.fillStyle = shimmer
+      ctx.fillRect(-tileW / 2 - 6, -tileH / 2 - 6, tileW + 12, tileH + 12)
+      ctx.restore()
+
+      ctx.strokeStyle = `rgba(240, 201, 108, ${baseAlpha * 0.8})`
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.roundRect(-tileW / 2 + 0.75, -tileH / 2 + 0.75, tileW - 1.5, tileH - 1.5, Math.max(2, borderRadius - 1))
+      ctx.stroke()
+    }
+
     ctx.font = this.font
     const textContrastBoost = Math.max(0, 1 - Math.abs(colorT - 0.5) / 0.5)
     const charIsLight = colors.charColor === COLORS.ivory || colorT > 0.62
@@ -389,7 +429,7 @@ export class Lane {
     ctx.fillStyle = colors.charColor
     ctx.fillText(ch.char, 0, -1)
 
-    const points = getLetterValue(ch.char)
+    const points = this.resolveLetterValue(ch.char)
     if (points > 0) {
       ctx.font = this.pointsFont
       ctx.textAlign = 'right'
@@ -403,6 +443,15 @@ export class Lane {
       }
       ctx.fillStyle = colors.charColor
       ctx.fillText(String(points), tileW / 2 - 3, tileH / 2 - 2)
+    }
+
+    if (ch.isShiny) {
+      ctx.globalAlpha = baseAlpha
+      ctx.fillStyle = COLORS.ivory
+      ctx.font = '700 9px Georgia, "Times New Roman", serif'
+      ctx.textAlign = 'left'
+      ctx.textBaseline = 'top'
+      ctx.fillText('+1', -tileW / 2 + 4, -tileH / 2 + 3)
     }
 
     ctx.restore()

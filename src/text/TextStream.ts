@@ -6,6 +6,7 @@ import { getRandomPassage } from './passages'
 import { ICONS, MultiplierType } from '../utils/constants'
 
 const MULTIPLIER_SPAWN_RATE = 0.018
+const SHINY_SPAWN_RATE = 0.143
 const MULTIPLIER_WEIGHTS: Array<{
   type: Exclude<MultiplierType, 'None'>
   weight: number
@@ -54,6 +55,7 @@ export interface StreamChar {
   isHighlighted: boolean  // collectible letter
   isCollected: boolean    // already taken
   multiplierType: MultiplierType
+  isShiny: boolean
   originalIndex: number   // index in the full text
   isSpace: boolean        // is whitespace character
   wordIndex: number       // which word this char belongs to
@@ -99,6 +101,7 @@ export class TextStream {
   private shimmerIntensity: number
   private isIconStream: boolean
   private targetHighlightCount: number = 0
+  private targetShinyCount: number = 0
   private multiplierTargets: Record<ActiveMultiplierType, number> = createEmptyMultiplierCounts()
   private rebalanceTimer: number = REBALANCE_INTERVAL
   private visibleCharsCache: {
@@ -174,6 +177,7 @@ export class TextStream {
     const measured = measureCharsInLine(text, this.font)
     this.chars = []
     this.targetHighlightCount = 0
+    this.targetShinyCount = 0
     this.multiplierTargets = createEmptyMultiplierCounts()
     this.rebalanceTimer = REBALANCE_INTERVAL
     let totalW = 0
@@ -188,6 +192,7 @@ export class TextStream {
     let highlightCooldown = 0
     let multiplierCooldown = 0
     let wordMultiplierCooldown = 0
+    let shinyCooldown = 0
 
     for (let i = 0; i < measured.length; i++) {
       const mc = measured[i]
@@ -205,6 +210,7 @@ export class TextStream {
 
       let isHighlighted = false
       let multiplierType: MultiplierType = 'None'
+      let isShiny = false
 
       if (isLetter && highlightCooldown <= 0) {
         if (multiplierCooldown <= 0 && Math.random() < MULTIPLIER_SPAWN_RATE) {
@@ -240,6 +246,11 @@ export class TextStream {
           if (multiplierType !== 'None') {
             this.multiplierTargets[multiplierType]++
           }
+          if (shinyCooldown <= 0 && Math.random() < SHINY_SPAWN_RATE) {
+            isShiny = true
+            this.targetShinyCount++
+            shinyCooldown = 56 + Math.floor(Math.random() * 22)
+          }
           // Enforce a minimum gap between collectibles (e.g., 8 to 12 characters)
           highlightCooldown = 8 + Math.floor(Math.random() * 5)
           if (multiplierType === 'None' && multiplierCooldown > 0) {
@@ -254,6 +265,9 @@ export class TextStream {
       if (highlightCooldown > 0) {
         highlightCooldown--
       }
+      if (shinyCooldown > 0) {
+        shinyCooldown--
+      }
 
       // Per-character seeds for deterministic ambient variation
       const seed = this.pseudoRandom(i * 7919 + 1301)
@@ -267,6 +281,7 @@ export class TextStream {
         isHighlighted,
         isCollected: false,
         multiplierType,
+        isShiny,
         originalIndex: i,
         isSpace,
         wordIndex,
@@ -598,11 +613,15 @@ export class TextStream {
 
   private rebalanceCollectibles(viewportWidth: number): void {
     let activeHighlightCount = 0
+    let activeShinyCount = 0
     const activeMultiplierCounts = createEmptyMultiplierCounts()
 
     for (const ch of this.chars) {
       if (ch.isCollected || !ch.isHighlighted) continue
       activeHighlightCount++
+      if (ch.isShiny) {
+        activeShinyCount++
+      }
       if (ch.multiplierType !== 'None') {
         activeMultiplierCounts[ch.multiplierType]++
       }
@@ -612,7 +631,9 @@ export class TextStream {
       type => activeMultiplierCounts[type] < this.multiplierTargets[type]
     )
 
-    if (!hasMultiplierDeficit && activeHighlightCount >= this.targetHighlightCount) {
+    const hasShinyDeficit = activeShinyCount < this.targetShinyCount
+
+    if (!hasMultiplierDeficit && !hasShinyDeficit && activeHighlightCount >= this.targetHighlightCount) {
       return
     }
 
@@ -636,6 +657,20 @@ export class TextStream {
       }
     }
 
+    while (activeShinyCount < this.targetShinyCount) {
+      const candidate = this.findShinyReplacementCandidate(visibleChars, activeHighlightIndices)
+      if (!candidate) break
+
+      if (!candidate.isHighlighted) {
+        candidate.isHighlighted = true
+        activeHighlightCount++
+        activeHighlightIndices.push(candidate.originalIndex)
+      }
+
+      candidate.isShiny = true
+      activeShinyCount++
+    }
+
     while (activeHighlightCount < this.targetHighlightCount) {
       const candidate = this.findReplacementCandidate(visibleChars, activeHighlightIndices, false)
       if (!candidate) break
@@ -645,6 +680,38 @@ export class TextStream {
       activeHighlightCount++
       activeHighlightIndices.push(candidate.originalIndex)
     }
+  }
+
+  private findShinyReplacementCandidate(
+    visibleChars: Set<StreamChar>,
+    activeHighlightIndices: number[],
+  ): StreamChar | null {
+    const highlightedMultiplierCandidates: StreamChar[] = []
+    const highlightedRegularCandidates: StreamChar[] = []
+    const freshCandidates: StreamChar[] = []
+
+    for (const ch of this.chars) {
+      if (!/[A-Za-z]/.test(ch.char) || ch.isCollected || ch.isShiny) continue
+      if (visibleChars.has(ch)) continue
+
+      if (ch.isHighlighted) {
+        if (ch.multiplierType !== 'None') highlightedMultiplierCandidates.push(ch)
+        else highlightedRegularCandidates.push(ch)
+        continue
+      }
+
+      if (this.hasHighlightConflict(ch.originalIndex, activeHighlightIndices)) continue
+      freshCandidates.push(ch)
+    }
+
+    const pool = highlightedMultiplierCandidates.length > 0
+      ? highlightedMultiplierCandidates
+      : highlightedRegularCandidates.length > 0
+        ? highlightedRegularCandidates
+        : freshCandidates
+
+    if (pool.length === 0) return null
+    return pool[Math.floor(Math.random() * pool.length)]
   }
 
   private findReplacementCandidate(

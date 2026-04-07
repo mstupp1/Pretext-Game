@@ -18,6 +18,7 @@ interface CollectedLetter {
   letter: string
   value: number
   multiplierType: MultiplierType
+  isShiny: boolean
   // Animation
   floatingX: number
   floatingY: number
@@ -155,6 +156,7 @@ export class Game {
   private hudContentVisible: boolean | null = null
   private completedWordsVisible: boolean | null = null
   private gameOverWordPage: number = 0
+  private letterValueBonuses: Partial<Record<string, number>> = {}
 
   // Countdown state
   private countdownValue: number = 3
@@ -288,6 +290,33 @@ export class Game {
     } catch { /* ignore */ }
   }
 
+  private getRunLetterBonus(letter: string): number {
+    return this.letterValueBonuses[letter.toUpperCase()] ?? 0
+  }
+
+  private getCurrentLetterValue(letter: string): number {
+    return getLetterValue(letter) + this.getRunLetterBonus(letter)
+  }
+
+  private resetRunLetterBonuses(): void {
+    this.letterValueBonuses = {}
+  }
+
+  private applyShinyBonuses(letters: ScoredLetter[]): string[] {
+    const empoweredLetters = new Map<string, number>()
+
+    for (const letter of letters) {
+      if (!letter.isShiny) continue
+      empoweredLetters.set(letter.letter, (empoweredLetters.get(letter.letter) ?? 0) + 1)
+    }
+
+    for (const [letter, amount] of empoweredLetters) {
+      this.letterValueBonuses[letter] = (this.letterValueBonuses[letter] ?? 0) + amount
+    }
+
+    return Array.from(empoweredLetters.keys()).map((letter) => `${letter} now ${this.getCurrentLetterValue(letter)}`)
+  }
+
   // ── State transitions ──
 
   startGame(): void {
@@ -309,6 +338,7 @@ export class Game {
     this.pauseConfirmIndex = 0
     this.score = 0
     this.chapter = 1
+    this.resetRunLetterBonuses()
     this.wordsFound = []
     this.usedWords = new Set()
     this.collectedLetters = []
@@ -391,7 +421,9 @@ export class Game {
     for (let i = 0; i < LANE_COUNT; i++) {
       const config = this.level.laneConfigs[i]
       const y = LANE_Y_START + i * LANE_HEIGHT
-      this.lanes.push(new Lane(config, y))
+      const lane = new Lane(config, y)
+      lane.setLetterValueResolver((letter) => this.getCurrentLetterValue(letter))
+      this.lanes.push(lane)
     }
   }
 
@@ -435,6 +467,7 @@ export class Game {
     this.removedTrayLetters = []
     this.wordsFound = []
     this.usedWords = new Set()
+    this.resetRunLetterBonuses()
     this.feedback = null
     this.floatingScores = []
     this.particles.clear()
@@ -806,8 +839,9 @@ export class Game {
       const letter = collected.char.toUpperCase()
       this.collectedLetters.push({
         letter,
-        value: getLetterValue(letter),
+        value: this.getCurrentLetterValue(letter),
         multiplierType: collected.multiplierType,
+        isShiny: collected.isShiny,
         floatingX: this.player.x,
         floatingY: this.player.y,
         animProgress: 0,
@@ -827,7 +861,12 @@ export class Game {
     if (this.state !== 'playing') return
     if (this.isSubmitting) return
 
-    const allLetters = this.collectedLetters.map(l => ({ letter: l.letter, multiplierType: l.multiplierType }))
+    const allLetters = this.collectedLetters.map(l => ({
+      letter: l.letter,
+      value: l.value,
+      multiplierType: l.multiplierType,
+      isShiny: l.isShiny,
+    }))
 
     if (allLetters.length === 0) {
       this.showFeedback('Collect letters first', false)
@@ -865,6 +904,7 @@ export class Game {
         chapter: this.chapter,
       })
       this.usedWords.add(result.word)
+      const shinyUpgrades = this.applyShinyBonuses(allLetters)
 
       const timeBonus = getScorePreview(allLetters).timeBonus
 
@@ -876,7 +916,8 @@ export class Game {
       this.removedTrayLetters = []
 
       const timeMsg = timeBonus > 0 ? ` (+${timeBonus}s)` : ''
-      this.showFeedback(`${result.word}: +${result.totalScore}${timeMsg}  ${result.message}`, true)
+      const shinyMsg = shinyUpgrades.length > 0 ? ` Shiny: ${shinyUpgrades.join(', ')}.` : ''
+      this.showFeedback(`${result.word}: +${result.totalScore}${timeMsg}  ${result.message}${shinyMsg}`, true)
 
       // ✨ TYPOGRAPHIC EXPLOSION — the big payoff!
       const intensity = Math.min(2, 0.8 + result.totalScore / 50)
@@ -1239,7 +1280,7 @@ export class Game {
     const innerPath = this.createRoundedRectPath(innerX, innerY, innerWidth, innerHeight, 10)
     const lipPath = this.createRoundedRectPath(innerX + 18, innerY + innerHeight - lipHeight - 4, innerWidth - 36, lipHeight, 8)
     const selectedPreview = this.collectedLetters.length > 0
-      ? getScorePreview(this.collectedLetters.map(({ letter, multiplierType }) => ({ letter, multiplierType })))
+      ? getScorePreview(this.collectedLetters.map(({ letter, value, multiplierType, isShiny }) => ({ letter, value, multiplierType, isShiny })))
       : null
 
     ctx.save()
@@ -1376,7 +1417,7 @@ export class Game {
     scale: number,
     alpha: number = 1,
   ): void {
-    const { fill, border, text } = this.getTrayTilePalette(letter.multiplierType)
+    const { fill, border, text } = this.getTrayTilePalette(letter.multiplierType, letter.isShiny)
     const x = centerX - width / 2
     const y = centerY - height / 2
     const tilePath = this.createRoundedRectPath(x, y, width, height, 5)
@@ -1403,8 +1444,8 @@ export class Game {
     ctx.ellipse(centerX, y + height + 1, width * 0.46, height * 0.08, 0, 0, Math.PI * 2)
     ctx.fill()
 
-    ctx.shadowColor = 'rgba(44, 24, 16, 0.28)'
-    ctx.shadowBlur = 16
+    ctx.shadowColor = letter.isShiny ? COLORS.shinyGlow : 'rgba(44, 24, 16, 0.28)'
+    ctx.shadowBlur = letter.isShiny ? 22 : 16
     ctx.shadowOffsetY = 6
     ctx.fillStyle = fill
     ctx.fill(tilePath)
@@ -1497,11 +1538,31 @@ export class Game {
     ctx.beginPath()
     ctx.ellipse(x + width * 0.74, y + height * 0.2, width * 0.08, height * 0.06, -0.35, 0, Math.PI * 2)
     ctx.fill()
+
+    if (letter.isShiny) {
+      const shimmerPhase = (Date.now() * 0.0015 + centerX * 0.014 + centerY * 0.009) % 1
+      const shimmerX = x - width * 0.4 + shimmerPhase * width * 1.7
+      const shimmer = ctx.createLinearGradient(shimmerX, y, shimmerX + width * 0.26, y + height)
+      shimmer.addColorStop(0, 'rgba(255, 255, 255, 0)')
+      shimmer.addColorStop(0.45, 'rgba(255, 250, 230, 0.36)')
+      shimmer.addColorStop(0.62, 'rgba(240, 201, 108, 0.22)')
+      shimmer.addColorStop(1, 'rgba(255, 255, 255, 0)')
+      ctx.globalCompositeOperation = 'screen'
+      ctx.fillStyle = shimmer
+      ctx.fillRect(x - 4, y - 4, width + 8, height + 8)
+      ctx.globalCompositeOperation = 'source-over'
+    }
     ctx.restore()
 
     ctx.strokeStyle = border
     ctx.lineWidth = 1
     ctx.stroke(tilePath)
+
+    if (letter.isShiny) {
+      ctx.strokeStyle = 'rgba(240, 201, 108, 0.88)'
+      ctx.lineWidth = 1
+      ctx.stroke(this.createRoundedRectPath(x + 1, y + 1, width - 2, height - 2, 4))
+    }
 
     ctx.strokeStyle = 'rgba(0, 0, 0, 0.14)'
     ctx.lineWidth = 3
@@ -1521,6 +1582,14 @@ export class Game {
     ctx.textAlign = 'right'
     ctx.textBaseline = 'bottom'
     ctx.fillText(String(letter.value), x + width - 4, y + height - 6)
+
+    if (letter.isShiny) {
+      ctx.fillStyle = COLORS.ivory
+      ctx.font = '700 10px Georgia, "Times New Roman", serif'
+      ctx.textAlign = 'left'
+      ctx.textBaseline = 'top'
+      ctx.fillText('+1', x + 5, y + 4)
+    }
 
     ctx.restore()
   }
@@ -1585,18 +1654,19 @@ export class Game {
     }
   }
 
-  private getTrayTilePalette(multiplierType: MultiplierType): { fill: string; border: string; text: string } {
+  private getTrayTilePalette(multiplierType: MultiplierType, isShiny: boolean = false): { fill: string; border: string; text: string } {
+    const shinyBorder = isShiny ? '#F0C96C' : null
     switch (multiplierType) {
       case 'DoubleLetter':
-        return { fill: COLORS.dlLight, border: '#3F6BA8', text: '#FFFFFF' }
+        return { fill: COLORS.dlLight, border: shinyBorder ?? '#3F6BA8', text: '#FFFFFF' }
       case 'TripleLetter':
-        return { fill: COLORS.tlBlue, border: '#177C72', text: COLORS.ivory }
+        return { fill: COLORS.tlBlue, border: shinyBorder ?? '#177C72', text: COLORS.ivory }
       case 'DoubleWord':
-        return { fill: COLORS.dwCoral, border: '#B83D2F', text: '#FFFFFF' }
+        return { fill: COLORS.dwCoral, border: shinyBorder ?? '#B83D2F', text: '#FFFFFF' }
       case 'TripleWord':
-        return { fill: COLORS.twPurple, border: '#732D91', text: COLORS.ivory }
+        return { fill: COLORS.twPurple, border: shinyBorder ?? '#732D91', text: COLORS.ivory }
       default:
-        return { fill: REGULAR_TILE_STYLE.fill, border: REGULAR_TILE_STYLE.border, text: COLORS.ivory }
+        return { fill: REGULAR_TILE_STYLE.fill, border: shinyBorder ?? REGULAR_TILE_STYLE.border, text: COLORS.ivory }
     }
   }
 
@@ -2050,8 +2120,9 @@ export class Game {
             ctx,
             {
               letter: lettersToRender[letterIndex].letter.toUpperCase(),
-              value: getLetterValue(lettersToRender[letterIndex].letter),
+              value: lettersToRender[letterIndex].value,
               multiplierType: lettersToRender[letterIndex].multiplierType,
+              isShiny: lettersToRender[letterIndex].isShiny,
               floatingX: 0,
               floatingY: 0,
               animProgress: 1,
@@ -2189,7 +2260,7 @@ export class Game {
     width: number,
     height: number,
   ): void {
-    const { fill, border, text } = this.getTrayTilePalette(letter.multiplierType)
+    const { fill, border, text } = this.getTrayTilePalette(letter.multiplierType, letter.isShiny)
     const x = centerX - width / 2
     const y = centerY - height / 2
     const tilePath = this.createRoundedRectPath(x, y, width, height, 2)
@@ -2213,11 +2284,30 @@ export class Game {
     ctx.fillStyle = highlight
     ctx.fill(tilePath)
 
+    if (letter.isShiny) {
+      const shimmerPhase = (Date.now() * 0.0015 + centerX * 0.02) % 1
+      const shimmerX = x - width * 0.2 + shimmerPhase * width * 1.4
+      const shimmer = ctx.createLinearGradient(shimmerX, y, shimmerX + width * 0.2, y + height)
+      shimmer.addColorStop(0, 'rgba(255, 255, 255, 0)')
+      shimmer.addColorStop(0.45, 'rgba(255, 250, 230, 0.28)')
+      shimmer.addColorStop(1, 'rgba(255, 255, 255, 0)')
+      ctx.globalCompositeOperation = 'screen'
+      ctx.fillStyle = shimmer
+      ctx.fillRect(x - 2, y - 2, width + 4, height + 4)
+      ctx.globalCompositeOperation = 'source-over'
+    }
+
     ctx.restore()
 
     ctx.strokeStyle = border
     ctx.lineWidth = 1
     ctx.stroke(tilePath)
+
+    if (letter.isShiny) {
+      ctx.strokeStyle = 'rgba(240, 201, 108, 0.82)'
+      ctx.lineWidth = 1
+      ctx.stroke(this.createRoundedRectPath(x + 1, y + 1, width - 2, height - 2, 2))
+    }
 
     ctx.strokeStyle = 'rgba(0, 0, 0, 0.14)'
     ctx.lineWidth = 2
@@ -2237,6 +2327,14 @@ export class Game {
     ctx.textAlign = 'right'
     ctx.textBaseline = 'bottom'
     ctx.fillText(String(letter.value), x + width - 2, y + height - 2)
+
+    if (letter.isShiny) {
+      ctx.fillStyle = COLORS.ivory
+      ctx.font = '700 5px Georgia, "Times New Roman", serif'
+      ctx.textAlign = 'left'
+      ctx.textBaseline = 'top'
+      ctx.fillText('+1', x + 2, y + 2)
+    }
 
     ctx.restore()
   }
@@ -2778,11 +2876,14 @@ export class Game {
 
         for (let j = 0; j < word.length; j++) {
           const char = word[j].letter.toUpperCase()
-          const value = getLetterValue(char)
+          const value = word[j].value
           const tile = document.createElement('div')
           tile.className = 'tray-tile'
           if (word[j].multiplierType && word[j].multiplierType !== 'None') {
             tile.classList.add(`multiplier-${word[j].multiplierType}`)
+          }
+          if (word[j].isShiny) {
+            tile.classList.add('is-shiny')
           }
           tile.innerHTML = `${char}<span class="tile-points">${value}</span>`
           wordContainer.appendChild(tile)

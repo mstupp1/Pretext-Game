@@ -35,7 +35,9 @@ export interface ScorePreview {
 
 export interface ScoredLetter {
   letter: string
+  value: number
   multiplierType: MultiplierType
+  isShiny: boolean
 }
 
 export async function scoreWord(letters: ScoredLetter[]): Promise<ScoreResult> {
@@ -84,8 +86,7 @@ export function getScorePreview(letters: ScoredLetter[]): ScorePreview {
   let letterScore = 0
   let wordMultiplier = 1
   for (const item of letters) {
-    const letter = item.letter.toUpperCase()
-    let val = LETTER_VALUES[letter] || 0
+    let val = item.value
     if (item.multiplierType === 'DoubleLetter') {
       val *= 2
     } else if (item.multiplierType === 'TripleLetter') {
