@@ -60,7 +60,7 @@ export class AudioManager {
   private MUSIC_CROSSFADE_MS = 1200;
   
   private AMBIENCE_TRIM_START = 5.0;
-  private AMBIENCE_TRIM_END_OFFSET = 0.5;
+  private AMBIENCE_TRIM_END_OFFSET = 8.0;
   private AMBIENCE_CROSSFADE_DURATION = 2.0;
   
   constructor() {
