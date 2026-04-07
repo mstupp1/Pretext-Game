@@ -1459,8 +1459,11 @@ export class Game {
   ): void {
     const { fill, border, text } = this.getTrayTilePalette(letter.multiplierType, letter.isShiny)
     const shinyAccent = this.getShinyTileAccent(letter.multiplierType)
+    const borderPulsePhase = letter.isShiny
+      ? ((Date.now() * 0.0012 + centerX * 0.01 + centerY * 0.004) % 1)
+      : 0
     const borderPulse = letter.isShiny
-      ? (Math.sin(Date.now() * 0.0014 + centerX * 0.01 + centerY * 0.004) + 1) * 0.5
+      ? 1 - Math.abs(borderPulsePhase * 2 - 1)
       : 0
     const x = centerX - width / 2
     const y = centerY - height / 2
@@ -1604,18 +1607,18 @@ export class Game {
         const shimmerX = x - width * 0.9 + shimmerPhase * width * 2.8
         const shimmer = ctx.createLinearGradient(shimmerX, y - 2, shimmerX + width * 0.6, y + height + 2)
         shimmer.addColorStop(0, 'rgba(255, 255, 255, 0)')
-        shimmer.addColorStop(0.26, 'rgba(255, 255, 255, 0.18)')
+        shimmer.addColorStop(0.26, 'rgba(255, 255, 255, 0.1)')
         shimmer.addColorStop(0.42, shinyAccent.bright)
-        shimmer.addColorStop(0.5, 'rgba(255, 255, 255, 0.55)')
+        shimmer.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)')
         shimmer.addColorStop(0.58, shinyAccent.glow)
-        shimmer.addColorStop(0.72, 'rgba(255, 255, 255, 0.18)')
+        shimmer.addColorStop(0.72, 'rgba(255, 255, 255, 0.1)')
         shimmer.addColorStop(1, 'rgba(255, 255, 255, 0)')
         ctx.globalCompositeOperation = 'screen'
-        ctx.globalAlpha = 0.7 * sweepOpacity
+        ctx.globalAlpha = 0.42 * sweepOpacity
         ctx.fillStyle = shimmer
         ctx.fillRect(x - 6, y - 6, width + 12, height + 12)
         ctx.globalCompositeOperation = 'lighter'
-        ctx.globalAlpha = 0.55 * sweepOpacity
+        ctx.globalAlpha = 0.22 * sweepOpacity
         ctx.fillStyle = shimmer
         ctx.fillRect(x - 6, y - 6, width + 12, height + 12)
       }
@@ -1632,8 +1635,8 @@ export class Game {
       ctx.save()
       ctx.strokeStyle = shinyAccent.border
       ctx.shadowColor = shinyAccent.glow
-      ctx.shadowBlur = 6 + borderPulse * 7
-      ctx.lineWidth = 1.3 + borderPulse * 0.55
+      ctx.shadowBlur = 10 + borderPulse * 16
+      ctx.lineWidth = 1.35 + borderPulse * 0.75
       ctx.stroke(this.createRoundedRectPath(x + 0.75, y + 0.75, width - 1.5, height - 1.5, 4))
       ctx.restore()
       ctx.strokeStyle = shinyAccent.border
