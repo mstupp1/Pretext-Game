@@ -338,8 +338,8 @@ html, body {
 
 .tray-tile.is-shiny {
   box-shadow:
-    0 0 0 1px rgba(240, 201, 108, 0.8) inset,
-    0 0 14px rgba(240, 201, 108, 0.28),
+    0 0 0 1px rgba(255, 255, 255, 0.42) inset,
+    0 0 14px rgba(255, 255, 255, 0.16),
     0 4px 8px var(--shadow-warm);
   overflow: hidden;
 }
@@ -348,7 +348,7 @@ html, body {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(120deg, transparent 18%, rgba(255, 249, 230, 0.3) 44%, rgba(240, 201, 108, 0.18) 56%, transparent 72%);
+  background: linear-gradient(120deg, transparent 18%, rgba(255, 255, 255, 0.32) 44%, rgba(255, 255, 255, 0.14) 56%, transparent 72%);
   transform: translateX(-130%);
   animation: shiny-sweep 3.4s ease-in-out infinite;
   pointer-events: none;

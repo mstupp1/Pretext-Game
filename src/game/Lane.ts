@@ -366,13 +366,14 @@ export class Lane {
 
     const colorAlpha = isFocused ? 1 : baseAlpha
     const colors = this.getHighlightColors(ch.multiplierType, colorAlpha, bgAlpha, colorT, textT, borderT)
+    const shinyAccent = this.getShinyAccentStyle(ch.multiplierType)
 
     if (ch.isShiny) {
       const haloAlpha = baseAlpha * (0.22 + shinyPulse * 0.28 + (1 - interactionStrength) * 0.15)
       const halo = ctx.createRadialGradient(0, 0, tileW * 0.12, 0, 0, Math.max(tileW, tileH) * 0.98)
-      halo.addColorStop(0, `rgba(240, 201, 108, ${haloAlpha})`)
-      halo.addColorStop(0.58, `rgba(240, 201, 108, ${haloAlpha * 0.68})`)
-      halo.addColorStop(1, 'rgba(240, 201, 108, 0)')
+      halo.addColorStop(0, `rgba(${shinyAccent.glow[0]}, ${shinyAccent.glow[1]}, ${shinyAccent.glow[2]}, ${haloAlpha})`)
+      halo.addColorStop(0.58, `rgba(${shinyAccent.glow[0]}, ${shinyAccent.glow[1]}, ${shinyAccent.glow[2]}, ${haloAlpha * 0.68})`)
+      halo.addColorStop(1, `rgba(${shinyAccent.glow[0]}, ${shinyAccent.glow[1]}, ${shinyAccent.glow[2]}, 0)`)
       ctx.fillStyle = halo
       ctx.beginPath()
       ctx.ellipse(0, 0, tileW * 0.72, tileH * 0.78, 0, 0, Math.PI * 2)
@@ -410,8 +411,8 @@ export class Lane {
       const shimmerX = -tileW + shimmerPhase * tileW * 2
       const shimmer = ctx.createLinearGradient(shimmerX - tileW * 0.24, -tileH / 2, shimmerX + tileW * 0.1, tileH / 2)
       shimmer.addColorStop(0, 'rgba(255, 255, 255, 0)')
-      shimmer.addColorStop(0.38, `rgba(255, 248, 224, ${baseAlpha * 0.38})`)
-      shimmer.addColorStop(0.55, `rgba(240, 201, 108, ${baseAlpha * 0.22})`)
+      shimmer.addColorStop(0.38, `rgba(${shinyAccent.bright[0]}, ${shinyAccent.bright[1]}, ${shinyAccent.bright[2]}, ${baseAlpha * 0.38})`)
+      shimmer.addColorStop(0.55, `rgba(${shinyAccent.glow[0]}, ${shinyAccent.glow[1]}, ${shinyAccent.glow[2]}, ${baseAlpha * 0.22})`)
       shimmer.addColorStop(0.72, 'rgba(255, 255, 255, 0)')
       ctx.save()
       ctx.clip(tilePath)
@@ -420,14 +421,14 @@ export class Lane {
       ctx.fillRect(-tileW / 2 - 6, -tileH / 2 - 6, tileW + 12, tileH + 12)
       ctx.restore()
 
-      ctx.strokeStyle = `rgba(240, 201, 108, ${baseAlpha * 0.8})`
+      ctx.strokeStyle = `rgba(${shinyAccent.border[0]}, ${shinyAccent.border[1]}, ${shinyAccent.border[2]}, ${baseAlpha * 0.8})`
       ctx.lineWidth = 1
       ctx.beginPath()
       ctx.roundRect(-tileW / 2 + 0.75, -tileH / 2 + 0.75, tileW - 1.5, tileH - 1.5, Math.max(2, borderRadius - 1))
       ctx.stroke()
 
       if (!isFocused) {
-        ctx.strokeStyle = `rgba(255, 245, 214, ${0.24 + shinyPulse * 0.48})`
+        ctx.strokeStyle = `rgba(${shinyAccent.bright[0]}, ${shinyAccent.bright[1]}, ${shinyAccent.bright[2]}, ${0.24 + shinyPulse * 0.48})`
         ctx.lineWidth = 1.1 + shinyPulse * 0.7
         ctx.beginPath()
         ctx.roundRect(
@@ -439,7 +440,7 @@ export class Lane {
         )
         ctx.stroke()
 
-        ctx.strokeStyle = `rgba(240, 201, 108, ${0.12 + shinyPulse * 0.3})`
+        ctx.strokeStyle = `rgba(${shinyAccent.glow[0]}, ${shinyAccent.glow[1]}, ${shinyAccent.glow[2]}, ${0.12 + shinyPulse * 0.3})`
         ctx.lineWidth = 1 + shinyPulse * 0.45
         ctx.beginPath()
         ctx.roundRect(
@@ -505,9 +506,9 @@ export class Lane {
       const badgePath = new Path2D()
       badgePath.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 999)
       ctx.globalAlpha = baseAlpha
-      ctx.fillStyle = `rgba(238, 212, 140, ${0.94 + shinyPulse * 0.04})`
+      ctx.fillStyle = `rgba(${shinyAccent.badgeFill[0]}, ${shinyAccent.badgeFill[1]}, ${shinyAccent.badgeFill[2]}, ${0.94 + shinyPulse * 0.04})`
       ctx.fill(badgePath)
-      ctx.strokeStyle = `rgba(214, 164, 66, ${0.72 + shinyPulse * 0.18})`
+      ctx.strokeStyle = `rgba(${shinyAccent.border[0]}, ${shinyAccent.border[1]}, ${shinyAccent.border[2]}, ${0.72 + shinyPulse * 0.18})`
       ctx.lineWidth = 1
       ctx.stroke(badgePath)
       if (underlayAlpha > 0.01) {
@@ -537,6 +538,26 @@ export class Lane {
     if (ch.multiplierType === 'DoubleWord') return COLORS.dwCoral
     if (ch.multiplierType === 'TripleWord') return COLORS.twPurple
     return COLORS.tileGold
+  }
+
+  private getShinyAccentStyle(multiplierType: StreamChar['multiplierType']): {
+    glow: [number, number, number]
+    bright: [number, number, number]
+    border: [number, number, number]
+    badgeFill: [number, number, number]
+  } {
+    switch (multiplierType) {
+      case 'DoubleLetter':
+        return { glow: [91, 155, 213], bright: [228, 242, 255], border: [63, 107, 168], badgeFill: [202, 226, 249] }
+      case 'TripleLetter':
+        return { glow: [34, 166, 153], bright: [222, 249, 244], border: [23, 124, 114], badgeFill: [184, 232, 226] }
+      case 'DoubleWord':
+        return { glow: [231, 76, 60], bright: [255, 233, 228], border: [184, 61, 47], badgeFill: [248, 200, 191] }
+      case 'TripleWord':
+        return { glow: [142, 68, 173], bright: [244, 231, 251], border: [115, 45, 145], badgeFill: [223, 193, 237] }
+      default:
+        return { glow: [240, 201, 108], bright: [250, 242, 220], border: [214, 164, 66], badgeFill: [238, 212, 140] }
+    }
   }
 
   private getHighlightColors(multiplierType: StreamChar['multiplierType'], baseAlpha: number, bgAlpha: number, colorT: number, textT: number, borderT: number): {

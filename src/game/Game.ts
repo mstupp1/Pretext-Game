@@ -1458,6 +1458,7 @@ export class Game {
     alpha: number = 1,
   ): void {
     const { fill, border, text } = this.getTrayTilePalette(letter.multiplierType, letter.isShiny)
+    const shinyAccent = this.getShinyTileAccent(letter.multiplierType)
     const x = centerX - width / 2
     const y = centerY - height / 2
     const tilePath = this.createRoundedRectPath(x, y, width, height, 5)
@@ -1484,7 +1485,7 @@ export class Game {
     ctx.ellipse(centerX, y + height + 1, width * 0.46, height * 0.08, 0, 0, Math.PI * 2)
     ctx.fill()
 
-    ctx.shadowColor = letter.isShiny ? COLORS.shinyGlow : 'rgba(44, 24, 16, 0.28)'
+    ctx.shadowColor = letter.isShiny ? shinyAccent.glow : 'rgba(44, 24, 16, 0.28)'
     ctx.shadowBlur = letter.isShiny ? 22 : 16
     ctx.shadowOffsetY = 6
     ctx.fillStyle = fill
@@ -1584,8 +1585,8 @@ export class Game {
       const shimmerX = x - width * 0.4 + shimmerPhase * width * 1.7
       const shimmer = ctx.createLinearGradient(shimmerX, y, shimmerX + width * 0.26, y + height)
       shimmer.addColorStop(0, 'rgba(255, 255, 255, 0)')
-      shimmer.addColorStop(0.45, 'rgba(255, 250, 230, 0.36)')
-      shimmer.addColorStop(0.62, 'rgba(240, 201, 108, 0.22)')
+      shimmer.addColorStop(0.45, shinyAccent.bright)
+      shimmer.addColorStop(0.62, shinyAccent.glow)
       shimmer.addColorStop(1, 'rgba(255, 255, 255, 0)')
       ctx.globalCompositeOperation = 'screen'
       ctx.fillStyle = shimmer
@@ -1599,7 +1600,7 @@ export class Game {
     ctx.stroke(tilePath)
 
     if (letter.isShiny) {
-      ctx.strokeStyle = 'rgba(240, 201, 108, 0.88)'
+      ctx.strokeStyle = shinyAccent.border
       ctx.lineWidth = 1
       ctx.stroke(this.createRoundedRectPath(x + 1, y + 1, width - 2, height - 2, 4))
     }
@@ -1703,7 +1704,17 @@ export class Game {
   }
 
   private getTrayTilePalette(multiplierType: MultiplierType, isShiny: boolean = false): { fill: string; border: string; text: string } {
-    const shinyBorder = isShiny ? '#F0C96C' : null
+    const shinyBorder = isShiny
+      ? multiplierType === 'DoubleLetter'
+        ? '#3F6BA8'
+        : multiplierType === 'TripleLetter'
+          ? '#177C72'
+          : multiplierType === 'DoubleWord'
+            ? '#B83D2F'
+            : multiplierType === 'TripleWord'
+              ? '#732D91'
+              : REGULAR_TILE_STYLE.border
+      : null
     switch (multiplierType) {
       case 'DoubleLetter':
         return { fill: COLORS.dlLight, border: shinyBorder ?? '#3F6BA8', text: '#FFFFFF' }
@@ -1715,6 +1726,25 @@ export class Game {
         return { fill: COLORS.twPurple, border: shinyBorder ?? '#732D91', text: COLORS.ivory }
       default:
         return { fill: REGULAR_TILE_STYLE.fill, border: shinyBorder ?? REGULAR_TILE_STYLE.border, text: COLORS.ivory }
+    }
+  }
+
+  private getShinyTileAccent(multiplierType: MultiplierType): {
+    glow: string
+    bright: string
+    border: string
+  } {
+    switch (multiplierType) {
+      case 'DoubleLetter':
+        return { glow: 'rgba(91, 155, 213, 0.42)', bright: 'rgba(228, 242, 255, 0.36)', border: 'rgba(63, 107, 168, 0.88)' }
+      case 'TripleLetter':
+        return { glow: 'rgba(34, 166, 153, 0.42)', bright: 'rgba(222, 249, 244, 0.34)', border: 'rgba(23, 124, 114, 0.88)' }
+      case 'DoubleWord':
+        return { glow: 'rgba(231, 76, 60, 0.4)', bright: 'rgba(255, 233, 228, 0.34)', border: 'rgba(184, 61, 47, 0.88)' }
+      case 'TripleWord':
+        return { glow: 'rgba(142, 68, 173, 0.4)', bright: 'rgba(244, 231, 251, 0.34)', border: 'rgba(115, 45, 145, 0.88)' }
+      default:
+        return { glow: COLORS.shinyGlow, bright: 'rgba(255, 250, 230, 0.36)', border: 'rgba(240, 201, 108, 0.88)' }
     }
   }
 
@@ -2309,6 +2339,7 @@ export class Game {
     height: number,
   ): void {
     const { fill, border, text } = this.getTrayTilePalette(letter.multiplierType, letter.isShiny)
+    const shinyAccent = this.getShinyTileAccent(letter.multiplierType)
     const x = centerX - width / 2
     const y = centerY - height / 2
     const tilePath = this.createRoundedRectPath(x, y, width, height, 2)
@@ -2337,7 +2368,7 @@ export class Game {
       const shimmerX = x - width * 0.2 + shimmerPhase * width * 1.4
       const shimmer = ctx.createLinearGradient(shimmerX, y, shimmerX + width * 0.2, y + height)
       shimmer.addColorStop(0, 'rgba(255, 255, 255, 0)')
-      shimmer.addColorStop(0.45, 'rgba(255, 250, 230, 0.28)')
+      shimmer.addColorStop(0.45, shinyAccent.bright)
       shimmer.addColorStop(1, 'rgba(255, 255, 255, 0)')
       ctx.globalCompositeOperation = 'screen'
       ctx.fillStyle = shimmer
@@ -2352,7 +2383,7 @@ export class Game {
     ctx.stroke(tilePath)
 
     if (letter.isShiny) {
-      ctx.strokeStyle = 'rgba(240, 201, 108, 0.82)'
+      ctx.strokeStyle = shinyAccent.border
       ctx.lineWidth = 1
       ctx.stroke(this.createRoundedRectPath(x + 1, y + 1, width - 2, height - 2, 2))
     }
