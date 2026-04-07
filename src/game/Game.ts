@@ -2702,7 +2702,7 @@ export class Game {
         timerBonus.text,
         centerX,
         centerY - 20 - rise,
-        CANVAS_FONTS.uiSmallCaps(11),
+        CANVAS_FONTS.uiSmallCaps(15),
         COLORS.gold,
         'center',
       )
