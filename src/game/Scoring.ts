@@ -51,6 +51,10 @@ function roundScoreValue(value: number): number {
   return Math.round(value)
 }
 
+function roundMultiplierValue(value: number): number {
+  return Math.round(value * 100) / 100
+}
+
 function getSubmittedWordPattern(letters: ScoredLetter[]): string {
   return letters.map(letter => letter.isBlank ? '?' : letter.letter).join('').toUpperCase()
 }
@@ -126,7 +130,7 @@ export function getScorePreview(letters: ScoredLetter[], modifiers: ScoreModifie
 
   letterScore += modifiers.baseWordBonus
   const lengthBonus = getLengthBonusForWordLength(word.length)
-  wordMultiplier = roundScoreValue(wordMultiplier + modifiers.multiplierBonus)
+  wordMultiplier = roundMultiplierValue(wordMultiplier + modifiers.multiplierBonus)
 
   return {
     word,
