@@ -2623,7 +2623,7 @@ export class Game {
 
     ctx.beginPath()
     ctx.arc(centerX, centerY, radius + 3, 0, Math.PI * 2)
-    ctx.fillStyle = 'rgba(245, 241, 232, 0.9)'
+    ctx.fillStyle = 'rgba(255, 255, 253, 0.995)'
     ctx.shadowColor = warningT > 0 ? `rgba(139, 37, 0, ${0.12 + warningT * 0.18 + criticalT * 0.18})` : 'rgba(92, 64, 51, 0.08)'
     ctx.shadowBlur = 16 + warningT * 8 + criticalT * 10
     ctx.shadowOffsetY = 3
@@ -2637,9 +2637,9 @@ export class Game {
       centerY,
       radius,
     )
-    dialGradient.addColorStop(0, 'rgba(255, 251, 245, 0.96)')
-    dialGradient.addColorStop(0.65, 'rgba(245, 241, 232, 0.95)')
-    dialGradient.addColorStop(1, `rgba(232, 224, 208, ${0.95 - criticalT * 0.08})`)
+    dialGradient.addColorStop(0, 'rgba(255, 255, 255, 1)')
+    dialGradient.addColorStop(0.6, 'rgba(255, 254, 250, 0.99)')
+    dialGradient.addColorStop(1, `rgba(248, 244, 236, ${0.985 - criticalT * 0.08})`)
     ctx.beginPath()
     ctx.arc(centerX, centerY, radius + 1, 0, Math.PI * 2)
     ctx.fillStyle = dialGradient
@@ -2647,7 +2647,7 @@ export class Game {
 
     ctx.beginPath()
     ctx.arc(centerX, centerY, radius + 1, 0, Math.PI * 2)
-    ctx.strokeStyle = 'rgba(92, 64, 51, 0.14)'
+    ctx.strokeStyle = 'rgba(92, 64, 51, 0.18)'
     ctx.lineWidth = 1
     ctx.stroke()
 
@@ -2928,7 +2928,7 @@ export class Game {
     ctx.save()
     ctx.beginPath()
     ctx.roundRect(-width / 2, 0, width, height, 14)
-    ctx.fillStyle = 'rgba(245, 241, 232, 0.84)'
+    ctx.fillStyle = 'rgba(255, 253, 249, 0.94)'
     ctx.shadowColor = 'rgba(92, 64, 51, 0.08)'
     ctx.shadowBlur = 14
     ctx.shadowOffsetY = 3
@@ -2937,7 +2937,7 @@ export class Game {
 
     ctx.beginPath()
     ctx.roundRect(-width / 2, 0, width, height, 14)
-    ctx.fillStyle = 'rgba(245, 241, 232, 0.74)'
+    ctx.fillStyle = 'rgba(255, 254, 251, 0.9)'
     ctx.fill()
     ctx.strokeStyle = 'rgba(92, 64, 51, 0.14)'
     ctx.lineWidth = 1
