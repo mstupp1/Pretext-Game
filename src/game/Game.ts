@@ -47,6 +47,12 @@ interface FloatingScore {
   dy: number
 }
 
+interface TimerBonusIndicator {
+  text: string
+  timer: number
+  duration: number
+}
+
 interface CompletedWordRecord {
   letters: ScoredLetter[]
   score: number
@@ -127,6 +133,7 @@ export class Game {
   public floatingScores: FloatingScore[] = []
   public highScores: number[] = []
   public particles: ParticleSystem = new ParticleSystem()
+  private timerBonusIndicator: TimerBonusIndicator | null = null
 
   // Input state
   private keys: Set<string> = new Set()
@@ -351,6 +358,7 @@ export class Game {
     this.removedTrayLetters = []
     this.feedback = null
     this.floatingScores = []
+    this.timerBonusIndicator = null
     this.particles.clear()
     this.gameOverWordPage = 0
     this.gameOverTransitionTimer = 0
@@ -508,6 +516,7 @@ export class Game {
     this.resetRunLetterBonuses()
     this.feedback = null
     this.floatingScores = []
+    this.timerBonusIndicator = null
     this.particles.clear()
     this.gameOverWordPage = 0
     this.gameOverTransitionTimer = 0
@@ -953,9 +962,11 @@ export class Game {
       this.collectedLetters = []
       this.removedTrayLetters = []
 
-      const timeMsg = timeBonus > 0 ? ` (+${timeBonus}s)` : ''
       const shinyMsg = shinyUpgrades.length > 0 ? ` Shiny: ${shinyUpgrades.join(', ')}.` : ''
-      this.showFeedback(`${result.word}: +${result.totalScore}${timeMsg}  ${result.message}${shinyMsg}`, true)
+      this.showFeedback(`${result.word}: +${result.totalScore}  ${result.message}${shinyMsg}`, true)
+      if (timeBonus > 0) {
+        this.showTimerBonus(`+${timeBonus}s`)
+      }
 
       // ✨ TYPOGRAPHIC EXPLOSION — the big payoff!
       const intensity = Math.min(2, 0.8 + result.totalScore / 50)
@@ -963,9 +974,6 @@ export class Game {
 
       // Score text rises as particles
       this.particles.waveText(`+${result.totalScore}`, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 60)
-      if (timeBonus > 0) {
-        this.particles.waveText(`+${timeBonus}s`, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40)
-      }
 
       this.updateWordsUI()
     } else {
@@ -997,6 +1005,10 @@ export class Game {
 
   private showFeedback(text: string, success: boolean): void {
     this.feedback = { text, success, timer: 2.5, duration: 2.5 }
+  }
+
+  private showTimerBonus(text: string): void {
+    this.timerBonusIndicator = { text, timer: 1.8, duration: 1.8 }
   }
 
   // ── Update loop ──
@@ -1101,6 +1113,13 @@ export class Game {
         }
       }
 
+      if (this.timerBonusIndicator) {
+        this.timerBonusIndicator.timer -= dt
+        if (this.timerBonusIndicator.timer <= 0) {
+          this.timerBonusIndicator = null
+        }
+      }
+
       if (this.gameOverTransitionTimer <= 0) {
         this.showGameOverScreen()
       }
@@ -1165,6 +1184,13 @@ export class Game {
       this.feedback.timer -= dt
       if (this.feedback.timer <= 0) {
         this.feedback = null
+      }
+    }
+
+    if (this.timerBonusIndicator) {
+      this.timerBonusIndicator.timer -= dt
+      if (this.timerBonusIndicator.timer <= 0) {
+        this.timerBonusIndicator = null
       }
     }
 
@@ -2591,6 +2617,7 @@ export class Game {
     const endAngle = startAngle + timerProgress * Math.PI * 2
     const timerText = this.getTimerText(displayedTime)
     const textColor = criticalT > 0.35 ? COLORS.red : warningT > 0.2 ? COLORS.dwCoral : COLORS.espresso
+    const timerBonus = this.timerBonusIndicator
 
     ctx.save()
 
@@ -2661,6 +2688,25 @@ export class Game {
       ctx.arc(markerX, markerY, 3.4 + warningT * 1.2 + criticalT, 0, Math.PI * 2)
       ctx.fillStyle = ringColor
       ctx.fill()
+    }
+
+    if (timerBonus) {
+      const progress = 1 - Math.max(0, timerBonus.timer) / Math.max(timerBonus.duration, 0.001)
+      const rise = progress * 10
+      const fadeIn = Math.min(1, progress / 0.2)
+      const fadeOut = Math.min(1, Math.max(0, timerBonus.timer) / (timerBonus.duration * 0.45))
+      ctx.save()
+      ctx.globalAlpha = fadeIn * fadeOut
+      renderText(
+        ctx,
+        timerBonus.text,
+        centerX,
+        centerY - 20 - rise,
+        CANVAS_FONTS.uiSmallCaps(11),
+        COLORS.gold,
+        'center',
+      )
+      ctx.restore()
     }
 
     renderText(ctx, timerText, centerX, centerY - 3, CANVAS_FONTS.laneMedium(24), textColor, 'center')
