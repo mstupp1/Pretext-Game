@@ -20,6 +20,7 @@ interface CollectedLetter {
   value: number
   multiplierType: MultiplierType
   isShiny: boolean
+  shinyBonus: number
   // Animation
   floatingX: number
   floatingY: number
@@ -390,14 +391,14 @@ export class Game {
 
     for (const letter of letters) {
       if (!letter.isShiny) continue
-      empoweredLetters.set(letter.letter, (empoweredLetters.get(letter.letter) ?? 0) + 1)
+      empoweredLetters.set(letter.letter, (empoweredLetters.get(letter.letter) ?? 0) + letter.shinyBonus)
     }
 
     for (const [letter, amount] of empoweredLetters) {
       this.letterValueBonuses[letter] = (this.letterValueBonuses[letter] ?? 0) + amount
     }
 
-    return Array.from(empoweredLetters.keys()).map((letter) => `${letter} now ${this.getCurrentLetterValue(letter)}`)
+    return Array.from(empoweredLetters.entries()).map(([letter, amount]) => `${letter} +${amount}, now ${this.getCurrentLetterValue(letter)}`)
   }
 
   private isBoostedLetterValue(letter: string, value: number): boolean {
@@ -985,6 +986,7 @@ export class Game {
       value: this.getCurrentLetterValue(letter),
       multiplierType: collected.multiplierType,
       isShiny: collected.isShiny,
+      shinyBonus: collected.shinyBonus,
       floatingX: this.player.x,
       floatingY: this.player.y,
     }))
@@ -1007,6 +1009,7 @@ export class Game {
       value: l.value,
       multiplierType: l.multiplierType,
       isShiny: l.isShiny,
+      shinyBonus: l.shinyBonus,
     }))
 
     if (allLetters.length === 0) {
@@ -1522,7 +1525,7 @@ export class Game {
     const lipPath = this.createRoundedRectPath(innerX + 18, innerY + innerHeight - lipHeight - 4, innerWidth - 36, lipHeight, 8)
     const selectedPreview = this.collectedLetters.length > 0
       ? getScorePreview(
-          this.collectedLetters.map(({ letter, value, multiplierType, isShiny }) => ({ letter, value, multiplierType, isShiny })),
+          this.collectedLetters.map(({ letter, value, multiplierType, isShiny, shinyBonus }) => ({ letter, value, multiplierType, isShiny, shinyBonus })),
           this.getScoreModifiers(),
         )
       : null
@@ -1677,6 +1680,8 @@ export class Game {
   ): void {
     const { fill, border, text } = this.getTrayTilePalette(letter.multiplierType, letter.isShiny)
     const shinyAccent = this.getShinyTileAccent(letter.multiplierType)
+    const shinyBonusText = `+${letter.shinyBonus}`
+    const shinyBadgeFont = '700 10px Georgia, "Times New Roman", serif'
     const borderPulsePhase = letter.isShiny
       ? ((Date.now() * 0.00075 + centerX * 0.01 + centerY * 0.004) % 1)
       : 0
@@ -1890,7 +1895,7 @@ export class Game {
     ctx.shadowBlur = 0
 
     if (letter.isShiny) {
-      const badgeWidth = 18
+      const badgeWidth = Math.max(18, measureTextWidth(shinyBonusText, shinyBadgeFont) + 8)
       const badgeHeight = 10
       const badgeX = x + (width - badgeWidth) / 2
       const badgeY = y - 6
@@ -1901,10 +1906,10 @@ export class Game {
       ctx.lineWidth = 1
       ctx.stroke(badgePath)
       ctx.fillStyle = COLORS.ivory
-      ctx.font = '700 10px Georgia, "Times New Roman", serif'
+      ctx.font = shinyBadgeFont
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      ctx.fillText('+1', badgeX + badgeWidth / 2, badgeY + badgeHeight / 2)
+      ctx.fillText(shinyBonusText, badgeX + badgeWidth / 2, badgeY + badgeHeight / 2)
     }
 
     ctx.restore()
@@ -2529,6 +2534,7 @@ export class Game {
               value: lettersToRender[letterIndex].value,
               multiplierType: lettersToRender[letterIndex].multiplierType,
               isShiny: lettersToRender[letterIndex].isShiny,
+              shinyBonus: lettersToRender[letterIndex].shinyBonus,
               floatingX: 0,
               floatingY: 0,
               animProgress: 1,
@@ -2590,6 +2596,7 @@ export class Game {
           value: letter.value,
           multiplierType: letter.multiplierType,
           isShiny: letter.isShiny,
+          shinyBonus: letter.shinyBonus,
           floatingX: 0,
           floatingY: 0,
           animProgress: 1,
@@ -2735,6 +2742,8 @@ export class Game {
   ): void {
     const { fill, border, text } = this.getTrayTilePalette(letter.multiplierType, false)
     const shinyAccent = this.getShinyTileAccent(letter.multiplierType)
+    const shinyBonusText = `+${letter.shinyBonus}`
+    const shinyBadgeFont = '700 8px Georgia, "Times New Roman", serif'
     const x = centerX - width / 2
     const y = centerY - height / 2
     const tilePath = this.createRoundedRectPath(x, y, width, height, 2)
@@ -2809,6 +2818,24 @@ export class Game {
     }
     ctx.fillText(String(letter.value), x + width - 2, y + height - 2)
     ctx.shadowBlur = 0
+
+    if (letter.isShiny) {
+      const badgeWidth = Math.max(14, measureTextWidth(shinyBonusText, shinyBadgeFont) + 6)
+      const badgeHeight = 8
+      const badgeX = x + (width - badgeWidth) / 2
+      const badgeY = y - 5
+      const badgePath = this.createRoundedRectPath(badgeX, badgeY, badgeWidth, badgeHeight, 999)
+      ctx.fillStyle = shinyAccent.border
+      ctx.fill(badgePath)
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.42)'
+      ctx.lineWidth = 1
+      ctx.stroke(badgePath)
+      ctx.fillStyle = COLORS.ivory
+      ctx.font = shinyBadgeFont
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(shinyBonusText, badgeX + badgeWidth / 2, badgeY + badgeHeight / 2)
+    }
 
     ctx.restore()
   }

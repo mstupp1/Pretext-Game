@@ -3,7 +3,7 @@
 
 import { measureCharsInLine, type MeasuredChar } from './TextEngine'
 import { getRandomPassage } from './passages'
-import { ICONS, MultiplierType, POWER_UP_ICONS, PowerUpType } from '../utils/constants'
+import { ICONS, LETTER_VALUES, MultiplierType, POWER_UP_ICONS, PowerUpType } from '../utils/constants'
 
 const MULTIPLIER_SPAWN_RATE = 0.018
 const SHINY_SPAWN_RATE = 0.05
@@ -43,6 +43,19 @@ function createEmptyMultiplierCounts(): Record<ActiveMultiplierType, number> {
   }
 }
 
+function getRandomShinyBonus(letter: string): number {
+  const maxBonus = Math.max(1, LETTER_VALUES[letter.toUpperCase()] ?? 1)
+  const totalWeight = (maxBonus * (maxBonus + 1)) / 2
+  let pick = Math.random() * totalWeight
+
+  for (let bonus = 1; bonus <= maxBonus; bonus++) {
+    pick -= maxBonus - bonus + 1
+    if (pick <= 0) return bonus
+  }
+
+  return 1
+}
+
 export function getPageCurvatureOffset(screenX: number, viewportWidth: number): number {
   const center = viewportWidth / 2
   const distFromCenter = screenX - center
@@ -67,6 +80,7 @@ export interface StreamChar {
   multiplierType: MultiplierType
   powerUpType: PowerUpType
   isShiny: boolean
+  shinyBonus: number
   originalIndex: number   // index in the full text
   isSpace: boolean        // is whitespace character
   wordIndex: number       // which word this char belongs to
@@ -252,6 +266,7 @@ export class TextStream {
       let multiplierType: MultiplierType = 'None'
       let powerUpType: PowerUpType = 'None'
       let isShiny = false
+      let shinyBonus = 0
 
       if (this.streamKind === 'powerup') {
         powerUpType = powerUpTypes[i] ?? 'None'
@@ -292,6 +307,7 @@ export class TextStream {
           }
           if (shinyCooldown <= 0 && Math.random() < SHINY_SPAWN_RATE) {
             isShiny = true
+            shinyBonus = getRandomShinyBonus(mc.char)
             this.targetShinyCount++
             shinyCooldown = 56 + Math.floor(Math.random() * 22)
           }
@@ -327,6 +343,7 @@ export class TextStream {
         multiplierType,
         powerUpType,
         isShiny,
+        shinyBonus,
         originalIndex: i,
         isSpace,
         wordIndex,
@@ -713,6 +730,7 @@ export class TextStream {
       }
 
       candidate.isShiny = true
+      candidate.shinyBonus = getRandomShinyBonus(candidate.char)
       activeShinyCount++
     }
 

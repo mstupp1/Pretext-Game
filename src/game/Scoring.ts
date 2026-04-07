@@ -38,6 +38,7 @@ export interface ScoredLetter {
   value: number
   multiplierType: MultiplierType
   isShiny: boolean
+  shinyBonus: number
 }
 
 export interface ScoreModifiers {

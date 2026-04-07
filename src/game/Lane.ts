@@ -3,7 +3,7 @@
 
 import { TextStream, type StreamChar, getPageCurvatureOffset } from '../text/TextStream'
 import { COLORS, CANVAS_FONTS, FONTS, GAME_WIDTH, LANE_HEIGHT, REGULAR_TILE_STYLE, SAFE_ZONE_INDICES, ORNAMENTS, FLOURISHES, PowerUpType } from '../utils/constants'
-import { renderText } from '../text/TextEngine'
+import { measureTextWidth, renderText } from '../text/TextEngine'
 import { getLetterValue } from './Scoring'
 
 export interface LaneConfig {
@@ -493,10 +493,12 @@ export class Lane {
     }
 
     if (ch.isShiny) {
-      ctx.font = '700 9px Georgia, "Times New Roman", serif'
+      const badgeText = `+${ch.shinyBonus}`
+      const badgeFont = '700 9px Georgia, "Times New Roman", serif'
+      ctx.font = badgeFont
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
-      const badgeWidth = 20
+      const badgeWidth = Math.max(20, measureTextWidth(badgeText, badgeFont) + 8)
       const badgeHeight = 10
       const badgeX = -badgeWidth / 2
       const badgeY = -tileH / 2 - 7
@@ -514,10 +516,10 @@ export class Lane {
         ctx.fillStyle = charIsLight
           ? `rgba(92, 64, 51, ${underlayAlpha})`
           : `rgba(245, 241, 232, ${underlayAlpha * 0.8})`
-        ctx.fillText('+1', badgeCenterX, badgeCenterY + 1)
+        ctx.fillText(badgeText, badgeCenterX, badgeCenterY + 1)
       }
       ctx.fillStyle = colors.charColor
-      ctx.fillText('+1', badgeCenterX, badgeCenterY)
+      ctx.fillText(badgeText, badgeCenterX, badgeCenterY)
     }
 
     ctx.restore()
