@@ -2865,7 +2865,7 @@ export class Game {
   }
 
   private renderBookTopPanels(ctx: CanvasRenderingContext2D): void {
-    const upgradesWidth = 154
+    const upgradesWidth = 118
     const upgradesHeight = 76
     const statsWidth = 176
     const statsHeight = 76
@@ -2897,31 +2897,31 @@ export class Game {
 
       renderText(ctx, 'SCORE', left, 14, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted)
       renderText(ctx, 'NEXT', right, 14, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted, 'right')
-      renderText(ctx, scoreText, left, 38, CANVAS_FONTS.laneBold(30), COLORS.espresso)
-      renderText(ctx, targetText, right, 34, CANVAS_FONTS.laneMedium(nextTarget === null ? 16 : 22), COLORS.gold, 'right')
-      renderText(ctx, `Chapter ${chapterText}`, left, 56, CANVAS_FONTS.laneItalic(13), COLORS.sepia)
+      renderText(ctx, scoreText, left, 28, CANVAS_FONTS.laneBold(30), COLORS.espresso)
+      renderText(ctx, targetText, right, 30, CANVAS_FONTS.laneMedium(nextTarget === null ? 16 : 22), COLORS.gold, 'right')
+      renderText(ctx, `Chapter ${chapterText}`, left, 55, CANVAS_FONTS.laneItalic(13), COLORS.sepia)
 
       ctx.strokeStyle = 'rgba(44, 24, 16, 0.08)'
       ctx.lineWidth = 1
       ctx.beginPath()
-      ctx.moveTo(left, 47)
-      ctx.lineTo(right, 47)
+      ctx.moveTo(left, 44)
+      ctx.lineTo(right, 44)
       ctx.stroke()
 
       ctx.save()
       ctx.beginPath()
-      ctx.roundRect(progressLeft, 65, progressWidth, 3, 999)
+      ctx.roundRect(progressLeft, 66, progressWidth, 3, 999)
       ctx.fillStyle = 'rgba(44, 24, 16, 0.12)'
       ctx.fill()
       if (nextTarget !== null) {
         const chapterProgress = this.animatedChapterProgress
         ctx.beginPath()
-        ctx.roundRect(progressLeft, 65, progressWidth * chapterProgress, 3, 999)
+        ctx.roundRect(progressLeft, 66, progressWidth * chapterProgress, 3, 999)
         ctx.fillStyle = COLORS.gold
         ctx.fill()
       } else {
         ctx.beginPath()
-        ctx.roundRect(progressLeft, 65, progressWidth, 3, 999)
+        ctx.roundRect(progressLeft, 66, progressWidth, 3, 999)
         ctx.fillStyle = 'rgba(184, 134, 11, 0.35)'
         ctx.fill()
       }
@@ -3074,7 +3074,7 @@ export class Game {
 
   private renderUpgradesPanel(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number): void {
     this.drawPagePanel(ctx, x, y, width, height, () => {
-      renderText(ctx, 'UPGRADES', -width / 2 + 12, 13, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted)
+      renderText(ctx, 'UPGRADES', -width / 2 + 12, 11, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted)
       this.renderUpgradeRow(
         ctx,
         POWER_UP_ICONS.Knowledge,
@@ -3082,8 +3082,8 @@ export class Game {
         this.knowledge,
         `+${this.baseWordBonus} base`,
         -width / 2 + 12,
-        34,
-        width / 2 - 12,
+        29,
+        width / 2 - 8,
       )
       this.renderUpgradeRow(
         ctx,
@@ -3092,8 +3092,8 @@ export class Game {
         this.wisdom,
         `+${this.formatMultiplierBonusValue(this.multiplierBonus)} multiplier`,
         -width / 2 + 12,
-        56,
-        width / 2 - 12,
+        52,
+        width / 2 - 8,
       )
     })
   }
@@ -3116,7 +3116,7 @@ export class Game {
     ctx.fillText(icon, x, y)
     ctx.restore()
 
-    renderText(ctx, label, x + 20, y, CANVAS_FONTS.laneItalic(11.5), COLORS.sepia)
+    renderText(ctx, label, x + 14, y, CANVAS_FONTS.laneItalic(11.5), COLORS.sepia)
     renderText(ctx, String(value), rightX, y - 1, CANVAS_FONTS.laneBold(20), COLORS.espresso, 'right')
     renderText(ctx, bonusText, rightX, y + 13, CANVAS_FONTS.uiSmallCaps(8.5), COLORS.gold, 'right')
   }
