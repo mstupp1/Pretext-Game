@@ -40,8 +40,17 @@ export interface ScoredLetter {
   isShiny: boolean
 }
 
-export async function scoreWord(letters: ScoredLetter[]): Promise<ScoreResult> {
-  const preview = getScorePreview(letters)
+export interface ScoreModifiers {
+  baseWordBonus: number
+  multiplierBonus: number
+}
+
+function roundScoreValue(value: number): number {
+  return Math.round(value * 100) / 100
+}
+
+export async function scoreWord(letters: ScoredLetter[], modifiers: ScoreModifiers = { baseWordBonus: 0, multiplierBonus: 0 }): Promise<ScoreResult> {
+  const preview = getScorePreview(letters, modifiers)
   const { word, letterScore, lengthBonus, totalScore } = preview
 
   if (word.length < 3) {
@@ -80,7 +89,7 @@ export async function scoreWord(letters: ScoredLetter[]): Promise<ScoreResult> {
   }
 }
 
-export function getScorePreview(letters: ScoredLetter[]): ScorePreview {
+export function getScorePreview(letters: ScoredLetter[], modifiers: ScoreModifiers = { baseWordBonus: 0, multiplierBonus: 0 }): ScorePreview {
   const word = letters.map(l => l.letter).join('').toUpperCase()
 
   let letterScore = 0
@@ -99,14 +108,16 @@ export function getScorePreview(letters: ScoredLetter[]): ScorePreview {
     letterScore += val
   }
 
+  letterScore += modifiers.baseWordBonus
   const lengthBonus = getLengthBonusForWordLength(word.length)
+  wordMultiplier = roundScoreValue(wordMultiplier + modifiers.multiplierBonus)
 
   return {
     word,
     letterScore,
     lengthBonus,
     wordMultiplier,
-    totalScore: (letterScore + lengthBonus) * wordMultiplier,
+    totalScore: roundScoreValue((letterScore + lengthBonus) * wordMultiplier),
     timeBonus: getTimeBonusForWordLength(word.length),
   }
 }

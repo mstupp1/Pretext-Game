@@ -3,10 +3,10 @@
 import { Player } from './Player'
 import { audioManager } from '../audio/AudioManager'
 import { Lane, type LaneConfig } from './Lane'
-import { scoreWord, type ScoreResult, getLetterValue, type ScoredLetter, type ScorePreview, getScorePreview } from './Scoring'
+import { scoreWord, type ScoreResult, getLetterValue, type ScoredLetter, type ScorePreview, type ScoreModifiers, getScorePreview } from './Scoring'
 import { generateLevel, getLevelAmbiencePlaybackRate, type LevelConfig } from './Levels'
 import { ParticleSystem } from '../effects/ParticleSystem'
-import { GAME_WIDTH, GAME_HEIGHT, LANE_COUNT, LANE_HEIGHT, LANE_Y_START, COLORS, CANVAS_FONTS, REGULAR_TILE_STYLE, ROMAN_NUMERALS, MAX_COLLECTED_LETTERS, TIME_BONUS, STARTING_TIME, CHAPTER_POINTS } from '../utils/constants'
+import { GAME_WIDTH, GAME_HEIGHT, LANE_COUNT, LANE_HEIGHT, LANE_Y_START, COLORS, CANVAS_FONTS, REGULAR_TILE_STYLE, ROMAN_NUMERALS, MAX_COLLECTED_LETTERS, TIME_BONUS, STARTING_TIME, CHAPTER_POINTS, POWER_UP_ICONS, PowerUpType } from '../utils/constants'
 import { renderText, measureTextWidth, renderCurvedText, measureCharsInLine } from '../text/TextEngine'
 import { getPageCurvatureOffset } from '../text/TextStream'
 
@@ -74,6 +74,7 @@ interface CompletedWordRecord {
   letters: ScoredLetter[]
   score: number
   chapter: number
+  preview: ScorePreview
 }
 
 interface ScorePreviewLayout {
@@ -195,6 +196,10 @@ export class Game {
   private completedWordsVisible: boolean | null = null
   private gameOverWordPage: number = 0
   private letterValueBonuses: Partial<Record<string, number>> = {}
+  private wisdom: number = 0
+  private knowledge: number = 0
+  private multiplierBonus: number = 0
+  private baseWordBonus: number = 0
   private nextCollectedLetterId: number = 1
 
   // Countdown state
@@ -341,6 +346,42 @@ export class Game {
     this.letterValueBonuses = {}
   }
 
+  private resetRunPowerUps(): void {
+    this.wisdom = 0
+    this.knowledge = 0
+    this.multiplierBonus = 0
+    this.baseWordBonus = 0
+  }
+
+  private getScoreModifiers(): ScoreModifiers {
+    return {
+      baseWordBonus: this.baseWordBonus,
+      multiplierBonus: this.multiplierBonus,
+    }
+  }
+
+  private formatScoreValue(value: number): string {
+    const rounded = Math.round(value * 100) / 100
+    return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2).replace(/\.?0+$/, '')
+  }
+
+  private formatMultiplierValue(value: number): string {
+    const rounded = Math.round(value * 100) / 100
+    return rounded.toFixed(2).replace(/\.?0+$/, '')
+  }
+
+  private collectPowerUp(powerUpType: Exclude<PowerUpType, 'None'>): string {
+    if (powerUpType === 'Wisdom') {
+      this.wisdom++
+      this.multiplierBonus = Math.round((this.multiplierBonus + 0.05) * 100) / 100
+      return `Glasses found: Wisdom +1, multiplier +${this.formatMultiplierValue(0.05)}`
+    }
+
+    this.knowledge++
+    this.baseWordBonus += 1
+    return 'Book found: Knowledge +1, base score +1'
+  }
+
   private applyShinyBonuses(letters: ScoredLetter[]): string[] {
     const empoweredLetters = new Map<string, number>()
 
@@ -382,6 +423,7 @@ export class Game {
     this.score = 0
     this.chapter = 1
     this.resetRunLetterBonuses()
+    this.resetRunPowerUps()
     this.wordsFound = []
     this.usedWords = new Set()
     this.collectedLetters = []
@@ -548,6 +590,7 @@ export class Game {
     this.wordsFound = []
     this.usedWords = new Set()
     this.resetRunLetterBonuses()
+    this.resetRunPowerUps()
     this.feedback = null
     this.floatingScores = []
     this.timerBonusIndicator = null
@@ -910,35 +953,46 @@ export class Game {
 
   private tryCollectLetter(): void {
     if (this.collectCooldown > 0) return
+    const lane = this.lanes[this.player.laneIndex]
+    if (!lane) return
+
+    const collected = lane.findCollectibleNear(this.player.x)
+    if (!collected) return
+
+    collected.isCollected = true
+    if (collected.powerUpType !== 'None') {
+      const message = this.collectPowerUp(collected.powerUpType)
+      this.collectCooldown = 0.15
+      audioManager.playSelectLetter()
+      this.particles.waveText(`+1 ${collected.powerUpType}`, this.player.x, this.player.y - 18)
+      lane.triggerRipple(this.player.x, 12)
+      this.showFeedback(message, true)
+      return
+    }
+
     if (this.getTotalHeldLetters() >= MAX_COLLECTED_LETTERS) {
+      collected.isCollected = false
       this.showFeedback('Tray full — submit or clear first', false)
       return
     }
 
-    const lane = this.lanes[this.player.laneIndex]
-    if (!lane || lane.isSafeZone) return
+    const letter = collected.char.toUpperCase()
+    this.collectedLetters.push(this.createCollectedLetter({
+      letter,
+      value: this.getCurrentLetterValue(letter),
+      multiplierType: collected.multiplierType,
+      isShiny: collected.isShiny,
+      floatingX: this.player.x,
+      floatingY: this.player.y,
+    }))
+    this.collectCooldown = 0.15
+    audioManager.playSelectLetter()
 
-    const collected = lane.findCollectibleNear(this.player.x)
-    if (collected) {
-      collected.isCollected = true
-      const letter = collected.char.toUpperCase()
-      this.collectedLetters.push(this.createCollectedLetter({
-        letter,
-        value: this.getCurrentLetterValue(letter),
-        multiplierType: collected.multiplierType,
-        isShiny: collected.isShiny,
-        floatingX: this.player.x,
-        floatingY: this.player.y,
-      }))
-      this.collectCooldown = 0.15
-      audioManager.playSelectLetter()
+    // Particle burst on collection
+    this.particles.collectBurst(letter, this.player.x, this.player.y)
 
-      // Particle burst on collection
-      this.particles.collectBurst(letter, this.player.x, this.player.y)
-
-      // Trigger ripple wave on the lane
-      lane.triggerRipple(this.player.x)
-    }
+    // Trigger ripple wave on the lane
+    lane.triggerRipple(this.player.x)
   }
 
   async submitWord(): Promise<void> {
@@ -975,7 +1029,8 @@ export class Game {
       this.feedback.duration = 10
     }
 
-    const result = await scoreWord(allLetters)
+    const preview = getScorePreview(allLetters, this.getScoreModifiers())
+    const result = await scoreWord(allLetters, this.getScoreModifiers())
 
     this.isSubmitting = false
 
@@ -986,11 +1041,12 @@ export class Game {
         letters: allLetters.map((letter) => ({ ...letter })),
         score: result.totalScore,
         chapter: this.chapter,
+        preview,
       })
       this.usedWords.add(result.word)
       const shinyUpgrades = this.applyShinyBonuses(allLetters)
 
-      const timeBonus = getScorePreview(allLetters).timeBonus
+      const timeBonus = preview.timeBonus
 
       this.timeRemaining += timeBonus
       this.timerCapacity = Math.max(this.timerCapacity, this.timeRemaining)
@@ -1002,7 +1058,7 @@ export class Game {
       this.trayTileTransitions = []
 
       const shinyMsg = shinyUpgrades.length > 0 ? ` Shiny: ${shinyUpgrades.join(', ')}.` : ''
-      this.showFeedback(`${result.word}: +${result.totalScore}  ${result.message}${shinyMsg}`, true)
+      this.showFeedback(`${result.word}: +${this.formatScoreValue(result.totalScore)}  ${result.message}${shinyMsg}`, true)
       if (timeBonus > 0) {
         this.showTimerBonus(`+${timeBonus}s`)
       }
@@ -1012,7 +1068,7 @@ export class Game {
       this.particles.explodeWord(result.word, GAME_WIDTH / 2, GAME_HEIGHT / 2, intensity)
 
       // Score text rises as particles
-      this.particles.waveText(`+${result.totalScore}`, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 60)
+      this.particles.waveText(`+${this.formatScoreValue(result.totalScore)}`, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 60)
 
       this.updateWordsUI()
     } else {
@@ -1462,7 +1518,10 @@ export class Game {
     const innerPath = this.createRoundedRectPath(innerX, innerY, innerWidth, innerHeight, 10)
     const lipPath = this.createRoundedRectPath(innerX + 18, innerY + innerHeight - lipHeight - 4, innerWidth - 36, lipHeight, 8)
     const selectedPreview = this.collectedLetters.length > 0
-      ? getScorePreview(this.collectedLetters.map(({ letter, value, multiplierType, isShiny }) => ({ letter, value, multiplierType, isShiny })))
+      ? getScorePreview(
+          this.collectedLetters.map(({ letter, value, multiplierType, isShiny }) => ({ letter, value, multiplierType, isShiny })),
+          this.getScoreModifiers(),
+        )
       : null
     const hiddenTrayTiles = this.getHiddenTransitionTileIds('tray')
     const hiddenBankTileIds = this.getHiddenTransitionTileIds('bank')
@@ -2341,7 +2400,7 @@ export class Game {
     const finalScoreY = centerY + 88
     const pointsLabelY = finalScoreY + 42
 
-    renderText(ctx, String(this.score), centerX, finalScoreY + getOffset(centerX),
+    renderText(ctx, this.formatScoreValue(this.score), centerX, finalScoreY + getOffset(centerX),
       CANVAS_FONTS.laneLight(56), COLORS.gold, 'center')
 
     renderText(ctx, 'POINTS', centerX, pointsLabelY + getOffset(centerX),
@@ -2367,7 +2426,7 @@ export class Game {
       for (let i = 0; i < Math.min(5, this.highScores.length); i++) {
         const isNew = this.highScores[i] === this.score && i === this.highScores.indexOf(this.score)
         const color = isNew ? COLORS.gold : COLORS.sepia
-        renderText(ctx, `${i + 1}.  ${this.highScores[i]}`, centerX, hsY + 30 + i * 25 + getOffset(centerX),
+        renderText(ctx, `${i + 1}.  ${this.formatScoreValue(this.highScores[i])}`, centerX, hsY + 30 + i * 25 + getOffset(centerX),
           CANVAS_FONTS.laneRegular(18), color, 'center')
       }
     }
@@ -2450,7 +2509,7 @@ export class Game {
       for (const placement of chapterPlacement.entries) {
         const { entry, x, y, width } = placement
         const centerY = y + getOffset(x + width * 0.5)
-        const scoreText = `${entry.score}`
+        const scoreText = this.formatScoreValue(entry.score)
         const scoreWidth = measureTextWidth(scoreText, scoreFont)
         const maxTileAreaWidth = Math.max(28, width - scoreWidth - scoreGap)
         const maxTiles = Math.max(1, Math.floor((maxTileAreaWidth + tileGap) / (tileSize + tileGap)))
@@ -2502,7 +2561,7 @@ export class Game {
     const entry = this.getHighestScoringWord()
     if (!entry) return 0
 
-    const preview = getScorePreview(entry.letters)
+    const preview = entry.preview
     const previewLayout = this.measureScorePreviewLayout(preview, { compact: true })
     const tileSize = 20
     const tileGap = 2
@@ -2593,7 +2652,7 @@ export class Game {
       let cursorX = pageLeft
 
       for (const entry of entries) {
-        const scoreWidth = measureTextWidth(String(entry.score), scoreFont)
+        const scoreWidth = measureTextWidth(this.formatScoreValue(entry.score), scoreFont)
         const tilesWidth = entry.letters.length * tileSize + Math.max(0, entry.letters.length - 1) * tileGap
         const entryWidth = tilesWidth + scoreGap + scoreWidth
 
@@ -2622,7 +2681,7 @@ export class Game {
         chapterPlacements.length = 0
 
         for (const entry of entries) {
-          const scoreWidth = measureTextWidth(String(entry.score), scoreFont)
+          const scoreWidth = measureTextWidth(this.formatScoreValue(entry.score), scoreFont)
           const tilesWidth = entry.letters.length * tileSize + Math.max(0, entry.letters.length - 1) * tileGap
           const entryWidth = tilesWidth + scoreGap + scoreWidth
 
@@ -2805,7 +2864,7 @@ export class Game {
     const statsWidth = 228
     const statsHeight = 76
     const legendWidth = 236
-    const legendHeight = 58
+    const legendHeight = 96
     const statsX = Game.TOP_PANEL_INSET
     const legendX = GAME_WIDTH - legendWidth - Game.TOP_PANEL_INSET
     const timerCenterX = (statsX + statsWidth + legendX) / 2
@@ -2824,7 +2883,7 @@ export class Game {
       const progressWidth = width - 30
       const chapterText = this.getChapterLabel()
       const nextTarget = this.getRequiredScore()
-      const scoreText = String(this.score)
+      const scoreText = this.formatScoreValue(this.score)
       const targetText = nextTarget === null ? 'Epilogue' : String(nextTarget)
 
       renderText(ctx, 'SCORE', left, 14, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted)
@@ -3001,7 +3060,55 @@ export class Game {
 
         renderText(ctx, item.label, item.x + 18, item.y, CANVAS_FONTS.laneItalic(12), COLORS.muted)
       }
+
+      ctx.strokeStyle = 'rgba(44, 24, 16, 0.08)'
+      ctx.lineWidth = 1
+      ctx.beginPath()
+      ctx.moveTo(-width / 2 + 16, 52)
+      ctx.lineTo(width / 2 - 16, 52)
+      ctx.stroke()
+
+      renderText(ctx, 'UPGRADES', -width / 2 + 16, 66, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted)
+      this.renderUpgradeRow(
+        ctx,
+        POWER_UP_ICONS.Wisdom,
+        'Wisdom',
+        this.wisdom,
+        `+${this.formatMultiplierValue(this.multiplierBonus)} mult`,
+        -width / 2 + 18,
+        80,
+      )
+      this.renderUpgradeRow(
+        ctx,
+        POWER_UP_ICONS.Knowledge,
+        'Knowledge',
+        this.knowledge,
+        `+${this.baseWordBonus} base`,
+        -width / 2 + 126,
+        80,
+      )
     })
+  }
+
+  private renderUpgradeRow(
+    ctx: CanvasRenderingContext2D,
+    icon: string,
+    label: string,
+    value: number,
+    bonusText: string,
+    x: number,
+    y: number,
+  ): void {
+    ctx.save()
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.font = CANVAS_FONTS.icons(10)
+    ctx.fillStyle = COLORS.safeZoneInk
+    ctx.fillText(icon, x + 6, y)
+    ctx.restore()
+
+    renderText(ctx, `${label} ${value}`, x + 16, y, CANVAS_FONTS.laneItalic(12), COLORS.sepia)
+    renderText(ctx, bonusText, x + 16, y + 11, CANVAS_FONTS.uiSmallCaps(7), COLORS.gold)
   }
 
   private renderSelectedTrayPreview(ctx: CanvasRenderingContext2D, trayY: number, preview: ScorePreview): void {
@@ -3015,6 +3122,8 @@ export class Game {
     const compact = options.compact ?? false
     const hasMultiplierBadge = preview.wordMultiplier > 1
     const hasTimeBonus = preview.timeBonus > 0
+    const multiplierText = `×${this.formatMultiplierValue(preview.wordMultiplier)}`
+    const totalScoreText = this.formatScoreValue(preview.totalScore)
     const height = compact ? 20 : Game.TRAY_PREVIEW_HEIGHT
     const trayValueFont = compact ? '700 12px Georgia, "Times New Roman", serif' : '700 14px Georgia, "Times New Roman", serif'
     const operatorFont = compact ? CANVAS_FONTS.laneMedium(10) : CANVAS_FONTS.laneMedium(12)
@@ -3023,7 +3132,7 @@ export class Game {
     const timeFont = compact ? '700 13px Georgia, "Times New Roman", serif' : '700 15px Georgia, "Times New Roman", serif'
     const badgeFont = compact ? '700 9px Georgia, "Times New Roman", serif' : '700 10px Georgia, "Times New Roman", serif'
     const badgeWidth = hasMultiplierBadge
-      ? Math.max(compact ? 24 : 28, measureTextWidth(`×${preview.wordMultiplier}`, badgeFont) + (compact ? 6 : 8))
+      ? Math.max(compact ? 24 : 28, measureTextWidth(multiplierText, badgeFont) + (compact ? 6 : 8))
       : 0
     const hasLengthBonus = preview.lengthBonus > 0
     const openParenWidth = hasLengthBonus ? measureTextWidth('(', operatorFont) : 0
@@ -3038,7 +3147,7 @@ export class Game {
       + baseWidth
       + (hasLengthBonus ? formulaPad + plusWidth + formulaPad + bonusWidth + formulaInset + closeParenWidth : 0)
       + (hasMultiplierBadge ? badgeGap + badgeWidth : 0)
-    const pointsValueWidth = measureTextWidth(String(preview.totalScore), summaryValueFont)
+    const pointsValueWidth = measureTextWidth(totalScoreText, summaryValueFont)
     const pointsLabelGap = compact ? 1 : 2
     const pointsTrailingGap = compact ? 8 : 10
     const pointsLabelWidth = measureTextWidth('pts', summaryLabelFont)
@@ -3080,6 +3189,8 @@ export class Game {
     const layout = this.measureScorePreviewLayout(preview, options)
     const hasMultiplierBadge = preview.wordMultiplier > 1
     const hasTimeBonus = preview.timeBonus > 0
+    const multiplierText = `×${this.formatMultiplierValue(preview.wordMultiplier)}`
+    const totalScoreText = this.formatScoreValue(preview.totalScore)
     const multiplierStyle = this.getScorePreviewMultiplierStyle(preview.wordMultiplier)
     const multiplierTier = this.getPreviewMultiplierTier(preview.wordMultiplier)
     const pulse = multiplierTier > 0
@@ -3095,7 +3206,7 @@ export class Game {
     const timeFont = compact ? '700 13px Georgia, "Times New Roman", serif' : '700 15px Georgia, "Times New Roman", serif'
     const badgeFont = compact ? '700 9px Georgia, "Times New Roman", serif' : '700 10px Georgia, "Times New Roman", serif'
     const badgeWidth = hasMultiplierBadge
-      ? Math.max(compact ? 24 : 28, measureTextWidth(`×${preview.wordMultiplier}`, badgeFont) + (compact ? 6 : 8))
+      ? Math.max(compact ? 24 : 28, measureTextWidth(multiplierText, badgeFont) + (compact ? 6 : 8))
       : 0
     const hasLengthBonus = preview.lengthBonus > 0
     const baseText = String(preview.letterScore)
@@ -3112,7 +3223,7 @@ export class Game {
       + baseWidth
       + (hasLengthBonus ? formulaPad + plusWidth + formulaPad + bonusWidth + formulaInset + closeParenWidth : 0)
       + (hasMultiplierBadge ? badgeGap + badgeWidth : 0)
-    const pointsValueWidth = measureTextWidth(String(preview.totalScore), summaryValueFont)
+    const pointsValueWidth = measureTextWidth(totalScoreText, summaryValueFont)
     const pointsLabelGap = compact ? 1 : 2
     const pointsTrailingGap = compact ? 8 : 10
     const pointsLabelWidth = measureTextWidth('pts', summaryLabelFont)
@@ -3206,12 +3317,12 @@ export class Game {
       ctx.strokeStyle = multiplierStyle.border
       ctx.lineWidth = 1
       ctx.stroke(badgePath)
-      renderText(ctx, `×${preview.wordMultiplier}`, badgeCenterX, badgeY + badgeHeight / 2, badgeFont, multiplierStyle.text, 'center')
+      renderText(ctx, multiplierText, badgeCenterX, badgeY + badgeHeight / 2, badgeFont, multiplierStyle.text, 'center')
       ctx.restore()
     }
 
     renderText(ctx, '=', equalsCenterX, formulaCenterY, equalsFont, COLORS.muted, 'center')
-    renderText(ctx, String(preview.totalScore), pointsCenterX - pointsLabelWidth / 2, formulaCenterY, summaryValueFont, COLORS.espresso, 'center')
+    renderText(ctx, totalScoreText, pointsCenterX - pointsLabelWidth / 2, formulaCenterY, summaryValueFont, COLORS.espresso, 'center')
     renderText(ctx, 'pts', pointsCenterX + pointsValueWidth / 2 + pointsLabelGap - 1, formulaCenterY, summaryLabelFont, COLORS.espresso)
 
     if (hasTimeBonus) {
@@ -3296,7 +3407,7 @@ export class Game {
 
   private updateUI(): void {
     const nextTarget = this.getRequiredScore()
-    const scoreText = String(this.score)
+    const scoreText = this.formatScoreValue(this.score)
     const levelText = this.getChapterLabel()
     const nextTargetText = nextTarget === null ? 'Epilogue' : String(nextTarget)
     const chapterProgress = this.animatedChapterProgress

@@ -3,7 +3,7 @@
 
 import { measureCharsInLine, type MeasuredChar } from './TextEngine'
 import { getRandomPassage } from './passages'
-import { ICONS, MultiplierType } from '../utils/constants'
+import { ICONS, MultiplierType, POWER_UP_ICONS, PowerUpType } from '../utils/constants'
 
 const MULTIPLIER_SPAWN_RATE = 0.018
 const SHINY_SPAWN_RATE = 0.05
@@ -19,6 +19,7 @@ const MULTIPLIER_WEIGHTS: Array<{
   { type: 'TripleWord', weight: 0.143, cooldown: 2, wordMultiplierCooldown: 12 },
 ]
 type ActiveMultiplierType = Exclude<MultiplierType, 'None'>
+type StreamKind = 'text' | 'icon' | 'powerup'
 
 const ACTIVE_MULTIPLIER_TYPES = MULTIPLIER_WEIGHTS.map(({ type }) => type)
 const MIN_HIGHLIGHT_GAP = 6
@@ -55,6 +56,7 @@ export interface StreamChar {
   isHighlighted: boolean  // collectible letter
   isCollected: boolean    // already taken
   multiplierType: MultiplierType
+  powerUpType: PowerUpType
   isShiny: boolean
   originalIndex: number   // index in the full text
   isSpace: boolean        // is whitespace character
@@ -99,7 +101,7 @@ export class TextStream {
   private undulationFrequency: number
   private undulationPhaseOffset: number
   private shimmerIntensity: number
-  private isIconStream: boolean
+  private streamKind: StreamKind
   private targetHighlightCount: number = 0
   private targetShinyCount: number = 0
   private multiplierTargets: Record<ActiveMultiplierType, number> = createEmptyMultiplierCounts()
@@ -111,12 +113,12 @@ export class TextStream {
     visible: { char: StreamChar; screenX: number }[]
   } | null = null
 
-  constructor(font: string, speed: number, direction: 1 | -1, highlightRate: number, isIconStream: boolean = false) {
+  constructor(font: string, speed: number, direction: 1 | -1, highlightRate: number, streamKind: StreamKind = 'text') {
     this.font = font
     this.speed = speed
     this.direction = direction
     this.highlightRate = highlightRate
-    this.isIconStream = isIconStream
+    this.streamKind = streamKind
 
     // Each lane gets slightly different ambient parameters
     const laneVariation = Math.random()
@@ -158,8 +160,9 @@ export class TextStream {
   private buildStream(scrollRatio?: number): void {
     // Combine multiple passages to create a long stream
     let text = ''
+    let powerUpTypes: PowerUpType[] = []
     
-    if (this.isIconStream) {
+    if (this.streamKind === 'icon') {
       // Use all icons before repeating for maximum variety
       let pool: string[] = []
       for (let i = 0; i < 80; i++) {
@@ -167,6 +170,22 @@ export class TextStream {
           pool = [...ICONS].sort(() => Math.random() - 0.5)
         }
         text += pool.pop() + '       '
+      }
+    } else if (this.streamKind === 'powerup') {
+      const sequenceLength = 260
+      let cooldown = 18 + Math.floor(Math.random() * 10)
+
+      for (let i = 0; i < sequenceLength; i++) {
+        if (cooldown <= 0) {
+          const powerUpType: Exclude<PowerUpType, 'None'> = Math.random() < 0.5 ? 'Wisdom' : 'Knowledge'
+          text += POWER_UP_ICONS[powerUpType]
+          powerUpTypes.push(powerUpType)
+          cooldown = 30 + Math.floor(Math.random() * 18)
+        } else {
+          text += ' '
+          powerUpTypes.push('None')
+          cooldown--
+        }
       }
     } else {
       for (let i = 0; i < 4; i++) {
@@ -210,9 +229,13 @@ export class TextStream {
 
       let isHighlighted = false
       let multiplierType: MultiplierType = 'None'
+      let powerUpType: PowerUpType = 'None'
       let isShiny = false
 
-      if (isLetter && highlightCooldown <= 0) {
+      if (this.streamKind === 'powerup') {
+        powerUpType = powerUpTypes[i] ?? 'None'
+        isHighlighted = powerUpType !== 'None'
+      } else if (isLetter && highlightCooldown <= 0) {
         if (multiplierCooldown <= 0 && Math.random() < MULTIPLIER_SPAWN_RATE) {
           const availableMultipliers = MULTIPLIER_WEIGHTS.filter(option =>
             option.wordMultiplierCooldown === undefined || wordMultiplierCooldown <= 0
@@ -281,6 +304,7 @@ export class TextStream {
         isHighlighted,
         isCollected: false,
         multiplierType,
+        powerUpType,
         isShiny,
         originalIndex: i,
         isSpace,
@@ -357,7 +381,7 @@ export class TextStream {
       }
     }
 
-    if (!this.isIconStream && viewportWidth !== undefined) {
+    if (this.streamKind === 'text' && viewportWidth !== undefined) {
       this.rebalanceTimer -= dt
       if (this.rebalanceTimer <= 0) {
         this.rebalanceTimer = REBALANCE_INTERVAL

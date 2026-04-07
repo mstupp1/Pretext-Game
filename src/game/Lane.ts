@@ -2,7 +2,7 @@
 // Enhanced with ambient typography, rotation, scaling, ripple waves, and lens effects
 
 import { TextStream, type StreamChar, getPageCurvatureOffset } from '../text/TextStream'
-import { COLORS, CANVAS_FONTS, FONTS, GAME_WIDTH, LANE_HEIGHT, REGULAR_TILE_STYLE, SAFE_ZONE_INDICES, ORNAMENTS, FLOURISHES } from '../utils/constants'
+import { COLORS, CANVAS_FONTS, FONTS, GAME_WIDTH, LANE_HEIGHT, REGULAR_TILE_STYLE, SAFE_ZONE_INDICES, ORNAMENTS, FLOURISHES, PowerUpType } from '../utils/constants'
 import { renderText } from '../text/TextEngine'
 import { getLetterValue } from './Scoring'
 
@@ -55,7 +55,7 @@ export class Lane {
         config.speed, // Scroll at the specified decorative speed
         config.direction,
         0, // No highlight/collectibles
-        true // isIconStream
+        'powerup'
       )
     } else {
       // Build the canvas font string
@@ -75,7 +75,7 @@ export class Lane {
         config.speed,
         config.direction,
         config.highlightRate,
-        false
+        'text'
       )
     }
   }
@@ -207,9 +207,9 @@ export class Lane {
 
 
   // Trigger ripple on this lane
-  triggerRipple(playerX: number): void {
+  triggerRipple(playerX: number, amplitude?: number): void {
     if (this.stream) {
-      this.stream.triggerRipple(playerX, GAME_WIDTH)
+      this.stream.triggerRipple(playerX, GAME_WIDTH, amplitude)
     }
   }
 
@@ -313,6 +313,11 @@ export class Lane {
       ctx.fillStyle = this.getCollectedTextColor(ch)
       ctx.fillText(ch.char, -ch.width / 2, 0)
       ctx.restore()
+      return
+    }
+
+    if (ch.powerUpType !== 'None') {
+      this.renderPowerUpChar(ctx, ch, charCenterX, charCenterY, totalScale, edgeFade)
       return
     }
 
@@ -518,6 +523,77 @@ export class Lane {
     ctx.restore()
   }
 
+  private renderPowerUpChar(
+    ctx: CanvasRenderingContext2D,
+    ch: StreamChar,
+    charCenterX: number,
+    charCenterY: number,
+    totalScale: number,
+    edgeFade: number,
+  ): void {
+    ctx.save()
+    ctx.translate(charCenterX, charCenterY)
+
+    const interactionStrength = Math.min(1, Math.max(0, (ch.scale - 1) / 1.5))
+    const baseAlpha = Math.min(1, ch.alpha * (0.84 + interactionStrength * 0.3)) * edgeFade
+    const radius = 13 + interactionStrength * 2.4
+    const glowRadius = radius + 7 + interactionStrength * 3
+    const ringColor = this.getPowerUpRingColor(ch.powerUpType)
+
+    ctx.globalAlpha = baseAlpha
+
+    if (ch.rotation !== 0 || totalScale !== 1) {
+      ctx.rotate(ch.rotation)
+      ctx.scale(totalScale, totalScale)
+    }
+
+    if (ch.scale > 1.05) {
+      ctx.shadowColor = COLORS.shadow
+      ctx.shadowBlur = 8 + (ch.scale - 1) * 12
+      ctx.shadowOffsetY = 2 + (ch.scale - 1) * 3
+    }
+
+    const halo = ctx.createRadialGradient(0, 0, radius * 0.2, 0, 0, glowRadius)
+    halo.addColorStop(0, `rgba(240, 201, 108, ${0.16 + interactionStrength * 0.18})`)
+    halo.addColorStop(0.65, `rgba(240, 201, 108, ${0.08 + interactionStrength * 0.12})`)
+    halo.addColorStop(1, 'rgba(240, 201, 108, 0)')
+    ctx.fillStyle = halo
+    ctx.beginPath()
+    ctx.arc(0, 0, glowRadius, 0, Math.PI * 2)
+    ctx.fill()
+
+    ctx.shadowBlur = 0
+    ctx.shadowOffsetY = 0
+
+    const medallion = ctx.createRadialGradient(-radius * 0.25, -radius * 0.35, radius * 0.12, 0, 0, radius * 1.1)
+    medallion.addColorStop(0, 'rgba(255, 254, 250, 0.98)')
+    medallion.addColorStop(0.68, 'rgba(245, 241, 232, 0.96)')
+    medallion.addColorStop(1, 'rgba(232, 224, 208, 0.94)')
+    ctx.fillStyle = medallion
+    ctx.beginPath()
+    ctx.arc(0, 0, radius, 0, Math.PI * 2)
+    ctx.fill()
+
+    ctx.strokeStyle = `rgba(${ringColor[0]}, ${ringColor[1]}, ${ringColor[2]}, ${0.45 + interactionStrength * 0.35})`
+    ctx.lineWidth = 1.7
+    ctx.beginPath()
+    ctx.arc(0, 0, radius, 0, Math.PI * 2)
+    ctx.stroke()
+
+    ctx.strokeStyle = `rgba(92, 64, 51, ${0.14 + interactionStrength * 0.15})`
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.arc(0, 0, radius - 2.2, 0, Math.PI * 2)
+    ctx.stroke()
+
+    ctx.font = this.font
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = COLORS.safeZoneInk
+    ctx.fillText(ch.char, 0, 0)
+    ctx.restore()
+  }
+
   private getNormalTextColor(ch: StreamChar): string {
     if (this.isSafeZone) return COLORS.safeZoneInk
     if (ch.multiplierType === 'DoubleLetter' || ch.multiplierType === 'DoubleWord') return 'rgb(255, 255, 255)'
@@ -552,6 +628,12 @@ export class Lane {
       default:
         return { glow: [240, 201, 108], bright: [250, 242, 220], border: [214, 164, 66], badgeFill: [238, 212, 140] }
     }
+  }
+
+  private getPowerUpRingColor(powerUpType: PowerUpType): [number, number, number] {
+    if (powerUpType === 'Wisdom') return [184, 134, 11]
+    if (powerUpType === 'Knowledge') return [201, 133, 31]
+    return [184, 134, 11]
   }
 
   private getHighlightColors(multiplierType: StreamChar['multiplierType'], baseAlpha: number, bgAlpha: number, colorT: number, textT: number, borderT: number): {

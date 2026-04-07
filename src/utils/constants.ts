@@ -44,6 +44,7 @@ export const REGULAR_TILE_STYLE = {
 } as const
 
 export type MultiplierType = 'None' | 'DoubleLetter' | 'TripleLetter' | 'DoubleWord' | 'TripleWord';
+export type PowerUpType = 'None' | 'Wisdom' | 'Knowledge';
 
 // Typography
 export const FONTS = {
@@ -131,6 +132,11 @@ export const ICONS = [
   '\uf0eb', // lightbulb
   '\uf002', // magnifying-glass
 ]
+
+export const POWER_UP_ICONS: Record<Exclude<PowerUpType, 'None'>, string> = {
+  Wisdom: '\uf530',    // glasses
+  Knowledge: '\uf02d', // book
+} as const
 
 // Roman numerals for chapter display
 export const ROMAN_NUMERALS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'] as const
