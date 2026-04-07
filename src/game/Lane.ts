@@ -484,19 +484,30 @@ export class Lane {
 
     if (ch.isShiny) {
       ctx.font = '700 9px Georgia, "Times New Roman", serif'
-      ctx.textAlign = 'left'
-      ctx.textBaseline = 'top'
-      const shinyBadgeX = -tileW / 2 + 4
-      const shinyBadgeY = -tileH / 2 - 2
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      const badgeWidth = 20
+      const badgeHeight = 10
+      const badgeX = -badgeWidth / 2
+      const badgeY = -tileH / 2 - 7
+      const badgeCenterX = 0
+      const badgeCenterY = badgeY + badgeHeight / 2
+      const badgePath = new Path2D()
+      badgePath.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 999)
       ctx.globalAlpha = baseAlpha
+      ctx.fillStyle = `rgba(238, 212, 140, ${0.94 + shinyPulse * 0.04})`
+      ctx.fill(badgePath)
+      ctx.strokeStyle = `rgba(214, 164, 66, ${0.72 + shinyPulse * 0.18})`
+      ctx.lineWidth = 1
+      ctx.stroke(badgePath)
       if (underlayAlpha > 0.01) {
         ctx.fillStyle = charIsLight
           ? `rgba(92, 64, 51, ${underlayAlpha})`
           : `rgba(245, 241, 232, ${underlayAlpha * 0.8})`
-        ctx.fillText('+1', shinyBadgeX, shinyBadgeY + 1)
+        ctx.fillText('+1', badgeCenterX, badgeCenterY + 1)
       }
       ctx.fillStyle = colors.charColor
-      ctx.fillText('+1', shinyBadgeX, shinyBadgeY)
+      ctx.fillText('+1', badgeCenterX, badgeCenterY)
     }
 
     ctx.restore()
