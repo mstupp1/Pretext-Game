@@ -145,6 +145,7 @@ export class Game {
   private hud: HudElements
   private renderAssets: RenderAssets
   private trayTexture: HTMLImageElement | null
+  private timerCapacity: number = STARTING_TIME
   private lastHudScore: string | null = null
   private lastHudLevel: string | null = null
   private lastHudTimer: string | null = null
@@ -363,7 +364,9 @@ export class Game {
   private loadLevel(chapter: number): void {
     this.chapter = chapter
     this.level = generateLevel(chapter)
-    this.timeRemaining = chapter === 1 ? STARTING_TIME : this.level.timeLimit
+    const chapterTime = chapter === 1 ? STARTING_TIME : this.level.timeLimit
+    this.timeRemaining = chapterTime
+    this.timerCapacity = chapterTime
     this.player.reset()
     this.buildLanes()
     audioManager.setGameAmbiencePlaybackRate(getLevelAmbiencePlaybackRate(this.level))
@@ -853,6 +856,7 @@ export class Game {
       const timeBonus = getScorePreview(allLetters).timeBonus
 
       this.timeRemaining += timeBonus
+      this.timerCapacity = this.timeRemaining
 
       // Clear all letters after successful submit
       this.collectedLetters = []
@@ -922,6 +926,7 @@ export class Game {
       audioManager.playChapterUnlock()
       this.level = generateLevel(this.chapter)
       this.timeRemaining += bonusTime // Add each unlocked chapter's allotment to current time
+      this.timerCapacity = this.timeRemaining
 
       // Update existing lanes with new configs rather than replacing them
       for (let i = 0; i < LANE_COUNT; i++) {
@@ -2274,58 +2279,161 @@ export class Game {
   }
 
   private renderBookTopPanels(ctx: CanvasRenderingContext2D): void {
-    this.renderStatsPanel(ctx, Game.TOP_PANEL_INSET, Game.TOP_PANEL_Y, 220, 90)
-    this.renderLegendPanel(ctx, GAME_WIDTH - 236 - Game.TOP_PANEL_INSET, Game.TOP_PANEL_Y, 236, 58)
+    const statsWidth = 228
+    const statsHeight = 76
+    const legendWidth = 236
+    const legendHeight = 58
+    const statsX = Game.TOP_PANEL_INSET
+    const legendX = GAME_WIDTH - legendWidth - Game.TOP_PANEL_INSET
+    const timerCenterX = (statsX + statsWidth + legendX) / 2
+    const timerCenterY = Game.TOP_PANEL_Y + 52
+
+    this.renderStatsPanel(ctx, statsX, Game.TOP_PANEL_Y, statsWidth, statsHeight)
+    this.renderLegendPanel(ctx, legendX, Game.TOP_PANEL_Y, legendWidth, legendHeight)
+    this.renderTimerDial(ctx, timerCenterX, timerCenterY, 84)
   }
 
   private renderStatsPanel(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number): void {
     this.drawPagePanel(ctx, x, y, width, height, () => {
       const left = -width / 2 + 15
       const right = width / 2 - 15
-      const progressLeft = left + 2
-      const progressWidth = width - 34
+      const progressLeft = left
+      const progressWidth = width - 30
       const chapterText = this.getChapterLabel()
-      const mins = Math.floor(this.timeRemaining / 60)
-      const secs = Math.floor(this.timeRemaining % 60)
-      const timerText = `${mins}:${secs.toString().padStart(2, '0')}`
       const nextTarget = this.getRequiredScore()
       const scoreText = String(this.score)
-      const targetText = nextTarget === null ? null : `/ ${nextTarget}`
+      const targetText = nextTarget === null ? 'Epilogue' : String(nextTarget)
 
-      renderText(ctx, 'CHAPTER', left, 14, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted)
-      renderText(ctx, 'TIME', right, 14, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted, 'right')
-      renderText(ctx, chapterText, left, 32, CANVAS_FONTS.title(22), COLORS.espresso)
-      renderText(ctx, timerText, right, 32, CANVAS_FONTS.laneRegular(20), this.timeRemaining <= 15 ? COLORS.red : COLORS.espresso, 'right')
+      renderText(ctx, 'SCORE', left, 14, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted)
+      renderText(ctx, 'NEXT', right, 14, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted, 'right')
+      renderText(ctx, scoreText, left, 38, CANVAS_FONTS.laneBold(30), COLORS.espresso)
+      renderText(ctx, targetText, right, 34, CANVAS_FONTS.laneMedium(nextTarget === null ? 16 : 22), COLORS.gold, 'right')
+      renderText(ctx, `Chapter ${chapterText}`, left, 56, CANVAS_FONTS.laneItalic(13), COLORS.sepia)
 
       ctx.strokeStyle = 'rgba(44, 24, 16, 0.08)'
       ctx.lineWidth = 1
       ctx.beginPath()
-      ctx.moveTo(left, 44)
-      ctx.lineTo(right, 44)
+      ctx.moveTo(left, 47)
+      ctx.lineTo(right, 47)
       ctx.stroke()
-
-      renderText(ctx, 'SCORE', left, 55, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted)
-      renderText(ctx, scoreText, left, 67, CANVAS_FONTS.laneMedium(18), COLORS.espresso)
-      if (targetText) {
-        const scoreWidth = measureTextWidth(scoreText, CANVAS_FONTS.laneMedium(18))
-        renderText(ctx, targetText, left + scoreWidth + 7, 67, CANVAS_FONTS.laneRegular(12), COLORS.gold)
-      } else {
-        renderText(ctx, 'No further threshold', right, 67, CANVAS_FONTS.laneItalic(12), COLORS.gold, 'right')
-      }
 
       ctx.save()
       ctx.beginPath()
-      ctx.roundRect(progressLeft, 80, progressWidth, 2, 999)
+      ctx.roundRect(progressLeft, 65, progressWidth, 3, 999)
       ctx.fillStyle = 'rgba(44, 24, 16, 0.12)'
       ctx.fill()
       if (nextTarget !== null) {
         ctx.beginPath()
-        ctx.roundRect(progressLeft, 80, progressWidth * Math.min(1, this.score / nextTarget), 2, 999)
+        ctx.roundRect(progressLeft, 65, progressWidth * Math.min(1, this.score / nextTarget), 3, 999)
         ctx.fillStyle = COLORS.gold
+        ctx.fill()
+      } else {
+        ctx.beginPath()
+        ctx.roundRect(progressLeft, 65, progressWidth, 3, 999)
+        ctx.fillStyle = 'rgba(184, 134, 11, 0.35)'
         ctx.fill()
       }
       ctx.restore()
     })
+  }
+
+  private renderTimerDial(ctx: CanvasRenderingContext2D, centerX: number, centerY: number, diameter: number): void {
+    const radius = diameter / 2
+    const ringRadius = radius - 7
+    const timerProgress = Math.max(0, Math.min(1, this.timeRemaining / Math.max(this.timerCapacity, 0.001)))
+    const warningT = Math.max(0, Math.min(1, (25 - this.timeRemaining) / 12))
+    const criticalT = Math.max(0, Math.min(1, (12 - this.timeRemaining) / 8))
+    const pulse = warningT > 0 ? (Math.sin(Date.now() * (criticalT > 0 ? 0.015 : 0.009)) + 1) * 0.5 : 0
+    const ringColor = criticalT > 0 ? COLORS.red : warningT > 0 ? COLORS.dwCoral : COLORS.gold
+    const ringWidth = 6 + warningT * 1.4 + criticalT * 1.8 + pulse * (warningT * 1.6 + criticalT * 1.2)
+    const startAngle = -Math.PI / 2
+    const endAngle = startAngle + timerProgress * Math.PI * 2
+    const timerText = this.getTimerText()
+    const textColor = criticalT > 0.35 ? COLORS.red : warningT > 0.2 ? COLORS.dwCoral : COLORS.espresso
+
+    ctx.save()
+
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, radius + 3, 0, Math.PI * 2)
+    ctx.fillStyle = 'rgba(245, 241, 232, 0.9)'
+    ctx.shadowColor = warningT > 0 ? `rgba(139, 37, 0, ${0.12 + warningT * 0.18 + criticalT * 0.18})` : 'rgba(92, 64, 51, 0.08)'
+    ctx.shadowBlur = 16 + warningT * 8 + criticalT * 10
+    ctx.shadowOffsetY = 3
+    ctx.fill()
+
+    const dialGradient = ctx.createRadialGradient(
+      centerX - radius * 0.25,
+      centerY - radius * 0.35,
+      radius * 0.18,
+      centerX,
+      centerY,
+      radius,
+    )
+    dialGradient.addColorStop(0, 'rgba(255, 251, 245, 0.96)')
+    dialGradient.addColorStop(0.65, 'rgba(245, 241, 232, 0.95)')
+    dialGradient.addColorStop(1, `rgba(232, 224, 208, ${0.95 - criticalT * 0.08})`)
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, radius + 1, 0, Math.PI * 2)
+    ctx.fillStyle = dialGradient
+    ctx.fill()
+
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, radius + 1, 0, Math.PI * 2)
+    ctx.strokeStyle = 'rgba(92, 64, 51, 0.14)'
+    ctx.lineWidth = 1
+    ctx.stroke()
+
+    if (warningT > 0) {
+      ctx.beginPath()
+      ctx.arc(centerX, centerY, ringRadius + 6 + pulse * 1.5, 0, Math.PI * 2)
+      ctx.strokeStyle = criticalT > 0
+        ? `rgba(139, 37, 0, ${0.12 + pulse * 0.2})`
+        : `rgba(231, 76, 60, ${0.1 + pulse * 0.14})`
+      ctx.lineWidth = 2 + criticalT * 1.2
+      ctx.stroke()
+    }
+
+    ctx.beginPath()
+    ctx.arc(centerX, centerY, ringRadius, 0, Math.PI * 2)
+    ctx.strokeStyle = 'rgba(44, 24, 16, 0.12)'
+    ctx.lineWidth = 6
+    ctx.stroke()
+
+    if (timerProgress > 0) {
+      ctx.beginPath()
+      ctx.arc(centerX, centerY, ringRadius, startAngle, endAngle)
+      ctx.strokeStyle = ringColor
+      ctx.lineWidth = ringWidth
+      ctx.lineCap = 'round'
+      ctx.shadowColor = criticalT > 0
+        ? 'rgba(139, 37, 0, 0.34)'
+        : warningT > 0
+          ? 'rgba(231, 76, 60, 0.26)'
+          : 'rgba(184, 134, 11, 0.24)'
+      ctx.shadowBlur = 12 + warningT * 10 + criticalT * 8
+      ctx.shadowOffsetY = 0
+      ctx.stroke()
+
+      const markerX = centerX + Math.cos(endAngle) * ringRadius
+      const markerY = centerY + Math.sin(endAngle) * ringRadius
+      ctx.beginPath()
+      ctx.arc(markerX, markerY, 3.4 + warningT * 1.2 + criticalT, 0, Math.PI * 2)
+      ctx.fillStyle = ringColor
+      ctx.fill()
+    }
+
+    renderText(ctx, timerText, centerX, centerY - 3, CANVAS_FONTS.laneMedium(24), textColor, 'center')
+    renderText(
+      ctx,
+      warningT > 0.55 ? 'HURRY' : 'TIME',
+      centerX,
+      centerY + 18,
+      CANVAS_FONTS.uiSmallCaps(8),
+      warningT > 0.2 ? ringColor : COLORS.muted,
+      'center',
+    )
+
+    ctx.restore()
   }
 
   private renderLegendPanel(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number): void {
@@ -2597,9 +2705,7 @@ export class Game {
     const progressWidth = nextTarget === null
       ? '0%'
       : `${Math.min(100, (this.score / nextTarget) * 100)}%`
-    const mins = Math.floor(this.timeRemaining / 60)
-    const secs = Math.floor(this.timeRemaining % 60)
-    const timerText = `${mins}:${secs.toString().padStart(2, '0')}`
+    const timerText = this.getTimerText()
     const isTimerUrgent = this.timeRemaining <= 15
 
     if (this.hud.scoreValue && this.lastHudScore !== scoreText) {
@@ -2692,6 +2798,12 @@ export class Game {
       completedWordsContainer: document.getElementById('completed-words-container'),
       completedWordsList: document.getElementById('completed-words-list'),
     }
+  }
+
+  private getTimerText(): string {
+    const mins = Math.floor(this.timeRemaining / 60)
+    const secs = Math.floor(this.timeRemaining % 60)
+    return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
   private loadTrayTexture(): HTMLImageElement {
