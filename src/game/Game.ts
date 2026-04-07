@@ -1633,11 +1633,21 @@ export class Game {
     ctx.shadowBlur = 0
 
     if (letter.isShiny) {
+      const badgeWidth = 18
+      const badgeHeight = 10
+      const badgeX = x + (width - badgeWidth) / 2
+      const badgeY = y - 6
+      const badgePath = this.createRoundedRectPath(badgeX, badgeY, badgeWidth, badgeHeight, 999)
+      ctx.fillStyle = shinyAccent.bright
+      ctx.fill(badgePath)
+      ctx.strokeStyle = shinyAccent.border
+      ctx.lineWidth = 1
+      ctx.stroke(badgePath)
       ctx.fillStyle = COLORS.ivory
       ctx.font = '700 10px Georgia, "Times New Roman", serif'
-      ctx.textAlign = 'left'
-      ctx.textBaseline = 'top'
-      ctx.fillText('+1', x + 5, y + 4)
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('+1', badgeX + badgeWidth / 2, badgeY + badgeHeight / 2)
     }
 
     ctx.restore()
@@ -2416,11 +2426,21 @@ export class Game {
     ctx.shadowBlur = 0
 
     if (letter.isShiny) {
+      const badgeWidth = 10
+      const badgeHeight = 6
+      const badgeX = x + (width - badgeWidth) / 2
+      const badgeY = y - 3
+      const badgePath = this.createRoundedRectPath(badgeX, badgeY, badgeWidth, badgeHeight, 999)
+      ctx.fillStyle = shinyAccent.bright
+      ctx.fill(badgePath)
+      ctx.strokeStyle = shinyAccent.border
+      ctx.lineWidth = 1
+      ctx.stroke(badgePath)
       ctx.fillStyle = COLORS.ivory
       ctx.font = '700 5px Georgia, "Times New Roman", serif'
-      ctx.textAlign = 'left'
-      ctx.textBaseline = 'top'
-      ctx.fillText('+1', x + 2, y + 2)
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('+1', badgeX + badgeWidth / 2, badgeY + badgeHeight / 2)
     }
 
     ctx.restore()
