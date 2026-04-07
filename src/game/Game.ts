@@ -46,6 +46,12 @@ interface FloatingScore {
   dy: number
 }
 
+interface CompletedWordRecord {
+  letters: ScoredLetter[]
+  score: number
+  chapter: number
+}
+
 type PauseConfirmAction = 'restart' | 'quit' | null
 
 interface HudElements {
@@ -71,16 +77,17 @@ interface RenderAssets {
   edgeGradientBottom: CanvasGradient
 }
 
-interface GameOverLedgerEntry {
-  letters: ScoredLetter[]
-  score: number
-}
-
 interface GameOverLedgerPlacement {
-  entry: GameOverLedgerEntry
+  entry: CompletedWordRecord
   x: number
   y: number
   width: number
+}
+
+interface GameOverLedgerChapterPlacement {
+  chapter: number
+  headingY: number
+  entries: GameOverLedgerPlacement[]
 }
 
 export class Game {
@@ -113,7 +120,7 @@ export class Game {
   public timeRemaining: number = STARTING_TIME
   public collectedLetters: CollectedLetter[] = []
   public removedTrayLetters: RemovedTrayLetter[] = []
-  public wordsFound: ScoredLetter[][] = []
+  public wordsFound: CompletedWordRecord[] = []
   public usedWords: Set<string> = new Set()    // words used this run (no repeats)
   public feedback: FeedbackMessage | null = null
   public floatingScores: FloatingScore[] = []
@@ -836,7 +843,11 @@ export class Game {
     if (result.valid) {
       audioManager.playScore(result.totalScore)
       this.score += result.totalScore
-      this.wordsFound.push(allLetters)
+      this.wordsFound.push({
+        letters: allLetters.map((letter) => ({ ...letter })),
+        score: result.totalScore,
+        chapter: this.chapter,
+      })
       this.usedWords.add(result.word)
 
       const timeBonus = getScorePreview(allLetters).timeBonus
@@ -1986,36 +1997,56 @@ export class Game {
     const tileGap = 2
     const scoreGap = 6
     const scoreFont = CANVAS_FONTS.laneBold(14)
-    for (const placement of visibleEntries) {
-      const { entry, x, y, width } = placement
-      const centerY = y + getOffset(x + width * 0.5)
-      const scoreText = `${entry.score}`
-      const scoreWidth = measureTextWidth(scoreText, scoreFont)
-      const maxTileAreaWidth = Math.max(28, width - scoreWidth - scoreGap)
-      const maxTiles = Math.max(1, Math.floor((maxTileAreaWidth + tileGap) / (tileSize + tileGap)))
-      const lettersToRender = entry.letters.slice(0, maxTiles)
-      const wordWidth = lettersToRender.length * tileSize + Math.max(0, lettersToRender.length - 1) * tileGap
+    const chapterHeadingFont = CANVAS_FONTS.uiSmallCaps(10)
+    for (const chapterPlacement of visibleEntries) {
+      const chapterTitle = this.getChapterTitle(chapterPlacement.chapter).toUpperCase()
+      const headingWidth = measureTextWidth(chapterTitle, chapterHeadingFont)
+      const headingAnchorX = Math.min(pageRight, pageLeft + headingWidth * 0.5)
+      const headingY = chapterPlacement.headingY + getOffset(headingAnchorX)
+      renderText(ctx, chapterTitle, pageLeft, headingY, chapterHeadingFont, COLORS.muted, 'left')
 
-      for (let letterIndex = 0; letterIndex < lettersToRender.length; letterIndex++) {
-        const tileX = x + tileSize / 2 + letterIndex * (tileSize + tileGap)
-        this.renderWordLedgerTile(
-          ctx,
-          {
-            letter: lettersToRender[letterIndex].letter.toUpperCase(),
-            value: getLetterValue(lettersToRender[letterIndex].letter),
-            multiplierType: lettersToRender[letterIndex].multiplierType,
-            floatingX: 0,
-            floatingY: 0,
-            animProgress: 1,
-          },
-          tileX,
-          centerY,
-          tileSize,
-          tileSize,
-        )
+      const ruleStartX = Math.min(pageRight, pageLeft + headingWidth + 14)
+      if (ruleStartX < pageRight) {
+        ctx.beginPath()
+        for (let x = ruleStartX; x <= pageRight; x += 10) {
+          const offset = getOffset(x)
+          if (x === ruleStartX) ctx.moveTo(x, chapterPlacement.headingY + 1 + offset)
+          else ctx.lineTo(x, chapterPlacement.headingY + 1 + offset)
+        }
+        ctx.stroke()
       }
 
-      renderText(ctx, scoreText, x + wordWidth + scoreGap + scoreWidth, centerY + 1, scoreFont, COLORS.sepia, 'right')
+      for (const placement of chapterPlacement.entries) {
+        const { entry, x, y, width } = placement
+        const centerY = y + getOffset(x + width * 0.5)
+        const scoreText = `${entry.score}`
+        const scoreWidth = measureTextWidth(scoreText, scoreFont)
+        const maxTileAreaWidth = Math.max(28, width - scoreWidth - scoreGap)
+        const maxTiles = Math.max(1, Math.floor((maxTileAreaWidth + tileGap) / (tileSize + tileGap)))
+        const lettersToRender = entry.letters.slice(0, maxTiles)
+        const wordWidth = lettersToRender.length * tileSize + Math.max(0, lettersToRender.length - 1) * tileGap
+
+        for (let letterIndex = 0; letterIndex < lettersToRender.length; letterIndex++) {
+          const tileX = x + tileSize / 2 + letterIndex * (tileSize + tileGap)
+          this.renderWordLedgerTile(
+            ctx,
+            {
+              letter: lettersToRender[letterIndex].letter.toUpperCase(),
+              value: getLetterValue(lettersToRender[letterIndex].letter),
+              multiplierType: lettersToRender[letterIndex].multiplierType,
+              floatingX: 0,
+              floatingY: 0,
+              animProgress: 1,
+            },
+            tileX,
+            centerY,
+            tileSize,
+            tileSize,
+          )
+        }
+
+        renderText(ctx, scoreText, x + wordWidth + scoreGap + scoreWidth, centerY + 1, scoreFont, COLORS.sepia, 'right')
+      }
     }
 
     if (totalPages > 1) {
@@ -2032,16 +2063,8 @@ export class Game {
     pageRight: number,
     listTopY: number,
     listBottomY: number,
-  ): GameOverLedgerPlacement[][] {
-    const entries: GameOverLedgerEntry[] = this.wordsFound.map((letters) => {
-      const preview = getScorePreview(letters)
-      return {
-        letters,
-        score: preview.totalScore,
-      }
-    })
-
-    if (entries.length === 0) return [[]]
+  ): GameOverLedgerChapterPlacement[][] {
+    if (this.wordsFound.length === 0) return [[]]
 
     const tileSize = 20
     const tileGap = 2
@@ -2049,36 +2072,81 @@ export class Game {
     const scoreGap = 6
     const scoreFont = CANVAS_FONTS.laneBold(14)
     const rowHeight = 32
-    const pages: GameOverLedgerPlacement[][] = [[]]
+    const headingHeight = 18
+    const headingToWordsGap = 18
+    const chapterGap = 16
+    const pages: GameOverLedgerChapterPlacement[][] = [[]]
+    const chapters = new Map<number, CompletedWordRecord[]>()
+
+    for (const word of this.wordsFound) {
+      const chapterWords = chapters.get(word.chapter)
+      if (chapterWords) chapterWords.push(word)
+      else chapters.set(word.chapter, [word])
+    }
+
     let pageIndex = 0
-    let row = 0
-    let cursorX = pageLeft
+    let cursorY = listTopY
 
-    for (const entry of entries) {
-      const scoreWidth = measureTextWidth(String(entry.score), scoreFont)
-      const tilesWidth = entry.letters.length * tileSize + Math.max(0, entry.letters.length - 1) * tileGap
-      const entryWidth = tilesWidth + scoreGap + scoreWidth
+    for (const [chapter, entries] of chapters) {
+      const chapterPlacements: GameOverLedgerPlacement[] = []
+      let row = 0
+      let cursorX = pageLeft
 
-      if (cursorX > pageLeft && cursorX + entryWidth > pageRight) {
-        row++
-        cursorX = pageLeft
+      for (const entry of entries) {
+        const scoreWidth = measureTextWidth(String(entry.score), scoreFont)
+        const tilesWidth = entry.letters.length * tileSize + Math.max(0, entry.letters.length - 1) * tileGap
+        const entryWidth = tilesWidth + scoreGap + scoreWidth
+
+        if (cursorX > pageLeft && cursorX + entryWidth > pageRight) {
+          row++
+          cursorX = pageLeft
+        }
+
+        chapterPlacements.push({
+          entry,
+          x: cursorX,
+          y: cursorY + headingHeight + headingToWordsGap + row * rowHeight,
+          width: entryWidth,
+        })
+        cursorX += entryWidth + wordGap
       }
 
-      const y = listTopY + row * rowHeight
-      if (y + rowHeight > listBottomY) {
+      const chapterHeight = headingHeight + headingToWordsGap + (row + 1) * rowHeight
+      const chapterBottomY = cursorY + chapterHeight
+      if (pages[pageIndex].length > 0 && chapterBottomY > listBottomY) {
         pageIndex++
         pages.push([])
+        cursorY = listTopY
         row = 0
         cursorX = pageLeft
+        chapterPlacements.length = 0
+
+        for (const entry of entries) {
+          const scoreWidth = measureTextWidth(String(entry.score), scoreFont)
+          const tilesWidth = entry.letters.length * tileSize + Math.max(0, entry.letters.length - 1) * tileGap
+          const entryWidth = tilesWidth + scoreGap + scoreWidth
+
+          if (cursorX > pageLeft && cursorX + entryWidth > pageRight) {
+            row++
+            cursorX = pageLeft
+          }
+
+          chapterPlacements.push({
+            entry,
+            x: cursorX,
+            y: cursorY + headingHeight + headingToWordsGap + row * rowHeight,
+            width: entryWidth,
+          })
+          cursorX += entryWidth + wordGap
+        }
       }
 
       pages[pageIndex].push({
-        entry,
-        x: cursorX,
-        y: listTopY + row * rowHeight,
-        width: entryWidth,
+        chapter,
+        headingY: cursorY + 12,
+        entries: chapterPlacements,
       })
-      cursorX += entryWidth + wordGap
+      cursorY += headingHeight + headingToWordsGap + (row + 1) * rowHeight + chapterGap
     }
 
     return pages
@@ -2583,7 +2651,7 @@ export class Game {
       }
 
       for (let i = Math.max(0, startIndex); i < this.wordsFound.length; i++) {
-        const word = this.wordsFound[i]
+        const word = this.wordsFound[i].letters
         const wordContainer = document.createElement('div')
         wordContainer.className = 'completed-word'
 
