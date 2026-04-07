@@ -148,6 +148,7 @@ export class Game {
   private trayTexture: HTMLImageElement | null
   private timerCapacity: number = STARTING_TIME
   private animatedChapterProgress: number = 0
+  private displayedTimeRemaining: number = STARTING_TIME
   private lastHudScore: string | null = null
   private lastHudLevel: string | null = null
   private lastHudTimer: string | null = null
@@ -425,6 +426,20 @@ export class Game {
     }
   }
 
+  private updateDisplayedTimeRemaining(dt: number): void {
+    if (this.timeRemaining <= this.displayedTimeRemaining) {
+      this.displayedTimeRemaining = this.timeRemaining
+      return
+    }
+
+    const catchup = 1 - Math.exp(-dt * 24)
+    this.displayedTimeRemaining += (this.timeRemaining - this.displayedTimeRemaining) * catchup
+
+    if (Math.abs(this.timeRemaining - this.displayedTimeRemaining) < 0.02) {
+      this.displayedTimeRemaining = this.timeRemaining
+    }
+  }
+
   private loadLevel(chapter: number): void {
     this.chapter = chapter
     this.level = generateLevel(chapter)
@@ -432,6 +447,7 @@ export class Game {
     this.timeRemaining = chapterTime
     this.timerCapacity = chapterTime
     this.animatedChapterProgress = this.getChapterProgress()
+    this.displayedTimeRemaining = chapterTime
     this.player.reset()
     this.buildLanes()
     audioManager.setGameAmbiencePlaybackRate(getLevelAmbiencePlaybackRate(this.level))
@@ -1025,6 +1041,7 @@ export class Game {
   update(dt: number): void {
     this.syncHudVisibility()
     this.updateAnimatedChapterProgress(dt)
+    this.updateDisplayedTimeRemaining(dt)
 
     if (this.state === 'title') {
       if (!this.hasPlayedTitleIntro) {
@@ -2491,15 +2508,16 @@ export class Game {
   private renderTimerDial(ctx: CanvasRenderingContext2D, centerX: number, centerY: number, diameter: number): void {
     const radius = diameter / 2
     const ringRadius = radius - 7
-    const timerProgress = Math.max(0, Math.min(1, this.timeRemaining / Math.max(this.timerCapacity, 0.001)))
-    const warningT = Math.max(0, Math.min(1, (25 - this.timeRemaining) / 12))
-    const criticalT = Math.max(0, Math.min(1, (12 - this.timeRemaining) / 8))
+    const displayedTime = this.displayedTimeRemaining
+    const timerProgress = Math.max(0, Math.min(1, displayedTime / Math.max(this.timerCapacity, 0.001)))
+    const warningT = Math.max(0, Math.min(1, (25 - displayedTime) / 12))
+    const criticalT = Math.max(0, Math.min(1, (12 - displayedTime) / 8))
     const pulse = warningT > 0 ? (Math.sin(Date.now() * (criticalT > 0 ? 0.015 : 0.009)) + 1) * 0.5 : 0
     const ringColor = criticalT > 0 ? COLORS.red : warningT > 0 ? COLORS.dwCoral : COLORS.gold
     const ringWidth = 6 + warningT * 1.4 + criticalT * 1.8 + pulse * (warningT * 1.6 + criticalT * 1.2)
     const startAngle = -Math.PI / 2
     const endAngle = startAngle + timerProgress * Math.PI * 2
-    const timerText = this.getTimerText()
+    const timerText = this.getTimerText(displayedTime)
     const textColor = criticalT > 0.35 ? COLORS.red : warningT > 0.2 ? COLORS.dwCoral : COLORS.espresso
 
     ctx.save()
@@ -2857,7 +2875,7 @@ export class Game {
     const progressWidth = nextTarget === null
       ? '100%'
       : `${chapterProgress * 100}%`
-    const timerText = this.getTimerText()
+    const timerText = this.getTimerText(this.displayedTimeRemaining)
     const isTimerUrgent = this.timeRemaining <= 15
 
     if (this.hud.scoreValue && this.lastHudScore !== scoreText) {
@@ -2958,9 +2976,9 @@ export class Game {
     }
   }
 
-  private getTimerText(): string {
-    const mins = Math.floor(this.timeRemaining / 60)
-    const secs = Math.floor(this.timeRemaining % 60)
+  private getTimerText(timeValue: number = this.timeRemaining): string {
+    const mins = Math.floor(timeValue / 60)
+    const secs = Math.floor(timeValue % 60)
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
