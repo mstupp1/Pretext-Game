@@ -372,6 +372,7 @@ export class Lane {
     const colorAlpha = isFocused ? 1 : baseAlpha
     const colors = this.getHighlightColors(ch.multiplierType, colorAlpha, bgAlpha, colorT, textT, borderT)
     const shinyAccent = this.getShinyAccentStyle(ch.multiplierType)
+    const displayChar = ch.isBlank ? '' : ch.char
 
     if (ch.isShiny) {
       const haloAlpha = baseAlpha * (0.22 + shinyPulse * 0.28 + (1 - interactionStrength) * 0.15)
@@ -457,16 +458,18 @@ export class Lane {
     const textContrastBoost = Math.max(0, 1 - Math.abs(colorT - 0.5) / 0.5)
     const charIsLight = colors.charColor === COLORS.ivory || colorT > 0.62
     const underlayAlpha = (0.08 + textContrastBoost * 0.14) * baseAlpha
-    if (underlayAlpha > 0.01) {
+    if (displayChar && underlayAlpha > 0.01) {
       ctx.fillStyle = charIsLight
         ? `rgba(92, 64, 51, ${underlayAlpha})`
         : `rgba(245, 241, 232, ${underlayAlpha * 0.8})`
-      ctx.fillText(ch.char, 0, 0)
+      ctx.fillText(displayChar, 0, 0)
     }
     ctx.fillStyle = colors.charColor
-    ctx.fillText(ch.char, 0, -1)
+    if (displayChar) {
+      ctx.fillText(displayChar, 0, -1)
+    }
 
-    const points = this.resolveLetterValue(ch.char)
+    const points = ch.isBlank ? 0 : this.resolveLetterValue(ch.char)
     const isBoostedValue = points > getLetterValue(ch.char)
     if (points > 0) {
       ctx.font = this.pointsFont

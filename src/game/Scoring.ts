@@ -1,7 +1,7 @@
 // ── Scoring — Scrabble-style word scoring ──
 
 import { LETTER_VALUES, MultiplierType } from '../utils/constants'
-import { checkWordValidity } from '../utils/dictionary'
+import { resolveWordPattern } from '../utils/dictionary'
 
 const MIN_LENGTH_BONUS_WORD_LENGTH = 3
 const LENGTH_BONUS_BY_WORD_LENGTH: Record<number, number> = {
@@ -36,6 +36,7 @@ export interface ScorePreview {
 export interface ScoredLetter {
   letter: string
   value: number
+  isBlank: boolean
   multiplierType: MultiplierType
   isShiny: boolean
   shinyBonus: number
@@ -50,14 +51,23 @@ function roundScoreValue(value: number): number {
   return Math.round(value)
 }
 
-export async function scoreWord(letters: ScoredLetter[], modifiers: ScoreModifiers = { baseWordBonus: 0, multiplierBonus: 0 }): Promise<ScoreResult> {
-  const preview = getScorePreview(letters, modifiers)
-  const { word, letterScore, lengthBonus, totalScore } = preview
+function getSubmittedWordPattern(letters: ScoredLetter[]): string {
+  return letters.map(letter => letter.isBlank ? '?' : letter.letter).join('').toUpperCase()
+}
 
-  if (word.length < 3) {
+export async function scoreWord(
+  letters: ScoredLetter[],
+  modifiers: ScoreModifiers = { baseWordBonus: 0, multiplierBonus: 0 },
+  usedWords?: ReadonlySet<string>,
+): Promise<ScoreResult> {
+  const preview = getScorePreview(letters, modifiers)
+  const { letterScore, lengthBonus, totalScore } = preview
+  const submittedWord = getSubmittedWordPattern(letters)
+
+  if (submittedWord.length < 3) {
     return {
       valid: false,
-      word,
+      word: submittedWord,
       letterScore: 0,
       lengthBonus: 0,
       totalScore: 0,
@@ -65,24 +75,29 @@ export async function scoreWord(letters: ScoredLetter[], modifiers: ScoreModifie
     }
   }
 
-  const isValid = await checkWordValidity(word)
-  if (!isValid) {
+  const resolved = await resolveWordPattern(submittedWord, usedWords)
+  if (!resolved.word) {
+    const hasBlank = letters.some(letter => letter.isBlank)
     return {
       valid: false,
-      word,
+      word: resolved.blockedWord ?? submittedWord,
       letterScore: 0,
       lengthBonus: 0,
       totalScore: 0,
-      message: `"${word}" — not in lexicon`,
+      message: resolved.blockedWord
+        ? `"${resolved.blockedWord}" already used this run`
+        : hasBlank
+          ? 'No lexicon match for that blank pattern'
+          : `"${submittedWord}" — not in lexicon`,
     }
   }
 
   // Generate flavor message
-  const messages = getFlavorMessage(word.length, totalScore)
+  const messages = getFlavorMessage(resolved.word.length, totalScore)
 
   return {
     valid: true,
-    word,
+    word: resolved.word,
     letterScore,
     lengthBonus,
     totalScore,
@@ -91,7 +106,7 @@ export async function scoreWord(letters: ScoredLetter[], modifiers: ScoreModifie
 }
 
 export function getScorePreview(letters: ScoredLetter[], modifiers: ScoreModifiers = { baseWordBonus: 0, multiplierBonus: 0 }): ScorePreview {
-  const word = letters.map(l => l.letter).join('').toUpperCase()
+  const word = getSubmittedWordPattern(letters)
 
   let letterScore = 0
   let wordMultiplier = 1

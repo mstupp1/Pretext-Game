@@ -1,6 +1,7 @@
 const MIN_WORD_LENGTH = 3
 const MAX_WORD_LENGTH = 27
 const TOTAL_WORD_COUNT = 173_016
+const WILDCARD_CHAR = '?'
 const COMMON_WORD_LENGTHS = [3, 4, 5, 6, 7, 8]
 const WORD_LIST_LENGTHS = new Set([
   3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
@@ -16,6 +17,23 @@ function normalizeWord(word: string): string {
 
 function isAlphabeticWord(word: string): boolean {
   return /^[A-Z]+$/.test(word)
+}
+
+function isWordPattern(word: string): boolean {
+  return /^[A-Z?]+$/.test(word)
+}
+
+function matchesWordPattern(candidate: string, pattern: string): boolean {
+  if (candidate.length !== pattern.length) return false
+
+  for (let i = 0; i < pattern.length; i++) {
+    const patternChar = pattern[i]
+    if (patternChar !== WILDCARD_CHAR && candidate[i] !== patternChar) {
+      return false
+    }
+  }
+
+  return true
 }
 
 function getWordListPath(length: number): string {
@@ -92,21 +110,50 @@ function scheduleCommonWordListPreload(): void {
 scheduleCommonWordListPreload()
 
 export async function checkWordValidity(word: string): Promise<boolean> {
+  const resolution = await resolveWordPattern(word)
+  return resolution.word !== null
+}
+
+export async function resolveWordPattern(
+  word: string,
+  excludedWords?: Iterable<string>,
+): Promise<{ word: string | null; blockedWord: string | null }> {
   const normalized = normalizeWord(word)
 
   if (
     normalized.length < MIN_WORD_LENGTH ||
     normalized.length > MAX_WORD_LENGTH ||
-    !isAlphabeticWord(normalized)
+    !isWordPattern(normalized)
   ) {
-    return false
+    return { word: null, blockedWord: null }
   }
 
-  const cachedBucket = WORD_BUCKETS.get(normalized.length)
-  if (cachedBucket) return cachedBucket.has(normalized)
+  const excluded = excludedWords ? new Set(Array.from(excludedWords, normalizeWord)) : null
+  const bucket = WORD_BUCKETS.get(normalized.length) ?? await loadWordBucket(normalized.length)
 
-  const bucket = await loadWordBucket(normalized.length)
-  return bucket.has(normalized)
+  if (!normalized.includes(WILDCARD_CHAR)) {
+    if (!bucket.has(normalized)) {
+      return { word: null, blockedWord: null }
+    }
+
+    if (excluded?.has(normalized)) {
+      return { word: null, blockedWord: normalized }
+    }
+
+    return { word: normalized, blockedWord: null }
+  }
+
+  let blockedWord: string | null = null
+  for (const candidate of bucket) {
+    if (!matchesWordPattern(candidate, normalized)) continue
+    if (excluded?.has(candidate)) {
+      blockedWord = blockedWord ?? candidate
+      continue
+    }
+    return { word: candidate, blockedWord }
+  }
+
+  return { word: null, blockedWord }
 }
 
 export function isValidWordLocal(word: string): boolean {

@@ -18,6 +18,7 @@ interface CollectedLetter {
   id: number
   letter: string
   value: number
+  isBlank: boolean
   multiplierType: MultiplierType
   isShiny: boolean
   shinyBonus: number
@@ -390,7 +391,7 @@ export class Game {
     const empoweredLetters = new Map<string, number>()
 
     for (const letter of letters) {
-      if (!letter.isShiny) continue
+      if (!letter.isShiny || letter.isBlank) continue
       empoweredLetters.set(letter.letter, (empoweredLetters.get(letter.letter) ?? 0) + letter.shinyBonus)
     }
 
@@ -983,7 +984,8 @@ export class Game {
     const letter = collected.char.toUpperCase()
     this.collectedLetters.push(this.createCollectedLetter({
       letter,
-      value: this.getCurrentLetterValue(letter),
+      value: collected.isBlank ? 0 : this.getCurrentLetterValue(letter),
+      isBlank: collected.isBlank,
       multiplierType: collected.multiplierType,
       isShiny: collected.isShiny,
       shinyBonus: collected.shinyBonus,
@@ -994,7 +996,7 @@ export class Game {
     audioManager.playSelectLetter()
 
     // Particle burst on collection
-    this.particles.collectBurst(letter, this.player.x, this.player.y)
+    this.particles.collectBurst(collected.isBlank ? '' : letter, this.player.x, this.player.y)
 
     // Trigger ripple wave on the lane
     lane.triggerRipple(this.player.x)
@@ -1007,6 +1009,7 @@ export class Game {
     const allLetters = this.collectedLetters.map(l => ({
       letter: l.letter,
       value: l.value,
+      isBlank: l.isBlank,
       multiplierType: l.multiplierType,
       isShiny: l.isShiny,
       shinyBonus: l.shinyBonus,
@@ -1014,14 +1017,6 @@ export class Game {
 
     if (allLetters.length === 0) {
       this.showFeedback('Collect letters first', false)
-      audioManager.playNoSubmit()
-      return
-    }
-
-    // Check for duplicate word in this chapter
-    const candidateWord = allLetters.map(l => l.letter).join('').toUpperCase()
-    if (this.usedWords.has(candidateWord)) {
-      this.showFeedback(`"${candidateWord}" already used this run`, false)
       audioManager.playNoSubmit()
       return
     }
@@ -1036,7 +1031,7 @@ export class Game {
     }
 
     const preview = getScorePreview(allLetters, this.getScoreModifiers())
-    const result = await scoreWord(allLetters, this.getScoreModifiers())
+    const result = await scoreWord(allLetters, this.getScoreModifiers(), this.usedWords)
 
     this.isSubmitting = false
 
@@ -1525,7 +1520,7 @@ export class Game {
     const lipPath = this.createRoundedRectPath(innerX + 18, innerY + innerHeight - lipHeight - 4, innerWidth - 36, lipHeight, 8)
     const selectedPreview = this.collectedLetters.length > 0
       ? getScorePreview(
-          this.collectedLetters.map(({ letter, value, multiplierType, isShiny, shinyBonus }) => ({ letter, value, multiplierType, isShiny, shinyBonus })),
+          this.collectedLetters.map(({ letter, value, isBlank, multiplierType, isShiny, shinyBonus }) => ({ letter, value, isBlank, multiplierType, isShiny, shinyBonus })),
           this.getScoreModifiers(),
         )
       : null
@@ -1682,6 +1677,8 @@ export class Game {
     const shinyAccent = this.getShinyTileAccent(letter.multiplierType)
     const shinyBonusText = `+${letter.shinyBonus}`
     const shinyBadgeFont = '700 10px Georgia, "Times New Roman", serif'
+    const displayLetter = letter.isBlank ? '' : letter.letter
+    const shouldRenderValue = !letter.isBlank
     const borderPulsePhase = letter.isShiny
       ? ((Date.now() * 0.00075 + centerX * 0.01 + centerY * 0.004) % 1)
       : 0
@@ -1878,21 +1875,25 @@ export class Game {
     ctx.font = '800 30px "Cormorant Garamond", "Palatino Linotype", Palatino, Georgia, serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText(letter.letter, centerX, centerY - 1)
-
-    ctx.fillStyle = COLORS.ivory
-    ctx.font = '700 14px Georgia, "Times New Roman", serif'
-    ctx.textAlign = 'right'
-    ctx.textBaseline = 'bottom'
-    if (this.isBoostedLetterValue(letter.letter, letter.value)) {
-      ctx.shadowColor = COLORS.boostGreenGlow
-      ctx.shadowBlur = 8
-      ctx.shadowOffsetX = 0
-      ctx.shadowOffsetY = 0
-      ctx.fillStyle = COLORS.boostGreen
+    if (displayLetter) {
+      ctx.fillText(displayLetter, centerX, centerY - 1)
     }
-    ctx.fillText(String(letter.value), x + width - 4, y + height - 6)
-    ctx.shadowBlur = 0
+
+    if (shouldRenderValue) {
+      ctx.fillStyle = COLORS.ivory
+      ctx.font = '700 14px Georgia, "Times New Roman", serif'
+      ctx.textAlign = 'right'
+      ctx.textBaseline = 'bottom'
+      if (this.isBoostedLetterValue(letter.letter, letter.value)) {
+        ctx.shadowColor = COLORS.boostGreenGlow
+        ctx.shadowBlur = 8
+        ctx.shadowOffsetX = 0
+        ctx.shadowOffsetY = 0
+        ctx.fillStyle = COLORS.boostGreen
+      }
+      ctx.fillText(String(letter.value), x + width - 4, y + height - 6)
+      ctx.shadowBlur = 0
+    }
 
     if (letter.isShiny) {
       const badgeWidth = Math.max(18, measureTextWidth(shinyBonusText, shinyBadgeFont) + 8)
@@ -2532,6 +2533,7 @@ export class Game {
               id: -1,
               letter: lettersToRender[letterIndex].letter.toUpperCase(),
               value: lettersToRender[letterIndex].value,
+              isBlank: lettersToRender[letterIndex].isBlank,
               multiplierType: lettersToRender[letterIndex].multiplierType,
               isShiny: lettersToRender[letterIndex].isShiny,
               shinyBonus: lettersToRender[letterIndex].shinyBonus,
@@ -2594,6 +2596,7 @@ export class Game {
           id: -1,
           letter: letter.letter.toUpperCase(),
           value: letter.value,
+          isBlank: letter.isBlank,
           multiplierType: letter.multiplierType,
           isShiny: letter.isShiny,
           shinyBonus: letter.shinyBonus,
@@ -2744,6 +2747,8 @@ export class Game {
     const shinyAccent = this.getShinyTileAccent(letter.multiplierType)
     const shinyBonusText = `+${letter.shinyBonus}`
     const shinyBadgeFont = '700 8px Georgia, "Times New Roman", serif'
+    const displayLetter = letter.isBlank ? '' : letter.letter
+    const shouldRenderValue = !letter.isBlank
     const x = centerX - width / 2
     const y = centerY - height / 2
     const tilePath = this.createRoundedRectPath(x, y, width, height, 2)
@@ -2803,21 +2808,25 @@ export class Game {
     ctx.font = '700 14px "Cormorant Garamond", "Palatino Linotype", Palatino, Georgia, serif'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText(letter.letter, x + width / 2, y + height / 2)
-
-    ctx.fillStyle = COLORS.ivory
-    ctx.font = '800 7px Georgia, "Times New Roman", serif'
-    ctx.textAlign = 'right'
-    ctx.textBaseline = 'bottom'
-    if (this.isBoostedLetterValue(letter.letter, letter.value)) {
-      ctx.shadowColor = COLORS.boostGreenGlow
-      ctx.shadowBlur = 5
-      ctx.shadowOffsetX = 0
-      ctx.shadowOffsetY = 0
-      ctx.fillStyle = COLORS.boostGreen
+    if (displayLetter) {
+      ctx.fillText(displayLetter, x + width / 2, y + height / 2)
     }
-    ctx.fillText(String(letter.value), x + width - 2, y + height - 2)
-    ctx.shadowBlur = 0
+
+    if (shouldRenderValue) {
+      ctx.fillStyle = COLORS.ivory
+      ctx.font = '800 7px Georgia, "Times New Roman", serif'
+      ctx.textAlign = 'right'
+      ctx.textBaseline = 'bottom'
+      if (this.isBoostedLetterValue(letter.letter, letter.value)) {
+        ctx.shadowColor = COLORS.boostGreenGlow
+        ctx.shadowBlur = 5
+        ctx.shadowOffsetX = 0
+        ctx.shadowOffsetY = 0
+        ctx.fillStyle = COLORS.boostGreen
+      }
+      ctx.fillText(String(letter.value), x + width - 2, y + height - 2)
+      ctx.shadowBlur = 0
+    }
 
     if (letter.isShiny) {
       const badgeWidth = Math.max(14, measureTextWidth(shinyBonusText, shinyBadgeFont) + 6)
@@ -3507,7 +3516,7 @@ export class Game {
         wordContainer.className = 'completed-word'
 
         for (let j = 0; j < word.length; j++) {
-          const char = word[j].letter.toUpperCase()
+          const char = word[j].isBlank ? '' : word[j].letter.toUpperCase()
           const value = word[j].value
           const tile = document.createElement('div')
           tile.className = 'tray-tile'
@@ -3517,10 +3526,16 @@ export class Game {
           if (word[j].isShiny) {
             tile.classList.add('is-shiny')
           }
-          if (this.isBoostedLetterValue(char, value)) {
+          if (!word[j].isBlank && this.isBoostedLetterValue(word[j].letter, value)) {
             tile.classList.add('is-boosted')
           }
-          tile.innerHTML = `${char}<span class="tile-points">${value}</span>`
+          tile.textContent = char
+          if (!word[j].isBlank) {
+            const points = document.createElement('span')
+            points.className = 'tile-points'
+            points.textContent = String(value)
+            tile.appendChild(points)
+          }
           wordContainer.appendChild(tile)
         }
 

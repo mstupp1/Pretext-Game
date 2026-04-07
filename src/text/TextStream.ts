@@ -8,6 +8,8 @@ import { ICONS, LETTER_VALUES, MultiplierType, POWER_UP_ICONS, PowerUpType } fro
 const MULTIPLIER_SPAWN_RATE = 0.018
 const SHINY_SPAWN_RATE = 0.05
 const POWER_UP_SPAWN_RATE = 0.0018
+const BLANK_TILE_SPAWN_RATE = 0.00055
+const BLANK_WORD_MULTIPLIER_RATE = 0.28
 const MULTIPLIER_WEIGHTS: Array<{
   type: Exclude<MultiplierType, 'None'>
   weight: number
@@ -26,6 +28,15 @@ const POWER_UP_WEIGHTS: Array<{
 }> = [
   { type: 'Wisdom', weight: 0.5, cooldown: 180 },
   { type: 'Knowledge', weight: 0.5, cooldown: 220 },
+]
+const BLANK_WORD_MULTIPLIER_WEIGHTS: Array<{
+  type: Extract<MultiplierType, 'DoubleWord' | 'TripleWord'>
+  weight: number
+  cooldown: number
+  wordMultiplierCooldown: number
+}> = [
+  { type: 'DoubleWord', weight: 0.72, cooldown: 2, wordMultiplierCooldown: 10 },
+  { type: 'TripleWord', weight: 0.28, cooldown: 2, wordMultiplierCooldown: 12 },
 ]
 type ActiveMultiplierType = Exclude<MultiplierType, 'None'>
 type StreamKind = 'text' | 'icon' | 'powerup'
@@ -56,6 +67,37 @@ function getRandomShinyBonus(letter: string): number {
   return 1
 }
 
+function rollBlankWordMultiplier(): {
+  multiplierType: Extract<MultiplierType, 'DoubleWord' | 'TripleWord'> | 'None'
+  cooldown: number
+  wordMultiplierCooldown: number
+} {
+  if (Math.random() >= BLANK_WORD_MULTIPLIER_RATE) {
+    return { multiplierType: 'None', cooldown: 0, wordMultiplierCooldown: 0 }
+  }
+
+  const totalWeight = BLANK_WORD_MULTIPLIER_WEIGHTS.reduce((sum, option) => sum + option.weight, 0)
+  let pick = Math.random() * totalWeight
+
+  for (const option of BLANK_WORD_MULTIPLIER_WEIGHTS) {
+    pick -= option.weight
+    if (pick <= 0) {
+      return {
+        multiplierType: option.type,
+        cooldown: option.cooldown,
+        wordMultiplierCooldown: option.wordMultiplierCooldown,
+      }
+    }
+  }
+
+  const fallback = BLANK_WORD_MULTIPLIER_WEIGHTS[0]
+  return {
+    multiplierType: fallback.type,
+    cooldown: fallback.cooldown,
+    wordMultiplierCooldown: fallback.wordMultiplierCooldown,
+  }
+}
+
 export function getPageCurvatureOffset(screenX: number, viewportWidth: number): number {
   const center = viewportWidth / 2
   const distFromCenter = screenX - center
@@ -77,6 +119,7 @@ export interface StreamChar {
   width: number
   isHighlighted: boolean  // collectible letter
   isCollected: boolean    // already taken
+  isBlank: boolean
   multiplierType: MultiplierType
   powerUpType: PowerUpType
   isShiny: boolean
@@ -263,6 +306,7 @@ export class TextStream {
       }
 
       let isHighlighted = false
+      let isBlank = false
       let multiplierType: MultiplierType = 'None'
       let powerUpType: PowerUpType = 'None'
       let isShiny = false
@@ -272,7 +316,19 @@ export class TextStream {
         powerUpType = powerUpTypes[i] ?? 'None'
         isHighlighted = powerUpType !== 'None'
       } else if (isLetter && highlightCooldown <= 0) {
-        if (multiplierCooldown <= 0 && Math.random() < MULTIPLIER_SPAWN_RATE) {
+        if (Math.random() < BLANK_TILE_SPAWN_RATE) {
+          isBlank = true
+          isHighlighted = true
+
+          if (wordMultiplierCooldown <= 0) {
+            const blankMultiplier = rollBlankWordMultiplier()
+            multiplierType = blankMultiplier.multiplierType
+            if (multiplierType !== 'None') {
+              multiplierCooldown = blankMultiplier.cooldown
+              wordMultiplierCooldown = blankMultiplier.wordMultiplierCooldown
+            }
+          }
+        } else if (multiplierCooldown <= 0 && Math.random() < MULTIPLIER_SPAWN_RATE) {
           const availableMultipliers = MULTIPLIER_WEIGHTS.filter(option =>
             option.wordMultiplierCooldown === undefined || wordMultiplierCooldown <= 0
           )
@@ -305,7 +361,7 @@ export class TextStream {
           if (multiplierType !== 'None') {
             this.multiplierTargets[multiplierType]++
           }
-          if (shinyCooldown <= 0 && Math.random() < SHINY_SPAWN_RATE) {
+          if (!isBlank && shinyCooldown <= 0 && Math.random() < SHINY_SPAWN_RATE) {
             isShiny = true
             shinyBonus = getRandomShinyBonus(mc.char)
             this.targetShinyCount++
@@ -340,6 +396,7 @@ export class TextStream {
         width: mc.width,
         isHighlighted,
         isCollected: false,
+        isBlank,
         multiplierType,
         powerUpType,
         isShiny,
@@ -706,7 +763,7 @@ export class TextStream {
 
     for (const type of ACTIVE_MULTIPLIER_TYPES) {
       while (activeMultiplierCounts[type] < this.multiplierTargets[type]) {
-        const candidate = this.findReplacementCandidate(visibleChars, activeHighlightIndices, true)
+        const candidate = this.findReplacementCandidate(visibleChars, activeHighlightIndices, true, type)
         if (!candidate) break
 
         const wasHighlighted = candidate.isHighlighted
@@ -754,7 +811,7 @@ export class TextStream {
     const freshCandidates: StreamChar[] = []
 
     for (const ch of this.chars) {
-      if (!/[A-Za-z]/.test(ch.char) || ch.isCollected || ch.isShiny) continue
+      if (!/[A-Za-z]/.test(ch.char) || ch.isCollected || ch.isShiny || ch.isBlank) continue
       if (visibleChars.has(ch)) continue
 
       if (ch.isHighlighted) {
@@ -780,7 +837,8 @@ export class TextStream {
   private findReplacementCandidate(
     visibleChars: Set<StreamChar>,
     activeHighlightIndices: number[],
-    allowExistingHighlights: boolean
+    allowExistingHighlights: boolean,
+    requiredMultiplierType?: ActiveMultiplierType,
   ): StreamChar | null {
     const promotedHighlights: StreamChar[] = []
     const freshHighlights: StreamChar[] = []
@@ -788,6 +846,9 @@ export class TextStream {
     for (const ch of this.chars) {
       if (!/[A-Za-z]/.test(ch.char) || ch.isCollected || ch.multiplierType !== 'None') continue
       if (visibleChars.has(ch) || this.hasHighlightConflict(ch.originalIndex, activeHighlightIndices)) continue
+      if (ch.isBlank && requiredMultiplierType && requiredMultiplierType !== 'DoubleWord' && requiredMultiplierType !== 'TripleWord') {
+        continue
+      }
 
       if (ch.isHighlighted) {
         if (allowExistingHighlights) promotedHighlights.push(ch)
