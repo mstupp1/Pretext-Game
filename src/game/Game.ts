@@ -132,6 +132,7 @@ export class Game {
   private static readonly TRAY_BOTTOM_OFFSET = 26
   private static readonly TRAY_PREVIEW_HEIGHT = 24
   private static readonly TRAY_PREVIEW_GAP = 10
+  private static readonly BANKED_TILE_ALPHA = 0.68
   private static readonly TITLE_FOOTER_LIFT = 18
   private static readonly GAME_OVER_FOOTER_LIFT = 24
   private static readonly TITLE_PROMPT_DROP = 8
@@ -1061,7 +1062,7 @@ export class Game {
         toY: target.y,
         fromScale: bankPose.scale,
         toScale: 1,
-        fromAlpha: 1,
+        fromAlpha: Game.BANKED_TILE_ALPHA,
         toAlpha: 1,
         progress: 0,
         hideStaticInTray: true,
@@ -1087,7 +1088,7 @@ export class Game {
       fromScale: selectedPose.scale,
       toScale: bankPose.scale,
       fromAlpha: 1,
-      toAlpha: 1,
+      toAlpha: Game.BANKED_TILE_ALPHA,
       progress: 0,
       hideStaticInBank: true,
     })
@@ -1104,7 +1105,7 @@ export class Game {
         toY: target.y,
         fromScale: bankPose.scale,
         toScale: 1,
-        fromAlpha: 1,
+        fromAlpha: Game.BANKED_TILE_ALPHA,
         toAlpha: 1,
         progress: 0,
         hideStaticInTray: true,
@@ -1558,7 +1559,16 @@ export class Game {
 
     const bankPose = this.getBankedTilePose()
     if (this.bankedLetter && !hiddenBankTileIds.has(this.bankedLetter.id)) {
-      this.renderCanvasTrayTile(ctx, this.bankedLetter, bankPose.x, bankPose.y, tileWidth, tileHeight, bankPose.scale)
+      this.renderCanvasTrayTile(
+        ctx,
+        this.bankedLetter,
+        bankPose.x,
+        bankPose.y,
+        tileWidth,
+        tileHeight,
+        bankPose.scale,
+        Game.BANKED_TILE_ALPHA,
+      )
     }
 
     this.trayTileTransitions.forEach((transition) => {
@@ -1888,7 +1898,7 @@ export class Game {
     const parkedSlot = this.getTrayTileCenter(0, 1)
     return {
       x: GAME_WIDTH / 2,
-      y: parkedSlot.y + 34,
+      y: parkedSlot.y + 43,
       scale: 1.16,
     }
   }
