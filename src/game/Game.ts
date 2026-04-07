@@ -370,6 +370,10 @@ export class Game {
     return rounded.toFixed(2).replace(/\.?0+$/, '')
   }
 
+  private formatMultiplierBonusValue(value: number): string {
+    return (Math.round(value * 100) / 100).toFixed(2)
+  }
+
   private collectPowerUp(powerUpType: Exclude<PowerUpType, 'None'>): string {
     if (powerUpType === 'Wisdom') {
       this.wisdom++
@@ -2861,9 +2865,9 @@ export class Game {
   }
 
   private renderBookTopPanels(ctx: CanvasRenderingContext2D): void {
-    const upgradesWidth = 168
-    const upgradesHeight = 66
-    const statsWidth = 184
+    const upgradesWidth = 154
+    const upgradesHeight = 76
+    const statsWidth = 176
     const statsHeight = 76
     const legendWidth = 186
     const legendHeight = 58
@@ -3070,15 +3074,15 @@ export class Game {
 
   private renderUpgradesPanel(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number): void {
     this.drawPagePanel(ctx, x, y, width, height, () => {
-      renderText(ctx, 'UPGRADES', -width / 2 + 12, 11, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted)
+      renderText(ctx, 'UPGRADES', -width / 2 + 12, 13, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted)
       this.renderUpgradeRow(
         ctx,
         POWER_UP_ICONS.Wisdom,
         'Wisdom',
         this.wisdom,
-        `+${this.formatMultiplierValue(this.multiplierBonus)} multiplier`,
+        `+${this.formatMultiplierBonusValue(this.multiplierBonus)} multiplier`,
         -width / 2 + 12,
-        28,
+        34,
         width / 2 - 12,
       )
       this.renderUpgradeRow(
@@ -3088,7 +3092,7 @@ export class Game {
         this.knowledge,
         `+${this.baseWordBonus} base`,
         -width / 2 + 12,
-        49,
+        56,
         width / 2 - 12,
       )
     })
@@ -3107,14 +3111,14 @@ export class Game {
     ctx.save()
     ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
-    ctx.font = CANVAS_FONTS.icons(9)
+    ctx.font = CANVAS_FONTS.icons(10)
     ctx.fillStyle = COLORS.safeZoneInk
     ctx.fillText(icon, x, y)
     ctx.restore()
 
-    renderText(ctx, label, x + 18, y - 3, CANVAS_FONTS.laneItalic(11.5), COLORS.sepia)
-    renderText(ctx, String(value), rightX, y - 2, CANVAS_FONTS.laneBold(18), COLORS.espresso, 'right')
-    renderText(ctx, bonusText, rightX, y + 9, CANVAS_FONTS.uiSmallCaps(6.5), COLORS.gold, 'right')
+    renderText(ctx, label, x + 20, y, CANVAS_FONTS.laneItalic(11.5), COLORS.sepia)
+    renderText(ctx, String(value), rightX, y - 1, CANVAS_FONTS.laneBold(20), COLORS.espresso, 'right')
+    renderText(ctx, bonusText, rightX, y + 13, CANVAS_FONTS.uiSmallCaps(8.5), COLORS.gold, 'right')
   }
 
   private renderSelectedTrayPreview(ctx: CanvasRenderingContext2D, trayY: number, preview: ScorePreview): void {
