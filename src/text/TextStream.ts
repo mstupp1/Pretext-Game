@@ -8,7 +8,7 @@ import { ICONS, LETTER_VALUES, MultiplierType, POWER_UP_ICONS, PowerUpType } fro
 const MULTIPLIER_SPAWN_RATE = 0.018
 const SHINY_SPAWN_RATE = 0.05
 const POWER_UP_SPAWN_RATE = 0.0018
-const BLANK_TILE_SPAWN_RATE = 0.00055
+const BLANK_TILE_SPAWN_RATE = 0.0016
 const BLANK_WORD_MULTIPLIER_RATE = 0.28
 const MULTIPLIER_WEIGHTS: Array<{
   type: Exclude<MultiplierType, 'None'>
