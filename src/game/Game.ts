@@ -1585,8 +1585,9 @@ export class Game {
       const shimmerX = x - width * 0.4 + shimmerPhase * width * 1.7
       const shimmer = ctx.createLinearGradient(shimmerX, y, shimmerX + width * 0.26, y + height)
       shimmer.addColorStop(0, 'rgba(255, 255, 255, 0)')
-      shimmer.addColorStop(0.45, shinyAccent.bright)
-      shimmer.addColorStop(0.62, shinyAccent.glow)
+      shimmer.addColorStop(0.38, 'rgba(255, 255, 255, 0.22)')
+      shimmer.addColorStop(0.52, shinyAccent.bright)
+      shimmer.addColorStop(0.66, shinyAccent.glow)
       shimmer.addColorStop(1, 'rgba(255, 255, 255, 0)')
       ctx.globalCompositeOperation = 'screen'
       ctx.fillStyle = shimmer
@@ -1600,6 +1601,13 @@ export class Game {
     ctx.stroke(tilePath)
 
     if (letter.isShiny) {
+      ctx.save()
+      ctx.strokeStyle = shinyAccent.border
+      ctx.shadowColor = shinyAccent.glow
+      ctx.shadowBlur = 10
+      ctx.lineWidth = 1.6
+      ctx.stroke(this.createRoundedRectPath(x + 0.75, y + 0.75, width - 1.5, height - 1.5, 4))
+      ctx.restore()
       ctx.strokeStyle = shinyAccent.border
       ctx.lineWidth = 1
       ctx.stroke(this.createRoundedRectPath(x + 1, y + 1, width - 2, height - 2, 4))
@@ -2424,24 +2432,6 @@ export class Game {
     }
     ctx.fillText(String(letter.value), x + width - 2, y + height - 2)
     ctx.shadowBlur = 0
-
-    if (letter.isShiny) {
-      const badgeWidth = 10
-      const badgeHeight = 6
-      const badgeX = x + (width - badgeWidth) / 2
-      const badgeY = y - 3
-      const badgePath = this.createRoundedRectPath(badgeX, badgeY, badgeWidth, badgeHeight, 999)
-      ctx.fillStyle = shinyAccent.bright
-      ctx.fill(badgePath)
-      ctx.strokeStyle = shinyAccent.border
-      ctx.lineWidth = 1
-      ctx.stroke(badgePath)
-      ctx.fillStyle = COLORS.ivory
-      ctx.font = '700 5px Georgia, "Times New Roman", serif'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillText('+1', badgeX + badgeWidth / 2, badgeY + badgeHeight / 2)
-    }
 
     ctx.restore()
   }

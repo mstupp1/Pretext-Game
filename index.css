@@ -354,55 +354,6 @@ html, body {
   pointer-events: none;
 }
 
-.tray-tile.is-shiny::after {
-  content: '+1';
-  position: absolute;
-  top: -4px;
-  left: 50%;
-  transform: translateX(-50%);
-  min-width: 16px;
-  height: 10px;
-  padding: 0 2px;
-  border-radius: 999px;
-  border: 1px solid rgba(214, 164, 66, 0.9);
-  background: rgba(238, 212, 140, 0.96);
-  font-size: 9px;
-  font-weight: 700;
-  color: rgba(245, 241, 232, 0.96);
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-
-.completed-word .tray-tile.is-shiny::after {
-  top: -3px;
-  font-size: 6px;
-  min-width: 10px;
-  height: 7px;
-  padding: 0 1px;
-}
-
-.tray-tile.is-shiny.multiplier-DoubleLetter::after {
-  border-color: rgba(63, 107, 168, 0.92);
-  background: rgba(202, 226, 249, 0.96);
-}
-
-.tray-tile.is-shiny.multiplier-TripleLetter::after {
-  border-color: rgba(23, 124, 114, 0.92);
-  background: rgba(184, 232, 226, 0.96);
-}
-
-.tray-tile.is-shiny.multiplier-DoubleWord::after {
-  border-color: rgba(184, 61, 47, 0.92);
-  background: rgba(248, 200, 191, 0.96);
-}
-
-.tray-tile.is-shiny.multiplier-TripleWord::after {
-  border-color: rgba(115, 45, 145, 0.92);
-  background: rgba(223, 193, 237, 0.96);
-}
 
 /* ── Multiplier Styles ── */
 .multiplier-DoubleLetter {
