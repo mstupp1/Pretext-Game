@@ -913,7 +913,7 @@ export class Game {
       const timeBonus = getScorePreview(allLetters).timeBonus
 
       this.timeRemaining += timeBonus
-      this.timerCapacity = this.timeRemaining
+      this.timerCapacity = Math.max(this.timerCapacity, this.timeRemaining)
 
       // Clear all letters after successful submit
       this.collectedLetters = []
@@ -984,7 +984,7 @@ export class Game {
       audioManager.playChapterUnlock()
       this.level = generateLevel(this.chapter)
       this.timeRemaining += bonusTime // Add each unlocked chapter's allotment to current time
-      this.timerCapacity = this.timeRemaining
+      this.timerCapacity = Math.max(this.timerCapacity, this.timeRemaining)
 
       // Update existing lanes with new configs rather than replacing them
       for (let i = 0; i < LANE_COUNT; i++) {
