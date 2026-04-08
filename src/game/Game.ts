@@ -3295,7 +3295,8 @@ export class Game {
     const totalScoreText = this.formatScoreValue(preview.totalScore)
     const height = compact ? 20 : Game.TRAY_PREVIEW_HEIGHT
     const trayValueFont = compact ? '700 12px Georgia, "Times New Roman", serif' : '700 14px Georgia, "Times New Roman", serif'
-    const operatorFont = compact ? CANVAS_FONTS.laneMedium(11) : CANVAS_FONTS.laneMedium(13)
+    const parenFont = compact ? CANVAS_FONTS.laneMedium(12) : CANVAS_FONTS.laneMedium(14)
+    const operatorFont = compact ? CANVAS_FONTS.laneBold(14) : CANVAS_FONTS.laneBold(16)
     const summaryValueFont = compact ? '700 14px Georgia, "Times New Roman", serif' : '700 16px Georgia, "Times New Roman", serif'
     const summaryLabelFont = compact ? CANVAS_FONTS.laneMedium(11) : CANVAS_FONTS.laneMedium(13)
     const timeFont = compact ? '700 13px Georgia, "Times New Roman", serif' : '700 15px Georgia, "Times New Roman", serif'
@@ -3304,8 +3305,8 @@ export class Game {
       ? Math.max(compact ? 24 : 28, measureTextWidth(multiplierText, badgeFont) + (compact ? 6 : 8))
       : 0
     const hasLengthBonus = preview.lengthBonus > 0
-    const openParenWidth = hasLengthBonus ? measureTextWidth('(', operatorFont) : 0
-    const closeParenWidth = hasLengthBonus ? measureTextWidth(')', operatorFont) : 0
+    const openParenWidth = hasLengthBonus ? measureTextWidth('(', parenFont) : 0
+    const closeParenWidth = hasLengthBonus ? measureTextWidth(')', parenFont) : 0
     const baseWidth = measureTextWidth(String(preview.letterScore), trayValueFont)
     const plusWidth = measureTextWidth('+', operatorFont)
     const bonusWidth = hasLengthBonus ? measureTextWidth(String(preview.lengthBonus), trayValueFont) : 0
@@ -3370,7 +3371,8 @@ export class Game {
       : 0
     const badgeScale = this.getScorePreviewBadgeScale(compact, multiplierTier, pulse)
     const trayValueFont = compact ? '700 12px Georgia, "Times New Roman", serif' : '700 14px Georgia, "Times New Roman", serif'
-    const operatorFont = compact ? CANVAS_FONTS.laneMedium(11) : CANVAS_FONTS.laneMedium(13)
+    const parenFont = compact ? CANVAS_FONTS.laneMedium(12) : CANVAS_FONTS.laneMedium(14)
+    const operatorFont = compact ? CANVAS_FONTS.laneBold(14) : CANVAS_FONTS.laneBold(16)
     const summaryValueFont = compact ? '700 14px Georgia, "Times New Roman", serif' : '700 16px Georgia, "Times New Roman", serif'
     const summaryLabelFont = compact ? CANVAS_FONTS.laneMedium(11) : CANVAS_FONTS.laneMedium(13)
     const timeFont = compact ? '700 13px Georgia, "Times New Roman", serif' : '700 15px Georgia, "Times New Roman", serif'
@@ -3381,8 +3383,8 @@ export class Game {
     const hasLengthBonus = preview.lengthBonus > 0
     const baseText = String(preview.letterScore)
     const bonusValueText = String(preview.lengthBonus)
-    const openParenWidth = hasLengthBonus ? measureTextWidth('(', operatorFont) : 0
-    const closeParenWidth = hasLengthBonus ? measureTextWidth(')', operatorFont) : 0
+    const openParenWidth = hasLengthBonus ? measureTextWidth('(', parenFont) : 0
+    const closeParenWidth = hasLengthBonus ? measureTextWidth(')', parenFont) : 0
     const baseWidth = measureTextWidth(baseText, trayValueFont)
     const plusWidth = measureTextWidth('+', operatorFont)
     const bonusWidth = hasLengthBonus ? measureTextWidth(bonusValueText, trayValueFont) : 0
@@ -3446,7 +3448,7 @@ export class Game {
     ctx.stroke(path)
 
     if (hasLengthBonus) {
-      renderText(ctx, '(', formulaX, formulaCenterY, operatorFont, COLORS.muted)
+      renderText(ctx, '(', formulaX, formulaCenterY, parenFont, COLORS.muted)
       renderText(ctx, baseText, formulaX + openParenWidth + 4, formulaCenterY, trayValueFont, COLORS.espresso)
       renderText(ctx, '+', formulaX + openParenWidth + 4 + baseWidth + 7, formulaCenterY, operatorFont, COLORS.muted)
       renderText(
@@ -3462,7 +3464,7 @@ export class Game {
         ')',
         formulaX + openParenWidth + 4 + baseWidth + 7 + plusWidth + 7 + bonusWidth + 4,
         formulaCenterY,
-        operatorFont,
+        parenFont,
         COLORS.muted,
       )
     } else {
