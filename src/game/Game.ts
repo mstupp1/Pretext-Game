@@ -73,6 +73,7 @@ interface TimerBonusIndicator {
 }
 
 interface CompletedWordRecord {
+  word: string
   letters: ScoredLetter[]
   score: number
   chapter: number
@@ -1072,6 +1073,7 @@ export class Game {
 
     // Trigger ripple wave on the lane
     lane.triggerRipple(this.player.x)
+    this.updateWordsUI()
   }
 
   async submitWord(): Promise<void> {
@@ -1111,6 +1113,7 @@ export class Game {
       audioManager.playScore(result.totalScore)
       this.score += result.totalScore
       this.wordsFound.push({
+        word: result.word,
         letters: allLetters.map((letter) => ({ ...letter })),
         score: result.totalScore,
         chapter: this.chapter,
@@ -1167,6 +1170,7 @@ export class Game {
         })
       }
       audioManager.playBackspace()
+      this.updateWordsUI()
     }
   }
 
@@ -1198,6 +1202,7 @@ export class Game {
         hideStaticInTray: true,
       })
       audioManager.playSelectLetter()
+      this.updateWordsUI()
       return
     }
 
@@ -1243,6 +1248,7 @@ export class Game {
     }
 
     audioManager.playSelectLetter()
+    this.updateWordsUI()
   }
 
   private showFeedback(text: string, success: boolean): void {
@@ -3593,9 +3599,36 @@ export class Game {
     }
   }
 
+  private getTrayPrefixPattern(): string {
+    return this.collectedLetters
+      .map((letter) => (letter.isBlank ? '?' : letter.letter.toUpperCase()))
+      .join('')
+  }
+
+  private wordStartsWithTrayPrefix(word: string, prefixPattern: string): boolean {
+    if (prefixPattern.length === 0) return true
+
+    const normalizedWord = word.toUpperCase()
+    if (normalizedWord.length < prefixPattern.length) return false
+
+    for (let i = 0; i < prefixPattern.length; i++) {
+      const prefixChar = prefixPattern[i]
+      if (prefixChar !== '?' && normalizedWord[i] !== prefixChar) {
+        return false
+      }
+    }
+
+    return true
+  }
+
   public updateWordsUI(): void {
     const wordsEl = this.hud.completedWordsList
     if (!wordsEl) return
+
+    const trayPrefix = this.getTrayPrefixPattern()
+    const visibleWords = trayPrefix.length === 0
+      ? this.wordsFound
+      : this.wordsFound.filter((entry) => this.wordStartsWithTrayPrefix(entry.word, trayPrefix))
 
     const renderWords = (startIndex: number) => {
       wordsEl.innerHTML = ''
@@ -3608,8 +3641,8 @@ export class Game {
         wordsEl.appendChild(moreIndicator)
       }
 
-      for (let i = Math.max(0, startIndex); i < this.wordsFound.length; i++) {
-        const word = this.wordsFound[i].letters
+      for (let i = Math.max(0, startIndex); i < visibleWords.length; i++) {
+        const word = visibleWords[i].letters
         const wordContainer = document.createElement('div')
         wordContainer.className = 'completed-word'
 
@@ -3644,7 +3677,7 @@ export class Game {
     let startIndex = 0
     renderWords(startIndex)
 
-    while (wordsEl.scrollWidth > wordsEl.clientWidth && startIndex < this.wordsFound.length - 1) {
+    while (wordsEl.scrollWidth > wordsEl.clientWidth && startIndex < visibleWords.length - 1) {
       startIndex++
       renderWords(startIndex)
     }
