@@ -79,6 +79,11 @@ interface CompletedWordRecord {
   preview: ScorePreview
 }
 
+interface HighScoreRecord {
+  score: number
+  elapsedTime: number | null
+}
+
 interface ScorePreviewLayout {
   width: number
   height: number
@@ -164,7 +169,7 @@ export class Game {
   public usedWords: Set<string> = new Set()    // words used this run (no repeats)
   public feedback: FeedbackMessage | null = null
   public floatingScores: FloatingScore[] = []
-  public highScores: number[] = []
+  public highScores: HighScoreRecord[] = []
   public particles: ParticleSystem = new ParticleSystem()
   private timerBonusIndicator: TimerBonusIndicator | null = null
 
@@ -334,13 +339,36 @@ export class Game {
   private loadHighScores(): void {
     try {
       const stored = localStorage.getItem('lexicon-crossing-scores')
-      if (stored) this.highScores = JSON.parse(stored)
+      if (!stored) return
+
+      const parsed = JSON.parse(stored)
+      if (!Array.isArray(parsed)) return
+
+      this.highScores = parsed
+        .map((entry): HighScoreRecord | null => {
+          if (typeof entry === 'number') {
+            return { score: entry, elapsedTime: null }
+          }
+          if (
+            entry &&
+            typeof entry === 'object' &&
+            typeof entry.score === 'number' &&
+            (typeof entry.elapsedTime === 'number' || entry.elapsedTime === null || entry.elapsedTime === undefined)
+          ) {
+            return {
+              score: entry.score,
+              elapsedTime: typeof entry.elapsedTime === 'number' ? entry.elapsedTime : null,
+            }
+          }
+          return null
+        })
+        .filter((entry): entry is HighScoreRecord => entry !== null)
     } catch { /* ignore */ }
   }
 
   private saveHighScore(score: number): void {
-    this.highScores.push(score)
-    this.highScores.sort((a, b) => b - a)
+    this.highScores.push({ score, elapsedTime: this.totalElapsedTime })
+    this.highScores.sort((a, b) => b.score - a.score)
     this.highScores = this.highScores.slice(0, 5)
     try {
       localStorage.setItem('lexicon-crossing-scores', JSON.stringify(this.highScores))
@@ -2453,26 +2481,21 @@ export class Game {
     renderText(ctx, `${this.getChapterTitle()} reached`, centerX, centerY + 45 + getOffset(centerX),
       CANVAS_FONTS.laneItalic(16), COLORS.sepia, 'center')
 
+    const finalRunSummary = `${this.formatScoreValue(this.score)}  •  ${this.formatElapsedTime(this.totalElapsedTime)}`
+
     // Final score
     const finalScoreY = centerY + 88
-    const pointsLabelY = finalScoreY + 42
+    const pointsLabelY = finalScoreY + 54
 
-    renderText(ctx, this.formatScoreValue(this.score), centerX, finalScoreY + getOffset(centerX),
-      CANVAS_FONTS.laneLight(56), COLORS.gold, 'center')
+    renderText(ctx, finalRunSummary, centerX, finalScoreY + getOffset(centerX),
+      CANVAS_FONTS.laneLight(42), COLORS.gold, 'center')
 
-    renderText(ctx, 'POINTS', centerX, pointsLabelY + getOffset(centerX),
+    renderText(ctx, 'POINTS  •  ELAPSED', centerX, pointsLabelY + getOffset(centerX),
       CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
-
-    const elapsedLabelY = pointsLabelY + 52
-    const elapsedValueY = elapsedLabelY + 32
-    renderText(ctx, 'ELAPSED', centerX, elapsedLabelY + getOffset(centerX),
-      CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
-    renderText(ctx, this.formatElapsedTime(this.totalElapsedTime), centerX, elapsedValueY + getOffset(centerX),
-      CANVAS_FONTS.laneMedium(24), COLORS.sepia, 'center')
 
     // High scores
     if (this.highScores.length > 0) {
-      const hsY = centerY + 286 - Game.GAME_OVER_HIGH_SCORES_LIFT
+      const hsY = centerY + 212 - Game.GAME_OVER_HIGH_SCORES_LIFT
       renderText(ctx, 'HIGH SCORES', centerX, hsY + getOffset(centerX),
         CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
 
@@ -2488,9 +2511,16 @@ export class Game {
       ctx.stroke()
 
       for (let i = 0; i < Math.min(5, this.highScores.length); i++) {
-        const isNew = this.highScores[i] === this.score && i === this.highScores.indexOf(this.score)
+        const entry = this.highScores[i]
+        const isNew = entry.score === this.score
+          && entry.elapsedTime === this.totalElapsedTime
+          && i === this.highScores.findIndex((scoreEntry) =>
+            scoreEntry.score === this.score && scoreEntry.elapsedTime === this.totalElapsedTime)
         const color = isNew ? COLORS.gold : COLORS.sepia
-        renderText(ctx, `${i + 1}.  ${this.formatScoreValue(this.highScores[i])}`, centerX, hsY + 30 + i * 25 + getOffset(centerX),
+        const scoreLine = entry.elapsedTime === null
+          ? `${i + 1}.  ${this.formatScoreValue(entry.score)}`
+          : `${i + 1}.  ${this.formatScoreValue(entry.score)}  •  ${this.formatElapsedTime(entry.elapsedTime)}`
+        renderText(ctx, scoreLine, centerX, hsY + 30 + i * 25 + getOffset(centerX),
           CANVAS_FONTS.laneRegular(18), color, 'center')
       }
     }
