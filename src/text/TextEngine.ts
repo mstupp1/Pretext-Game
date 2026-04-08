@@ -17,6 +17,7 @@ export interface MeasuredLine {
 
 // Cache for prepared text to avoid re-measuring
 const prepareCache = new Map<string, PreparedTextWithSegments>()
+const widthCache = new Map<string, number>()
 
 function getCacheKey(text: string, font: string): string {
   return `${font}|||${text}`
@@ -73,9 +74,21 @@ export function measureCharsInLine(text: string, font: string): MeasuredChar[] {
 
 // Measure a single string's width
 export function measureTextWidth(text: string, font: string): number {
+  const key = getCacheKey(text, font)
+  const cached = widthCache.get(key)
+  if (cached !== undefined) return cached
+
   const canvas = getSharedCanvas()
   canvas.font = font
-  return canvas.measureText(text).width
+  const width = canvas.measureText(text).width
+  widthCache.set(key, width)
+
+  if (widthCache.size > 1000) {
+    const firstKey = widthCache.keys().next().value
+    if (firstKey) widthCache.delete(firstKey)
+  }
+
+  return width
 }
 
 // Shared offscreen canvas context for measurements
@@ -181,4 +194,5 @@ export function renderCurvedText(
 
 export function clearPrepareCache(): void {
   prepareCache.clear()
+  widthCache.clear()
 }

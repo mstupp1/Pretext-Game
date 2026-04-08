@@ -190,6 +190,7 @@ export class Lane {
 
     const centerY = this.y + this.height / 2
     const visible = this.stream.getVisibleChars(GAME_WIDTH)
+    const currentTimeMs = performance.now()
 
     ctx.textBaseline = 'middle'
     ctx.textAlign = 'center'
@@ -199,7 +200,7 @@ export class Lane {
       if (ch.alpha <= 0 || (!ch.isCollected && !ch.isHighlighted)) continue
       const isFocused = !ch.isCollected && ch.scale > 1.42
       if (focusedOnly !== isFocused) continue
-      this.renderTopChar(ctx, ch, screenX, centerY)
+      this.renderTopChar(ctx, ch, screenX, centerY, currentTimeMs)
     }
 
     ctx.textAlign = 'left'
@@ -290,7 +291,13 @@ export class Lane {
     ctx.restore()
   }
 
-  private renderTopChar(ctx: CanvasRenderingContext2D, ch: StreamChar, screenX: number, centerY: number): void {
+  private renderTopChar(
+    ctx: CanvasRenderingContext2D,
+    ch: StreamChar,
+    screenX: number,
+    centerY: number,
+    currentTimeMs: number,
+  ): void {
     if (!this.stream) return
 
     const undulation = this.stream.getUndulationOffset(ch, screenX)
@@ -353,7 +360,7 @@ export class Lane {
     const textT = isFocused ? 1 : Math.min(1, Math.max(0, (interactionStrength + 0.14) / 0.78))
     const borderT = isFocused ? 1 : Math.min(1, Math.max(0, (interactionStrength - 0.06) / 0.92))
     const shinyBeat = ch.isShiny
-      ? ((Date.now() * 0.00235 + ch.seed * 0.9) % 1)
+      ? ((currentTimeMs * 0.00235 + ch.seed * 0.9) % 1)
       : 0
     const shinyPulse = ch.isShiny
       ? Math.max(
@@ -411,9 +418,7 @@ export class Lane {
     ctx.fill()
 
     if (ch.isShiny) {
-      const tilePath = new Path2D()
-      tilePath.roundRect(-tileW / 2, -tileH / 2, tileW, tileH, borderRadius)
-      const shimmerPhase = (Date.now() * 0.0016 + ch.seed * 5.3) % 1
+      const shimmerPhase = (currentTimeMs * 0.0016 + ch.seed * 5.3) % 1
       const shimmerX = -tileW + shimmerPhase * tileW * 2
       const shimmer = ctx.createLinearGradient(shimmerX - tileW * 0.24, -tileH / 2, shimmerX + tileW * 0.1, tileH / 2)
       shimmer.addColorStop(0, 'rgba(255, 255, 255, 0)')
@@ -421,7 +426,9 @@ export class Lane {
       shimmer.addColorStop(0.55, `rgba(${shinyAccent.glow[0]}, ${shinyAccent.glow[1]}, ${shinyAccent.glow[2]}, ${baseAlpha * 0.22})`)
       shimmer.addColorStop(0.72, 'rgba(255, 255, 255, 0)')
       ctx.save()
-      ctx.clip(tilePath)
+      ctx.beginPath()
+      ctx.roundRect(-tileW / 2, -tileH / 2, tileW, tileH, borderRadius)
+      ctx.clip()
       ctx.globalCompositeOperation = 'screen'
       ctx.fillStyle = shimmer
       ctx.fillRect(-tileW / 2 - 6, -tileH / 2 - 6, tileW + 12, tileH + 12)
@@ -507,14 +514,16 @@ export class Lane {
       const badgeY = -tileH / 2 - 7
       const badgeCenterX = 0
       const badgeCenterY = badgeY + badgeHeight / 2
-      const badgePath = new Path2D()
-      badgePath.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 999)
       ctx.globalAlpha = baseAlpha
       ctx.fillStyle = `rgba(${shinyAccent.badgeFill[0]}, ${shinyAccent.badgeFill[1]}, ${shinyAccent.badgeFill[2]}, ${0.94 + shinyPulse * 0.04})`
-      ctx.fill(badgePath)
+      ctx.beginPath()
+      ctx.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 999)
+      ctx.fill()
       ctx.strokeStyle = `rgba(${shinyAccent.border[0]}, ${shinyAccent.border[1]}, ${shinyAccent.border[2]}, ${0.72 + shinyPulse * 0.18})`
       ctx.lineWidth = 1
-      ctx.stroke(badgePath)
+      ctx.beginPath()
+      ctx.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 999)
+      ctx.stroke()
       if (underlayAlpha > 0.01) {
         ctx.fillStyle = charIsLight
           ? `rgba(92, 64, 51, ${underlayAlpha})`

@@ -476,6 +476,12 @@ export class TextStream {
       this.scrollOffset += this.totalWidth
     }
 
+    const springLerp = Math.min(1, dt * 8)
+    const scaleLerp = Math.min(1, dt * 15)
+    const rotationLerp = Math.min(1, dt * 6)
+    const alphaLerp = Math.min(1, dt * 5)
+    const rippleDecay = Math.max(0, 1 - dt * 3)
+
     // Update character physics
     for (const ch of this.chars) {
       if (ch.isCollected) {
@@ -485,19 +491,33 @@ export class TextStream {
         ch.dy += dt * -80
         ch.rotation += dt * 8
       } else {
-        // Spring physics for all properties
-        const springRate = dt * 8
-        const scaleRate = dt * 15 // Faster scale response so it doesn't lag behind
-        const rotRate = dt * 6
+        const isAtRest =
+          ch.targetDy === 0 &&
+          ch.targetDx === 0 &&
+          ch.targetScale === 1 &&
+          ch.targetRotation === 0 &&
+          ch.dy === 0 &&
+          ch.dx === 0 &&
+          ch.scale === 1 &&
+          ch.rotation === 0 &&
+          ch.alpha === 1 &&
+          ch.rippleAmplitude === 0
 
-        ch.dy += (ch.targetDy - ch.dy) * Math.min(1, springRate)
-        ch.dx += (ch.targetDx - ch.dx) * Math.min(1, springRate)
-        ch.scale += (ch.targetScale - ch.scale) * Math.min(1, scaleRate)
-        ch.rotation += (ch.targetRotation - ch.rotation) * Math.min(1, rotRate)
-        ch.alpha += (1 - ch.alpha) * Math.min(1, dt * 5)
+        if (isAtRest) continue
 
-        // Ripple wave decay
-        ch.rippleAmplitude *= Math.max(0, 1 - dt * 3)
+        ch.dy += (ch.targetDy - ch.dy) * springLerp
+        ch.dx += (ch.targetDx - ch.dx) * springLerp
+        ch.scale += (ch.targetScale - ch.scale) * scaleLerp
+        ch.rotation += (ch.targetRotation - ch.rotation) * rotationLerp
+        ch.alpha += (1 - ch.alpha) * alphaLerp
+        ch.rippleAmplitude *= rippleDecay
+
+        if (ch.targetDy === 0 && Math.abs(ch.dy) < 0.01) ch.dy = 0
+        if (ch.targetDx === 0 && Math.abs(ch.dx) < 0.01) ch.dx = 0
+        if (Math.abs(ch.scale - ch.targetScale) < 0.001) ch.scale = ch.targetScale
+        if (ch.targetRotation === 0 && Math.abs(ch.rotation) < 0.001) ch.rotation = 0
+        if (Math.abs(1 - ch.alpha) < 0.001) ch.alpha = 1
+        if (ch.rippleAmplitude < 0.01) ch.rippleAmplitude = 0
       }
     }
 
@@ -524,9 +544,21 @@ export class TextStream {
       return cached.visible
     }
 
-    const visible: { char: StreamChar; screenX: number }[] = []
+    const visible = cached?.visible ?? []
+    let visibleCount = 0
     const offset = this.scrollOffset
     const padding = 100 // Load further offscreen to prevent popping
+
+    const pushVisible = (char: StreamChar, screenX: number): void => {
+      const entry = visible[visibleCount]
+      if (entry) {
+        entry.char = char
+        entry.screenX = screenX
+      } else {
+        visible.push({ char, screenX })
+      }
+      visibleCount++
+    }
 
     for (const ch of this.chars) {
       // Calculate base wrapped screen position to be nominally within [0, totalWidth)
@@ -537,18 +569,19 @@ export class TextStream {
       // This ensures characters smoothly enter/exit across screen boundaries without popping or gaps
       const leftCloneX = screenX - this.totalWidth
       if (leftCloneX >= -ch.width - padding && leftCloneX <= viewportWidth + padding) {
-        visible.push({ char: ch, screenX: leftCloneX })
+        pushVisible(ch, leftCloneX)
       }
 
       if (screenX >= -ch.width - padding && screenX <= viewportWidth + padding) {
-        visible.push({ char: ch, screenX })
+        pushVisible(ch, screenX)
       }
 
       const rightCloneX = screenX + this.totalWidth
       if (rightCloneX >= -ch.width - padding && rightCloneX <= viewportWidth + padding) {
-        visible.push({ char: ch, screenX: rightCloneX })
+        pushVisible(ch, rightCloneX)
       }
     }
+    visible.length = visibleCount
 
     this.visibleCharsCache = {
       viewportWidth,

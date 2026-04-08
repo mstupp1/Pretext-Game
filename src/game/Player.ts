@@ -26,6 +26,7 @@ export class Player {
   private blinkTimer: number = 0
   private blinkOn: boolean = true
   private trailPositions: { x: number; y: number; alpha: number }[] = []
+  private trailPool: { x: number; y: number; alpha: number }[] = []
 
   constructor() {
     // Start at middle row
@@ -45,6 +46,7 @@ export class Player {
     this.targetX = this.x
     this.targetY = this.y
     this.trailPositions = []
+    this.trailPool = []
   }
 
   laneToY(lane: number): number {
@@ -108,13 +110,29 @@ export class Player {
 
     // Trail management
     if (this.isMoving) {
-      this.trailPositions.push({ x: this.x, y: this.y, alpha: 0.4 })
-      if (this.trailPositions.length > 8) this.trailPositions.shift()
+      const trail = this.trailPool.pop() ?? { x: 0, y: 0, alpha: 0 }
+      trail.x = this.x
+      trail.y = this.y
+      trail.alpha = 0.4
+      this.trailPositions.push(trail)
+
+      if (this.trailPositions.length > 8) {
+        const removed = this.trailPositions.shift()
+        if (removed) this.trailPool.push(removed)
+      }
     }
-    this.trailPositions = this.trailPositions.filter(t => {
+    let writeIndex = 0
+    for (let i = 0; i < this.trailPositions.length; i++) {
+      const t = this.trailPositions[i]
       t.alpha -= dt * 1.5
-      return t.alpha > 0
-    })
+      if (t.alpha > 0) {
+        this.trailPositions[writeIndex] = t
+        writeIndex++
+      } else {
+        this.trailPool.push(t)
+      }
+    }
+    this.trailPositions.length = writeIndex
   }
 
   render(ctx: CanvasRenderingContext2D): void {

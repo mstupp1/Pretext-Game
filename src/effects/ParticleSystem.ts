@@ -46,10 +46,13 @@ const FIRE_PALETTE = [
 
 export class ParticleSystem {
   private particles: TypoParticle[] = []
+  private particlePool: TypoParticle[] = []
   private maxParticles: number = 500
 
   update(dt: number): void {
-    for (let i = this.particles.length - 1; i >= 0; i--) {
+    let writeIndex = 0
+
+    for (let i = 0; i < this.particles.length; i++) {
       const p = this.particles[i]
 
       // Physics
@@ -68,9 +71,15 @@ export class ParticleSystem {
 
       // Remove dead particles
       if (p.life <= 0 || p.y > GAME_HEIGHT + 50) {
-        this.particles.splice(i, 1)
+        this.particlePool.push(p)
+        continue
       }
+
+      this.particles[writeIndex] = p
+      writeIndex++
     }
+
+    this.particles.length = writeIndex
   }
 
   render(ctx: CanvasRenderingContext2D): void {
@@ -312,12 +321,35 @@ export class ParticleSystem {
   }
 
   private addParticle(p: TypoParticle): void {
-    if (this.particles.length < this.maxParticles) {
-      this.particles.push(p)
+    if (this.particles.length >= this.maxParticles) return
+
+    const particle = this.particlePool.pop()
+    if (particle) {
+      particle.char = p.char
+      particle.x = p.x
+      particle.y = p.y
+      particle.vx = p.vx
+      particle.vy = p.vy
+      particle.rotation = p.rotation
+      particle.rotationSpeed = p.rotationSpeed
+      particle.scale = p.scale
+      particle.alpha = p.alpha
+      particle.color = p.color
+      particle.font = p.font
+      particle.width = p.width
+      particle.life = p.life
+      particle.gravity = p.gravity
+      particle.friction = p.friction
+      particle.curvatureScale = p.curvatureScale
+      this.particles.push(particle)
+      return
     }
+
+    this.particles.push(p)
   }
 
   clear(): void {
-    this.particles = []
+    this.particlePool.push(...this.particles)
+    this.particles.length = 0
   }
 }
