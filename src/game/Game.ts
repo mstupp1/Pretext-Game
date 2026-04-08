@@ -200,6 +200,7 @@ export class Game {
   private letterValueBonuses: Partial<Record<string, number>> = {}
   private wisdom: number = 0
   private knowledge: number = 0
+  private radiance: number = 0
   private multiplierBonus: number = 0
   private baseWordBonus: number = 0
   private nextCollectedLetterId: number = 1
@@ -351,8 +352,24 @@ export class Game {
   private resetRunPowerUps(): void {
     this.wisdom = 0
     this.knowledge = 0
+    this.radiance = 0
     this.multiplierBonus = 0
     this.baseWordBonus = 0
+  }
+
+  private getEffectiveShinyBonus(baseBonus: number): number {
+    return baseBonus + this.radiance
+  }
+
+  private applyRadianceToHeldLetters(): void {
+    for (const letter of this.collectedLetters) {
+      if (!letter.isShiny || letter.isBlank) continue
+      letter.shinyBonus += 1
+    }
+
+    if (this.bankedLetter?.isShiny && !this.bankedLetter.isBlank) {
+      this.bankedLetter.shinyBonus += 1
+    }
   }
 
   private getScoreModifiers(): ScoreModifiers {
@@ -380,6 +397,12 @@ export class Game {
       this.wisdom++
       this.multiplierBonus = Math.round((this.multiplierBonus + 0.05) * 100) / 100
       return `Glasses found: Wisdom +1, multiplier +${this.formatMultiplierValue(0.05)}`
+    }
+
+    if (powerUpType === 'Radiance') {
+      this.radiance++
+      this.applyRadianceToHeldLetters()
+      return 'Radiance found: shiny tiles +1'
     }
 
     this.knowledge++
@@ -548,6 +571,7 @@ export class Game {
       const y = LANE_Y_START + i * LANE_HEIGHT
       const lane = new Lane(config, y)
       lane.setLetterValueResolver((letter) => this.getCurrentLetterValue(letter))
+      lane.setShinyBonusResolver((baseBonus) => this.getEffectiveShinyBonus(baseBonus))
       this.lanes.push(lane)
     }
   }
@@ -988,7 +1012,7 @@ export class Game {
       isBlank: collected.isBlank,
       multiplierType: collected.multiplierType,
       isShiny: collected.isShiny,
-      shinyBonus: collected.shinyBonus,
+      shinyBonus: collected.isShiny ? this.getEffectiveShinyBonus(collected.shinyBonus) : collected.shinyBonus,
       floatingX: this.player.x,
       floatingY: this.player.y,
     }))
@@ -1408,7 +1432,7 @@ export class Game {
 
   private renderBoardScene(ctx: CanvasRenderingContext2D): void {
     this.renderBackground(ctx)
-    this.renderBookTopPanels(ctx)
+    this.renderBoundaryDecoration(ctx)
 
     for (const lane of this.lanes) {
       lane.renderBase(ctx, this.player.laneIndex, this.player.x)
@@ -1436,8 +1460,9 @@ export class Game {
       ctx.restore()
     }
 
+    this.renderBookTopPanels(ctx)
+
     ctx.textAlign = 'left'
-    this.renderBoundaryDecoration(ctx)
     this.renderCanvasTray(ctx)
   }
 
@@ -2855,7 +2880,6 @@ export class Game {
     ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT)
 
     this.renderBackground(ctx)
-    this.renderBookTopPanels(ctx)
     for (const lane of this.lanes) {
       lane.renderBase(ctx, -1, -100)
     }
@@ -2865,6 +2889,8 @@ export class Game {
     for (const lane of this.lanes) {
       lane.renderFocusedTopLayer(ctx)
     }
+
+    this.renderBookTopPanels(ctx)
 
     // Center ornament / vignette
     const gradient = ctx.createRadialGradient(
@@ -2900,8 +2926,8 @@ export class Game {
   }
 
   private renderBookTopPanels(ctx: CanvasRenderingContext2D): void {
-    const upgradesWidth = 118
-    const upgradesHeight = 76
+    const upgradesWidth = 110
+    const upgradesHeight = 104
     const statsWidth = 176
     const statsHeight = 76
     const legendWidth = 186
@@ -2984,7 +3010,7 @@ export class Game {
 
     ctx.beginPath()
     ctx.arc(centerX, centerY, radius + 3, 0, Math.PI * 2)
-    ctx.fillStyle = 'rgba(255, 255, 253, 0.995)'
+    ctx.fillStyle = 'rgb(255, 255, 253)'
     ctx.shadowColor = warningT > 0 ? `rgba(139, 37, 0, ${0.12 + warningT * 0.18 + criticalT * 0.18})` : 'rgba(92, 64, 51, 0.08)'
     ctx.shadowBlur = 16 + warningT * 8 + criticalT * 10
     ctx.shadowOffsetY = 3
@@ -2998,9 +3024,9 @@ export class Game {
       centerY,
       radius,
     )
-    dialGradient.addColorStop(0, 'rgba(255, 255, 255, 1)')
-    dialGradient.addColorStop(0.6, 'rgba(255, 254, 250, 0.99)')
-    dialGradient.addColorStop(1, `rgba(248, 244, 236, ${0.985 - criticalT * 0.08})`)
+    dialGradient.addColorStop(0, 'rgb(255, 255, 255)')
+    dialGradient.addColorStop(0.6, 'rgb(255, 254, 250)')
+    dialGradient.addColorStop(1, criticalT > 0 ? 'rgb(248, 244, 236)' : 'rgb(248, 244, 236)')
     ctx.beginPath()
     ctx.arc(centerX, centerY, radius + 1, 0, Math.PI * 2)
     ctx.fillStyle = dialGradient
@@ -3109,16 +3135,28 @@ export class Game {
 
   private renderUpgradesPanel(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number): void {
     this.drawPagePanel(ctx, x, y, width, height, () => {
-      renderText(ctx, 'UPGRADES', -width / 2 + 12, 11, CANVAS_FONTS.uiSmallCaps(8), COLORS.muted)
+      const left = -width / 2 + 8
+      const right = width / 2 - 8
+      renderText(ctx, 'UPGRADES', left, 15, CANVAS_FONTS.uiSmallCaps(8.5), COLORS.muted)
       this.renderUpgradeRow(
         ctx,
         POWER_UP_ICONS.Knowledge,
         'Knowledge',
         this.knowledge,
         `+${this.baseWordBonus} base`,
-        -width / 2 + 12,
-        29,
-        width / 2 - 8,
+        left,
+        35,
+        right,
+      )
+      this.renderUpgradeRow(
+        ctx,
+        POWER_UP_ICONS.Radiance,
+        'Radiance',
+        this.radiance,
+        `+${this.radiance} shiny`,
+        left,
+        58,
+        right,
       )
       this.renderUpgradeRow(
         ctx,
@@ -3126,9 +3164,9 @@ export class Game {
         'Wisdom',
         this.wisdom,
         `+${this.formatMultiplierBonusValue(this.multiplierBonus)} multiplier`,
-        -width / 2 + 12,
-        52,
-        width / 2 - 8,
+        left,
+        81,
+        right,
       )
     })
   }
@@ -3146,14 +3184,14 @@ export class Game {
     ctx.save()
     ctx.textAlign = 'left'
     ctx.textBaseline = 'middle'
-    ctx.font = CANVAS_FONTS.icons(10)
+    ctx.font = CANVAS_FONTS.icons(11.5)
     ctx.fillStyle = COLORS.safeZoneInk
-    ctx.fillText(icon, x, y)
+    ctx.fillText(icon, x, y - 1)
     ctx.restore()
 
-    renderText(ctx, label, x + 14, y, CANVAS_FONTS.laneItalic(11.5), COLORS.sepia)
-    renderText(ctx, String(value), rightX, y - 1, CANVAS_FONTS.laneBold(20), COLORS.espresso, 'right')
-    renderText(ctx, bonusText, rightX, y + 13, CANVAS_FONTS.uiSmallCaps(8.5), COLORS.gold, 'right')
+    renderText(ctx, label, x + 14, y - 5, CANVAS_FONTS.laneItalic(11.75), COLORS.sepia)
+    renderText(ctx, bonusText, x + 14, y + 7, CANVAS_FONTS.uiSmallCaps(8.5), COLORS.gold)
+    renderText(ctx, String(value), rightX, y + 1, CANVAS_FONTS.laneBold(18), COLORS.espresso, 'right')
   }
 
   private renderSelectedTrayPreview(ctx: CanvasRenderingContext2D, trayY: number, preview: ScorePreview): void {
@@ -3394,7 +3432,7 @@ export class Game {
     ctx.save()
     ctx.beginPath()
     ctx.roundRect(-width / 2, 0, width, height, 14)
-    ctx.fillStyle = 'rgba(255, 253, 249, 0.94)'
+    ctx.fillStyle = 'rgb(255, 255, 253)'
     ctx.shadowColor = 'rgba(92, 64, 51, 0.08)'
     ctx.shadowBlur = 14
     ctx.shadowOffsetY = 3
@@ -3403,7 +3441,7 @@ export class Game {
 
     ctx.beginPath()
     ctx.roundRect(-width / 2, 0, width, height, 14)
-    ctx.fillStyle = 'rgba(255, 254, 251, 0.9)'
+    ctx.fillStyle = 'rgb(255, 255, 254)'
     ctx.fill()
     ctx.strokeStyle = 'rgba(92, 64, 51, 0.14)'
     ctx.lineWidth = 1

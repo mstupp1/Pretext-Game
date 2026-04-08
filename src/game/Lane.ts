@@ -33,6 +33,7 @@ export class Lane {
   private tileShineGradientCache: Map<string, CanvasGradient> = new Map()
   private effectsActive: boolean = false
   private resolveLetterValue: (letter: string) => number = getLetterValue
+  private resolveShinyBonus: (baseBonus: number) => number = (baseBonus) => baseBonus
 
   constructor(config: LaneConfig, yPosition: number) {
     this.config = config
@@ -113,6 +114,10 @@ export class Lane {
 
   setLetterValueResolver(resolver: (letter: string) => number): void {
     this.resolveLetterValue = resolver
+  }
+
+  setShinyBonusResolver(resolver: (baseBonus: number) => number): void {
+    this.resolveShinyBonus = resolver
   }
 
   update(dt: number, playerX: number, playerY: number): void {
@@ -503,7 +508,7 @@ export class Lane {
     }
 
     if (ch.isShiny) {
-      const badgeText = `+${ch.shinyBonus}`
+      const badgeText = `+${this.resolveShinyBonus(ch.shinyBonus)}`
       const badgeFont = '700 9px Georgia, "Times New Roman", serif'
       ctx.font = badgeFont
       ctx.textAlign = 'center'
@@ -647,6 +652,7 @@ export class Lane {
   private getPowerUpRingColor(powerUpType: PowerUpType): [number, number, number] {
     if (powerUpType === 'Wisdom') return [184, 134, 11]
     if (powerUpType === 'Knowledge') return [201, 133, 31]
+    if (powerUpType === 'Radiance') return [240, 201, 108]
     return [184, 134, 11]
   }
 

@@ -26,8 +26,9 @@ const POWER_UP_WEIGHTS: Array<{
   weight: number
   cooldown: number
 }> = [
-  { type: 'Wisdom', weight: 0.5, cooldown: 180 },
-  { type: 'Knowledge', weight: 0.5, cooldown: 220 },
+  { type: 'Wisdom', weight: 0.4, cooldown: 180 },
+  { type: 'Knowledge', weight: 0.4, cooldown: 220 },
+  { type: 'Radiance', weight: 0.2, cooldown: 320 },
 ]
 const BLANK_WORD_MULTIPLIER_WEIGHTS: Array<{
   type: Extract<MultiplierType, 'DoubleWord' | 'TripleWord'>
