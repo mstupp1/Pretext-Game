@@ -13,6 +13,7 @@ export interface LaneConfig {
   fontSize: number
   fontStyle: 'light' | 'regular' | 'medium' | 'bold' | 'italic' | 'boldItalic'
   highlightRate: number
+  powerUpSpawnScale: number
 }
 
 export class Lane {
@@ -58,6 +59,7 @@ export class Lane {
         0, // No highlight/collectibles
         'powerup'
       )
+      this.stream.setPowerUpSpawnScale(config.powerUpSpawnScale)
     } else {
       // Build the canvas font string
       const fontBuilder = {
@@ -86,6 +88,7 @@ export class Lane {
       this.stream.setSpeed(newConfig.speed)
       this.stream.setDirection(newConfig.direction)
       this.stream.setHighlightRate(newConfig.highlightRate)
+      this.stream.setPowerUpSpawnScale(newConfig.powerUpSpawnScale)
 
       if (this.isSafeZone) {
         this.config = {
@@ -93,6 +96,7 @@ export class Lane {
           speed: newConfig.speed,
           direction: newConfig.direction,
           highlightRate: newConfig.highlightRate,
+          powerUpSpawnScale: newConfig.powerUpSpawnScale,
         }
         return
       }
@@ -105,6 +109,7 @@ export class Lane {
       speed: newConfig.speed,
       direction: newConfig.direction,
       highlightRate: newConfig.highlightRate,
+      powerUpSpawnScale: newConfig.powerUpSpawnScale,
     }
   }
 

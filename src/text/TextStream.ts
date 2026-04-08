@@ -7,7 +7,7 @@ import { ICONS, LETTER_VALUES, MultiplierType, POWER_UP_ICONS, PowerUpType } fro
 
 const MULTIPLIER_SPAWN_RATE = 0.018
 const SHINY_SPAWN_RATE = 0.05
-const POWER_UP_SPAWN_RATE = 0.0002
+const POWER_UP_SPAWN_RATE = 0.0001
 const BLANK_TILE_SPAWN_RATE = 0.0016
 const BLANK_WORD_MULTIPLIER_RATE = 0.28
 const MULTIPLIER_WEIGHTS: Array<{
@@ -26,9 +26,9 @@ const POWER_UP_WEIGHTS: Array<{
   weight: number
   cooldown: number
 }> = [
-  { type: 'Wisdom', weight: 0.45, cooldown: 180 },
-  { type: 'Knowledge', weight: 0.45, cooldown: 220 },
-  { type: 'Radiance', weight: 0.1, cooldown: 420 },
+  { type: 'Wisdom', weight: 0.49, cooldown: 220 },
+  { type: 'Knowledge', weight: 0.47, cooldown: 260 },
+  { type: 'Radiance', weight: 0.04, cooldown: 520 },
 ]
 const BLANK_WORD_MULTIPLIER_WEIGHTS: Array<{
   type: Extract<MultiplierType, 'DoubleWord' | 'TripleWord'>
@@ -44,7 +44,6 @@ type ActivePowerUpType = Exclude<PowerUpType, 'None'>
 type StreamKind = 'text' | 'icon' | 'powerup'
 
 const ACTIVE_MULTIPLIER_TYPES = MULTIPLIER_WEIGHTS.map(({ type }) => type)
-const ACTIVE_POWER_UP_TYPES = POWER_UP_WEIGHTS.map(({ type }) => type)
 const MIN_HIGHLIGHT_GAP = 6
 const REBALANCE_INTERVAL = 0.25
 const MIN_BLANK_TARGET_COUNT = 1
@@ -183,6 +182,7 @@ export class TextStream {
   private undulationPhaseOffset: number
   private shimmerIntensity: number
   private streamKind: StreamKind
+  private powerUpSpawnScale: number = 1
   private targetHighlightCount: number = 0
   private targetBlankCount: number = 0
   private targetShinyCount: number = 0
@@ -229,6 +229,16 @@ export class TextStream {
     this.highlightRate = rate
   }
 
+  public setPowerUpSpawnScale(scale: number): void {
+    const nextScale = Math.max(0.1, scale)
+    if (this.powerUpSpawnScale === nextScale) return
+
+    this.powerUpSpawnScale = nextScale
+    if (this.streamKind === 'powerup') {
+      this.rebuild()
+    }
+  }
+
   public rebuild(font: string = this.font, highlightRate: number = this.highlightRate): void {
     const scrollRatio = this.totalWidth > 0
       ? ((this.scrollOffset % this.totalWidth) + this.totalWidth) % this.totalWidth / this.totalWidth
@@ -256,10 +266,12 @@ export class TextStream {
       }
     } else if (this.streamKind === 'powerup') {
       const sequenceLength = 1200
-      let cooldown = 220 + Math.floor(Math.random() * 120)
+      const effectiveSpawnRate = Math.min(0.0025, POWER_UP_SPAWN_RATE * this.powerUpSpawnScale)
+      const cooldownScale = 1 / Math.max(0.65, this.powerUpSpawnScale)
+      let cooldown = Math.floor((220 + Math.floor(Math.random() * 120)) * cooldownScale)
 
       for (let i = 0; i < sequenceLength; i++) {
-        if (cooldown <= 0 && Math.random() < POWER_UP_SPAWN_RATE) {
+        if (cooldown <= 0 && Math.random() < effectiveSpawnRate) {
           const totalWeight = POWER_UP_WEIGHTS.reduce((sum, option) => sum + option.weight, 0)
           let pick = Math.random() * totalWeight
           let selected: Exclude<PowerUpType, 'None'> = 'Wisdom'
@@ -268,7 +280,7 @@ export class TextStream {
             pick -= option.weight
             if (pick <= 0) {
               selected = option.type
-              cooldown = option.cooldown + Math.floor(Math.random() * 90)
+              cooldown = Math.floor((option.cooldown + Math.floor(Math.random() * 90)) * cooldownScale)
               break
             }
           }
@@ -887,27 +899,37 @@ export class TextStream {
   }
 
   private ensureMinimumPowerUpPresence(powerUpChars: string[], powerUpTypes: PowerUpType[]): void {
-    for (const type of ACTIVE_POWER_UP_TYPES) {
-      if (powerUpTypes.includes(type)) continue
+    if (powerUpTypes.some(type => type !== 'None')) return
 
-      const spacedCandidates: number[] = []
-      const fallbackCandidates: number[] = []
+    const spacedCandidates: number[] = []
+    const fallbackCandidates: number[] = []
 
-      for (let i = 0; i < powerUpTypes.length; i++) {
-        if (powerUpTypes[i] !== 'None') continue
-        fallbackCandidates.push(i)
-        if (!hasNearbyPowerUp(powerUpTypes, i, MIN_HIGHLIGHT_GAP * 2)) {
-          spacedCandidates.push(i)
-        }
+    for (let i = 0; i < powerUpTypes.length; i++) {
+      if (powerUpTypes[i] !== 'None') continue
+      fallbackCandidates.push(i)
+      if (!hasNearbyPowerUp(powerUpTypes, i, MIN_HIGHLIGHT_GAP * 2)) {
+        spacedCandidates.push(i)
       }
-
-      const pool = spacedCandidates.length > 0 ? spacedCandidates : fallbackCandidates
-      if (pool.length === 0) return
-
-      const chosenIndex = pool[Math.floor(Math.random() * pool.length)]
-      powerUpTypes[chosenIndex] = type
-      powerUpChars[chosenIndex] = POWER_UP_ICONS[type]
     }
+
+    const pool = spacedCandidates.length > 0 ? spacedCandidates : fallbackCandidates
+    if (pool.length === 0) return
+
+    const totalWeight = POWER_UP_WEIGHTS.reduce((sum, option) => sum + option.weight, 0)
+    let pick = Math.random() * totalWeight
+    let selected: Exclude<PowerUpType, 'None'> = 'Wisdom'
+
+    for (const option of POWER_UP_WEIGHTS) {
+      pick -= option.weight
+      if (pick <= 0) {
+        selected = option.type
+        break
+      }
+    }
+
+    const chosenIndex = pool[Math.floor(Math.random() * pool.length)]
+    powerUpTypes[chosenIndex] = selected
+    powerUpChars[chosenIndex] = POWER_UP_ICONS[selected]
   }
 
   private ensureMinimumBlankTargets(): void {

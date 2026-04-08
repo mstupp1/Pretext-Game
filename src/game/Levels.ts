@@ -18,6 +18,7 @@ const AMBIENCE_PLAYBACK_MAX = 1.22
 export function generateLevel(chapter: number): LevelConfig {
   const speedMultiplier = 1 + (chapter - 1) * 0.05
   const baseHighlightRate = Math.max(0.05, 0.08 - (chapter - 1) * 0.002)
+  const powerUpSpawnScale = Math.min(1.9, 0.7 + (chapter - 1) * 0.15)
   const timeLimit = LEVEL_TIME + (chapter - 1) * 5 // More time as chapters get harder
 
   const laneConfigs: LaneConfig[] = []
@@ -33,6 +34,7 @@ export function generateLevel(chapter: number): LevelConfig {
         fontSize: 18,
         fontStyle: 'regular',
         highlightRate: 0,
+        powerUpSpawnScale,
       })
       continue
     }
@@ -61,6 +63,7 @@ export function generateLevel(chapter: number): LevelConfig {
       fontSize: fontSizeBase,
       fontStyle,
       highlightRate: baseHighlightRate + Math.random() * 0.02,
+      powerUpSpawnScale,
     })
   }
 
