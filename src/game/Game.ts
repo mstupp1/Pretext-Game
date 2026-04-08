@@ -1503,7 +1503,6 @@ export class Game {
     }
 
     this.player.render(ctx)
-    this.particles.render(ctx)
 
     for (const fs of this.floatingScores) {
       ctx.save()
@@ -1518,6 +1517,7 @@ export class Game {
     }
 
     this.renderBookTopPanels(ctx)
+    this.particles.render(ctx)
 
     ctx.textAlign = 'left'
     this.renderCanvasTray(ctx)
