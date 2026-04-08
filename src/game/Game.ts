@@ -1290,7 +1290,7 @@ export class Game {
       audioManager.setGameAmbiencePlaybackRate(getLevelAmbiencePlaybackRate(this.level))
 
       // Only show the furthest unlocked chapter banner.
-      this.particles.waveText(this.getChapterTitle(), GAME_WIDTH / 2, 104)
+      this.particles.waveText(this.getChapterTitle(), GAME_WIDTH / 2, 132)
       this.updateUI()
 
       const pauseChapter = document.getElementById('pause-chapter')
