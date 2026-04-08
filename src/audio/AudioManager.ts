@@ -72,7 +72,7 @@ export class AudioManager {
     this.titleAmbienceAudio.loop = true;
     this.titleAmbienceAudio.volume = 0;
 
-    for (const trackName of ['Game_1.mp3', 'Game_2.mp3', 'Game_3.mp3', 'Game_4.mp3', 'Game_5.mp3', 'Game_6.mp3']) {
+    for (const trackName of ['Game_1.mp3', 'Game_2.mp3', 'Game_3.mp3', 'Game_4.mp3', 'Game_5.mp3', 'Game_6.mp3', 'Game_7.mp3', 'Game_8.mp3']) {
       const track = new Audio(`${import.meta.env.BASE_URL}music/${trackName}`);
       track.volume = 0;
       this.gamePlaylist.push(track);
