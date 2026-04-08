@@ -244,16 +244,16 @@ html, body {
 #completed-words-container {
   pointer-events: auto;
   width: 100%;
-  padding: 6px 0;
+  padding: 12px 0;
   display: flex;
   justify-content: center;
-  min-height: 40px;
+  min-height: 66px;
 }
 
 #completed-words-list {
   display: flex;
   flex-wrap: nowrap;
-  gap: 12px;
+  gap: 14px;
   justify-content: center;
   align-items: center;
   width: 100%;
@@ -262,8 +262,9 @@ html, body {
 
 .completed-word {
   display: flex;
-  gap: 2px;
+  gap: 4px;
   flex-shrink: 0;
+  align-items: center;
 }
 
 .more-words-indicator {
@@ -317,17 +318,19 @@ html, body {
   text-shadow: 0 0 6px rgba(143, 232, 107, 0.38);
 }
 
-/* ── Mini Tiles for Completed Words ── */
+/* ── Completed Word Ledger Tiles ── */
 
 .completed-word .tray-tile {
-  width: 24px;
-  height: 28px;
-  font-size: 16px;
+  width: 32px;
+  height: 32px;
+  font-family: var(--font-display);
+  font-size: 23px;
   font-weight: 700;
   border-width: 1px;
   border-bottom-width: 2px;
   border-radius: 2px;
-  box-shadow: 0 1px 3px var(--shadow-warm);
+  box-shadow: 0 1px 3px rgba(44, 24, 16, 0.16);
+  color: var(--bg-ivory);
 }
 
 .completed-word .tray-tile.is-shiny {
@@ -339,9 +342,10 @@ html, body {
 }
 
 .completed-word .tray-tile .tile-points {
-  font-size: 9px; /* Larger even for mini-tiles */
+  font-size: 10px;
+  font-weight: 800;
   bottom: 2px;
-  right: 2px;
+  right: 3px;
   color: rgba(245, 241, 232, 1);
 }
 
