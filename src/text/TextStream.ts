@@ -7,7 +7,7 @@ import { ICONS, LETTER_VALUES, MultiplierType, POWER_UP_ICONS, PowerUpType } fro
 
 const MULTIPLIER_SPAWN_RATE = 0.018
 const SHINY_SPAWN_RATE = 0.05
-const POWER_UP_SPAWN_RATE = 0.0018
+const POWER_UP_SPAWN_RATE = 0.0009
 const BLANK_TILE_SPAWN_RATE = 0.0016
 const BLANK_WORD_MULTIPLIER_RATE = 0.28
 const MULTIPLIER_WEIGHTS: Array<{
@@ -256,7 +256,7 @@ export class TextStream {
       }
     } else if (this.streamKind === 'powerup') {
       const sequenceLength = 1200
-      let cooldown = 120 + Math.floor(Math.random() * 80)
+      let cooldown = 220 + Math.floor(Math.random() * 120)
 
       for (let i = 0; i < sequenceLength; i++) {
         if (cooldown <= 0 && Math.random() < POWER_UP_SPAWN_RATE) {
