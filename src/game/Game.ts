@@ -155,6 +155,7 @@ export class Game {
   public score: number = 0
   public chapter: number = 1
   public timeRemaining: number = STARTING_TIME
+  public totalElapsedTime: number = 0
   public collectedLetters: CollectedLetter[] = []
   public removedTrayLetters: RemovedTrayLetter[] = []
   private bankedLetter: CollectedLetter | null = null
@@ -245,6 +246,7 @@ export class Game {
     const musicOpt = document.getElementById('option-music')
     const sfxOpt = document.getElementById('option-sfx')
     const debugPointsOpt = document.getElementById('option-debug-points')
+    const debugGameOverOpt = document.getElementById('option-debug-gameover')
     const confirmNoOpt = document.getElementById('pause-confirm-no')
     const confirmYesOpt = document.getElementById('pause-confirm-yes')
 
@@ -302,6 +304,14 @@ export class Game {
         }
       })
       debugPointsOpt.addEventListener('mouseenter', () => this.selectPauseOption('option-debug-points'))
+    }
+
+    if (debugGameOverOpt) {
+      debugGameOverOpt.addEventListener('click', () => {
+        audioManager.playMenuNav()
+        this.triggerPauseDebugGameOver()
+      })
+      debugGameOverOpt.addEventListener('mouseenter', () => this.selectPauseOption('option-debug-gameover'))
     }
 
     if (confirmNoOpt) {
@@ -450,6 +460,7 @@ export class Game {
     this.pauseConfirmIndex = 0
     this.score = 0
     this.chapter = 1
+    this.totalElapsedTime = 0
     this.resetRunLetterBonuses()
     this.resetRunPowerUps()
     this.wordsFound = []
@@ -612,6 +623,7 @@ export class Game {
     this.pauseConfirmIndex = 0
     this.collectCooldown = 0
     this.isSubmitting = false
+    this.totalElapsedTime = 0
     this.collectedLetters = []
     this.removedTrayLetters = []
     this.bankedLetter = null
@@ -671,6 +683,7 @@ export class Game {
       'option-music',
       'option-sfx',
       'option-debug-points',
+      'option-debug-gameover',
     ]
 
     return optionIds
@@ -813,6 +826,13 @@ export class Game {
     this.state = 'playing'
     this.hidePauseOverlay()
     audioManager.resumeGameAmbience()
+  }
+
+  private triggerPauseDebugGameOver(): void {
+    if (this.state !== 'paused') return
+
+    this.hidePauseOverlay()
+    this.gameOver()
   }
 
   private setLaneMotionScale(scale: number): void {
@@ -1095,6 +1115,7 @@ export class Game {
       // Score text rises as particles
       this.particles.waveText(`+${this.formatScoreValue(result.totalScore)}`, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 60)
 
+      this.checkChapterProgression()
       this.updateWordsUI()
     } else {
       audioManager.playNoSubmit()
@@ -1320,6 +1341,8 @@ export class Game {
     }
 
     if (this.state !== 'playing') return
+
+    this.totalElapsedTime += dt
 
     // Timer
     const prevSec = Math.ceil(this.timeRemaining)
@@ -2440,9 +2463,16 @@ export class Game {
     renderText(ctx, 'POINTS', centerX, pointsLabelY + getOffset(centerX),
       CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
 
+    const elapsedLabelY = pointsLabelY + 52
+    const elapsedValueY = elapsedLabelY + 32
+    renderText(ctx, 'ELAPSED', centerX, elapsedLabelY + getOffset(centerX),
+      CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
+    renderText(ctx, this.formatElapsedTime(this.totalElapsedTime), centerX, elapsedValueY + getOffset(centerX),
+      CANVAS_FONTS.laneMedium(24), COLORS.sepia, 'center')
+
     // High scores
     if (this.highScores.length > 0) {
-      const hsY = centerY + 176 - Game.GAME_OVER_HIGH_SCORES_LIFT
+      const hsY = centerY + 286 - Game.GAME_OVER_HIGH_SCORES_LIFT
       renderText(ctx, 'HIGH SCORES', centerX, hsY + getOffset(centerX),
         CANVAS_FONTS.uiSmallCaps(10), COLORS.muted, 'center')
 
@@ -3607,6 +3637,19 @@ export class Game {
   private getTimerText(timeValue: number = this.timeRemaining): string {
     const mins = Math.floor(timeValue / 60)
     const secs = Math.floor(timeValue % 60)
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
+  private formatElapsedTime(timeValue: number): string {
+    const totalSeconds = Math.max(0, Math.floor(timeValue))
+    const hours = Math.floor(totalSeconds / 3600)
+    const mins = Math.floor((totalSeconds % 3600) / 60)
+    const secs = totalSeconds % 60
+
+    if (hours > 0) {
+      return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+    }
+
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
