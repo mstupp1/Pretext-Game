@@ -7,7 +7,7 @@ import { ICONS, LETTER_VALUES, MultiplierType, POWER_UP_ICONS, PowerUpType } fro
 
 const MULTIPLIER_SPAWN_RATE = 0.018
 const SHINY_SPAWN_RATE = 0.05
-const POWER_UP_SPAWN_RATE = 0.0009
+const POWER_UP_SPAWN_RATE = 0.0005
 const BLANK_TILE_SPAWN_RATE = 0.0016
 const BLANK_WORD_MULTIPLIER_RATE = 0.28
 const MULTIPLIER_WEIGHTS: Array<{
@@ -17,9 +17,9 @@ const MULTIPLIER_WEIGHTS: Array<{
   wordMultiplierCooldown?: number
 }> = [
   { type: 'DoubleLetter', weight: 0.357, cooldown: 1 },
-  { type: 'DoubleWord', weight: 0.286, cooldown: 2, wordMultiplierCooldown: 10 },
+  { type: 'DoubleWord', weight: 0.286, cooldown: 2, wordMultiplierCooldown: 12 },
   { type: 'TripleLetter', weight: 0.214, cooldown: 2 },
-  { type: 'TripleWord', weight: 0.143, cooldown: 2, wordMultiplierCooldown: 12 },
+  { type: 'TripleWord', weight: 0.143, cooldown: 2, wordMultiplierCooldown: 14 },
 ]
 const POWER_UP_WEIGHTS: Array<{
   type: Exclude<PowerUpType, 'None'>
