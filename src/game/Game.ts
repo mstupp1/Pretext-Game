@@ -132,6 +132,17 @@ interface GameOverLedgerChapterPlacement {
   entries: GameOverLedgerPlacement[]
 }
 
+interface GameOverLedgerLayout {
+  pageLeft: number
+  pageRight: number
+  pageCenterX: number
+  titleY: number
+  masterworkEntry: CompletedWordRecord | null
+  masterworkTopY: number
+  listTopY: number
+  listBottomY: number
+}
+
 export class Game {
   private static readonly TITLE_INTRO_DURATION = 0.85
   private static readonly FINAL_CHAPTER = ROMAN_NUMERALS.length
@@ -2565,16 +2576,20 @@ export class Game {
   }
 
   private renderGameOverWordLedger(ctx: CanvasRenderingContext2D): void {
-    const pageLeft = 58
-    const pageRight = GAME_WIDTH / 2 - 54
-    const pageCenterX = (pageLeft + pageRight) / 2
-    const titleY = 74
-    const masterworkEntry = this.getHighestScoringWord()
-    const masterworkTopY = 140
-    const masterworkHeight = masterworkEntry ? this.renderGameOverMasterwork(ctx, pageLeft, pageRight, pageCenterX, masterworkTopY) : 0
-    const listTopY = masterworkTopY + masterworkHeight + (masterworkEntry ? 28 : 32)
-    const listBottomY = GAME_HEIGHT - 96
+    const {
+      pageLeft,
+      pageRight,
+      pageCenterX,
+      titleY,
+      masterworkEntry,
+      masterworkTopY,
+      listTopY,
+      listBottomY,
+    } = this.getGameOverLedgerLayout()
     const getOffset = (x: number) => getPageCurvatureOffset(x, GAME_WIDTH)
+    if (masterworkEntry) {
+      this.renderGameOverMasterwork(ctx, pageLeft, pageRight, pageCenterX, masterworkTopY)
+    }
     const ledgerPages = this.getGameOverLedgerPages(pageLeft, pageRight, listTopY, listBottomY)
     const totalPages = ledgerPages.length
     const currentPage = Math.max(0, Math.min(this.gameOverWordPage, totalPages - 1))
@@ -2727,6 +2742,34 @@ export class Game {
     return previewY + previewLayout.height - topY
   }
 
+  private getGameOverMasterworkHeight(entry: CompletedWordRecord): number {
+    const previewLayout = this.measureScorePreviewLayout(entry.preview, { compact: true })
+    return 42 + previewLayout.height
+  }
+
+  private getGameOverLedgerLayout(): GameOverLedgerLayout {
+    const pageLeft = 58
+    const pageRight = GAME_WIDTH / 2 - 54
+    const pageCenterX = (pageLeft + pageRight) / 2
+    const titleY = 74
+    const masterworkEntry = this.getHighestScoringWord()
+    const masterworkTopY = 140
+    const masterworkHeight = masterworkEntry ? this.getGameOverMasterworkHeight(masterworkEntry) : 0
+    const listTopY = masterworkTopY + masterworkHeight + (masterworkEntry ? 28 : 32)
+    const listBottomY = GAME_HEIGHT - 96
+
+    return {
+      pageLeft,
+      pageRight,
+      pageCenterX,
+      titleY,
+      masterworkEntry,
+      masterworkTopY,
+      listTopY,
+      listBottomY,
+    }
+  }
+
   private getHighestScoringWord(): CompletedWordRecord | null {
     if (this.wordsFound.length === 0) return null
 
@@ -2767,49 +2810,37 @@ export class Game {
       else chapters.set(word.chapter, [word])
     }
 
+    const startNewPage = (): number => {
+      pages.push([])
+      return pages.length - 1
+    }
+
     let pageIndex = 0
     let cursorY = listTopY
 
     for (const [chapter, entries] of chapters) {
-      const chapterPlacements: GameOverLedgerPlacement[] = []
-      let row = 0
-      let cursorX = pageLeft
+      let entryIndex = 0
 
-      for (const entry of entries) {
-        const scoreWidth = measureTextWidth(this.formatScoreValue(entry.score), scoreFont)
-        const tilesWidth = entry.letters.length * tileSize + Math.max(0, entry.letters.length - 1) * tileGap
-        const entryWidth = tilesWidth + scoreGap + scoreWidth
-
-        if (cursorX > pageLeft && cursorX + entryWidth > pageRight) {
-          row++
-          cursorX = pageLeft
+      while (entryIndex < entries.length) {
+        const minimumChapterHeight = headingHeight + headingToWordsGap + rowHeight
+        if (pages[pageIndex].length > 0 && cursorY + minimumChapterHeight > listBottomY) {
+          pageIndex = startNewPage()
+          cursorY = listTopY
         }
 
-        chapterPlacements.push({
-          entry,
-          x: cursorX,
-          y: cursorY + headingHeight + headingToWordsGap + row * rowHeight,
-          width: entryWidth,
-        })
-        cursorX += entryWidth + wordGap
-      }
+        const chapterPlacements: GameOverLedgerPlacement[] = []
+        let row = 0
+        let cursorX = pageLeft
 
-      const chapterHeight = headingHeight + headingToWordsGap + (row + 1) * rowHeight
-      const chapterBottomY = cursorY + chapterHeight
-      if (pages[pageIndex].length > 0 && chapterBottomY > listBottomY) {
-        pageIndex++
-        pages.push([])
-        cursorY = listTopY
-        row = 0
-        cursorX = pageLeft
-        chapterPlacements.length = 0
-
-        for (const entry of entries) {
+        while (entryIndex < entries.length) {
+          const entry = entries[entryIndex]
           const scoreWidth = measureTextWidth(this.formatScoreValue(entry.score), scoreFont)
           const tilesWidth = entry.letters.length * tileSize + Math.max(0, entry.letters.length - 1) * tileGap
           const entryWidth = tilesWidth + scoreGap + scoreWidth
 
           if (cursorX > pageLeft && cursorX + entryWidth > pageRight) {
+            const nextRowBottomY = cursorY + headingHeight + headingToWordsGap + (row + 2) * rowHeight
+            if (nextRowBottomY > listBottomY) break
             row++
             cursorX = pageLeft
           }
@@ -2821,22 +2852,29 @@ export class Game {
             width: entryWidth,
           })
           cursorX += entryWidth + wordGap
+          entryIndex++
+        }
+
+        pages[pageIndex].push({
+          chapter,
+          headingY: cursorY + 12,
+          entries: chapterPlacements,
+        })
+        cursorY += headingHeight + headingToWordsGap + (row + 1) * rowHeight + chapterGap
+
+        if (entryIndex < entries.length) {
+          pageIndex = startNewPage()
+          cursorY = listTopY
         }
       }
-
-      pages[pageIndex].push({
-        chapter,
-        headingY: cursorY + 12,
-        entries: chapterPlacements,
-      })
-      cursorY += headingHeight + headingToWordsGap + (row + 1) * rowHeight + chapterGap
     }
 
     return pages
   }
 
   private changeGameOverWordPage(direction: number): void {
-    const totalPages = this.getGameOverLedgerPages(58, GAME_WIDTH / 2 - 54, 144, GAME_HEIGHT - 96).length
+    const { pageLeft, pageRight, listTopY, listBottomY } = this.getGameOverLedgerLayout()
+    const totalPages = this.getGameOverLedgerPages(pageLeft, pageRight, listTopY, listBottomY).length
     if (totalPages <= 1) return
 
     const nextPage = Math.max(0, Math.min(totalPages - 1, this.gameOverWordPage + direction))
