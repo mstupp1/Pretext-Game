@@ -8,17 +8,35 @@
     "node": "^20.19.0 || >=22.12.0"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
+    "dev": "vite --mode web",
+    "build": "npm run build:web",
+    "build:web": "tsc && vite build --mode web",
+    "build:desktop": "tsc && vite build --mode desktop",
+    "dev:desktop-frontend": "vite --mode desktop",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build"
   },
-  "keywords": ["game", "pretext", "typography", "frogger", "scrabble"],
+  "keywords": [
+    "game",
+    "pretext",
+    "typography",
+    "frogger",
+    "scrabble"
+  ],
   "author": "Myles",
   "license": "MIT",
   "dependencies": {
-    "@chenglou/pretext": "^0.0.4"
+    "@chenglou/pretext": "^0.0.4",
+    "@fontsource/cormorant": "^5.2.8",
+    "@fontsource/cormorant-garamond": "^5.2.11",
+    "@fortawesome/fontawesome-free": "^7.2.0",
+    "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/cli": "^2.10.1"
   },
   "devDependencies": {
+    "esbuild": "^0.27.7",
     "typescript": "^6.0.2",
     "vite": "^8.0.3"
   }

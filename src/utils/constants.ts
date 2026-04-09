@@ -64,7 +64,7 @@ export const CANVAS_FONTS = {
   title:        (size: number) => `italic 300 ${size}px ${FONTS.display}`,
   ui:           (size: number) => `${size}px ${FONTS.ui}`,
   uiSmallCaps:  (size: number) => `600 ${size}px ${FONTS.ui}`,
-  icons:        (size: number) => `900 ${size}px "Font Awesome 6 Free"`,
+  icons:        (size: number) => `900 ${size}px "Font Awesome 7 Free"`,
 } as const
 
 // Game dimensions

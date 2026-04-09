@@ -9,6 +9,7 @@ import { ParticleSystem } from '../effects/ParticleSystem'
 import { GAME_WIDTH, GAME_HEIGHT, LANE_COUNT, LANE_HEIGHT, LANE_Y_START, COLORS, CANVAS_FONTS, REGULAR_TILE_STYLE, ROMAN_NUMERALS, MAX_COLLECTED_LETTERS, TIME_BONUS, STARTING_TIME, CHAPTER_POINTS, POWER_UP_ICONS, PowerUpType } from '../utils/constants'
 import { renderText, measureTextWidth, renderCurvedText, measureCharsInLine } from '../text/TextEngine'
 import { getPageCurvatureOffset } from '../text/TextStream'
+import trayTextureUrl from '../assets/images/traytexture_1.png'
 
 import { MultiplierType } from '../utils/constants'
 
@@ -3781,7 +3782,7 @@ export class Game {
 
   private loadTrayTexture(): HTMLImageElement {
     const image = new Image()
-    image.src = `${import.meta.env.BASE_URL}images/traytexture_1.png`
+    image.src = trayTextureUrl
     return image
   }
 

@@ -76,7 +76,7 @@ html, body {
   inset: -24px;
   background:
     linear-gradient(rgba(20, 15, 12, 0.18), rgba(20, 15, 12, 0.28)),
-    url("/images/background_1.png");
+    url("./src/assets/images/background_1.png");
   background-position: center, 35% center;
   background-size: cover, 56%;
   filter: blur(8px);
@@ -129,7 +129,7 @@ html, body {
   position: absolute;
   inset: 0;
   background:
-    url("/images/booktexture_1.png"),
+    url("./src/assets/images/booktexture_1.png"),
     linear-gradient(155deg, rgba(126, 91, 67, 0.6), rgba(97, 67, 49, 0.52) 38%, rgba(63, 42, 31, 0.56) 100%),
     radial-gradient(110% 90% at 18% 14%, rgba(214, 176, 142, 0.07), rgba(214, 176, 142, 0) 34%),
     radial-gradient(95% 80% at 80% 86%, rgba(44, 24, 16, 0.1), rgba(44, 24, 16, 0) 50%),

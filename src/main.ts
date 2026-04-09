@@ -1,5 +1,18 @@
 // ── Lexicon Crossing — Main Entry Point ──
 
+import '../index.css'
+import '@fontsource/cormorant-garamond/latin-300.css'
+import '@fontsource/cormorant-garamond/latin-300-italic.css'
+import '@fontsource/cormorant-garamond/latin-400.css'
+import '@fontsource/cormorant-garamond/latin-400-italic.css'
+import '@fontsource/cormorant-garamond/latin-500.css'
+import '@fontsource/cormorant-garamond/latin-500-italic.css'
+import '@fontsource/cormorant-garamond/latin-600.css'
+import '@fontsource/cormorant-garamond/latin-700.css'
+import '@fontsource/cormorant-garamond/latin-700-italic.css'
+import '@fontsource/cormorant/latin-400.css'
+import '@fortawesome/fontawesome-free/css/fontawesome.css'
+import '@fortawesome/fontawesome-free/css/solid.css'
 import { Game } from './game/Game'
 
 // Wait for fonts to load, then start
@@ -18,6 +31,7 @@ async function init(): Promise<void> {
       document.fonts.load('italic 400 16px "Cormorant Garamond"'),
       document.fonts.load('italic 500 16px "Cormorant Garamond"'),
       document.fonts.load('italic 700 16px "Cormorant Garamond"'),
+      document.fonts.load('900 16px "Font Awesome 7 Free"'),
     ])
   } catch (e) {
     console.warn('Font loading failed, using fallbacks:', e)
