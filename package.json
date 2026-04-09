@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "main": "electron-dist/main.js",
   "description": "A Frogger-meets-Scrabble game powered by Pretext typography",
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
@@ -11,12 +12,14 @@
     "dev": "vite --mode web",
     "build": "npm run build:web",
     "build:web": "tsc && vite build --mode web",
-    "build:desktop": "tsc && vite build --mode desktop",
+    "build:desktop-renderer": "tsc && vite build --mode desktop",
+    "build:electron-main": "tsc -p tsconfig.electron.json",
     "dev:desktop-frontend": "vite --mode desktop",
     "preview": "vite preview",
-    "tauri": "tauri",
-    "desktop:dev": "tauri dev",
-    "desktop:build": "tauri build"
+    "dev:electron-main": "tsc -p tsconfig.electron.json --watch --preserveWatchOutput",
+    "dev:electron": "wait-on tcp:5173 electron-dist/main.js && nodemon --watch electron-dist --exec \"electron electron-dist/main.js\"",
+    "desktop:dev": "concurrently -k \"npm run dev:desktop-frontend\" \"npm run dev:electron-main\" \"npm run dev:electron\"",
+    "desktop:build": "npm run build:desktop-renderer && npm run build:electron-main && electron-builder --mac dmg dir --publish never"
   },
   "keywords": [
     "game",
@@ -31,13 +34,41 @@
     "@chenglou/pretext": "^0.0.4",
     "@fontsource/cormorant": "^5.2.8",
     "@fontsource/cormorant-garamond": "^5.2.11",
-    "@fortawesome/fontawesome-free": "^7.2.0",
-    "@tauri-apps/api": "^2.10.1",
-    "@tauri-apps/cli": "^2.10.1"
+    "@fortawesome/fontawesome-free": "^7.2.0"
   },
   "devDependencies": {
+    "@types/node": "^24.6.1",
+    "concurrently": "^9.2.1",
+    "electron": "^38.3.0",
+    "electron-builder": "^26.0.12",
     "esbuild": "^0.27.7",
+    "nodemon": "^3.1.10",
     "typescript": "^6.0.2",
-    "vite": "^8.0.3"
+    "vite": "^8.0.3",
+    "wait-on": "^9.0.1"
+  },
+  "build": {
+    "appId": "com.mylesstupp.lexiconcrossing",
+    "productName": "Lexicon Crossing",
+    "directories": {
+      "output": "release",
+      "buildResources": "electron/resources"
+    },
+    "files": [
+      "dist-desktop/**/*",
+      "electron-dist/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "target": [
+        "dmg",
+        "dir"
+      ],
+      "category": "public.app-category.games",
+      "icon": "electron/resources/icon.icns"
+    },
+    "dmg": {
+      "writeUpdateInfo": false
+    }
   }
 }
