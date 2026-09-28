@@ -1,752 +1,342 @@
-// ── Lane — A single text stream lane in the game ──
-// Enhanced with ambient typography, rotation, scaling, ripple waves, and lens effects
+// ── Lane — a line of flowing prose with catchable letter tiles ──
+//
+// Glyphs are measured once and laid out along a long looping strip. Tiles are
+// (re)assigned just before a glyph scrolls into view, from a hash of
+// (seed, lane, glyph, cycle), so the page never runs dry and seeded runs are
+// reproducible frame-rate independently.
 
-import { TextStream, type StreamChar, getPageCurvatureOffset } from '../text/TextStream'
-import { COLORS, CANVAS_FONTS, FONTS, GAME_WIDTH, LANE_HEIGHT, REGULAR_TILE_STYLE, SAFE_ZONE_INDICES, ORNAMENTS, FLOURISHES, PowerUpType } from '../utils/constants'
-import { measureTextWidth, renderText } from '../text/TextEngine'
-import { getLetterValue } from './Scoring'
+import { measureCharsInLine } from '../text/TextEngine'
+import { hash01 } from '../core/rng'
+import { view } from '../core/view'
+import { CANVAS_FONTS, COLORS, GAME_WIDTH, BOARD_LEFT, BOARD_RIGHT, laneCenterY } from '../utils/constants'
+import { curveY } from '../utils/curve'
+import { damp, smoothstep } from '../utils/math'
+import { tileArt, tileWidth, type TileKind } from './Tiles'
 
-export interface LaneConfig {
+export type LaneFontStyle = 'light' | 'regular' | 'medium' | 'bold' | 'italic' | 'boldItalic'
+
+export interface LaneOptions {
   index: number
+  seed: number
+  text: string
+  fontSize: number
+  style: LaneFontStyle
   speed: number
   direction: 1 | -1
-  fontSize: number
-  fontStyle: 'light' | 'regular' | 'medium' | 'bold' | 'italic' | 'boldItalic'
-  highlightRate: number
-  powerUpSpawnScale: number
+}
+
+export interface TileOdds {
+  /** Base chance that an eligible letter becomes a tile. */
+  rate: number
+  blank: number
+  DL: number
+  TL: number
+  DW: number
+  TW: number
+}
+
+interface Glyph {
+  ch: string
+  x: number
+  w: number
+  letter: string | null
+  tile: TileKind | null
+  taken: boolean
+  armed: boolean
+  cycle: number
+  scale: number
+  lift: number
+}
+
+export interface TileRef {
+  lane: Lane
+  index: number
+}
+
+const PAD = 60 // off-screen margin (px) that is still simulated/rendered
+const ENTRY = 90 // band just outside the view where tiles are re-rolled
+const MIN_TILE_GAP = 4 // glyphs between tiles
+const LETTER_WEIGHT: Record<string, number> = {
+  E: 1.2, A: 1.3, I: 1.3, O: 1.3, U: 1.1,
+  R: 1.05, S: 1.1, T: 0.8, L: 1.05, N: 1.0, D: 1.0,
+  H: 0.7, C: 0.95, M: 0.95, P: 1.0, G: 1.0, B: 0.9, F: 0.85, W: 0.7, Y: 0.7,
+  K: 0.7, V: 0.7, J: 0.45, X: 0.45, Q: 0.3, Z: 0.45,
+}
+
+const FONT_BUILDERS: Record<LaneFontStyle, (s: number) => string> = {
+  light: CANVAS_FONTS.laneLight,
+  regular: CANVAS_FONTS.laneRegular,
+  medium: CANVAS_FONTS.laneMedium,
+  bold: CANVAS_FONTS.laneBold,
+  italic: CANVAS_FONTS.laneItalic,
+  boldItalic: CANVAS_FONTS.laneBoldItalic,
+}
+
+function lowerBound(glyphs: Glyph[], x: number): number {
+  let lo = 0
+  let hi = glyphs.length
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (glyphs[mid].x < x) lo = mid + 1
+    else hi = mid
+  }
+  return lo
 }
 
 export class Lane {
-  public index: number
-  public stream: TextStream | null = null
-  public y: number
-  public height: number = LANE_HEIGHT
-  public isSafeZone: boolean
+  readonly index: number
+  readonly y: number
+  readonly font: string
+  readonly fontSize: number
+  readonly tileH: number
+  direction: 1 | -1
+  speed: number
+  private targetSpeed: number
+  private offset = 0
+  private glyphs: Glyph[] = []
+  private total = 0
+  private seed: number
+  odds: TileOdds = { rate: 0.08, blank: 0.02, DL: 0.07, TL: 0.035, DW: 0.03, TW: 0.012 }
 
-  private config: LaneConfig
-  private ornamentOffset: number = 0
-  private font: string
-  private safeZoneFillPath: Path2D | null = null
-  private safeZoneRulePath: Path2D | null = null
-  private playerLaneFillPath: Path2D | null = null
-  private separatorPath: Path2D
-  private pointsFont: string
-  private tileShineGradientCache: Map<string, CanvasGradient> = new Map()
-  private effectsActive: boolean = false
-  private resolveLetterValue: (letter: string) => number = getLetterValue
-  private resolveShinyBonus: (baseBonus: number) => number = (baseBonus) => baseBonus
+  /** Indices of glyphs currently on screen (rebuilt each update). */
+  private visible: number[] = []
+  private visibleX: number[] = []
+  private visibleCount = 0
 
-  constructor(config: LaneConfig, yPosition: number) {
-    this.config = config
-    this.index = config.index
-    this.y = yPosition
-    this.isSafeZone = SAFE_ZONE_INDICES.includes(config.index)
-    this.separatorPath = this.createCurvedLinePath(0, GAME_WIDTH, this.y + this.height)
-    this.playerLaneFillPath = this.createCurvedFillPath(0, GAME_WIDTH, this.y, this.y + this.height)
-    this.pointsFont = this.buildPointsFont(config.fontSize)
-    if (this.isSafeZone) {
-      this.safeZoneFillPath = this.createCurvedFillPath(0, GAME_WIDTH, this.y, this.y + this.height)
-      this.safeZoneRulePath = this.createSafeZoneRulePath()
+  constructor(opts: LaneOptions) {
+    this.index = opts.index
+    this.y = laneCenterY(opts.index)
+    this.seed = opts.seed
+    this.fontSize = opts.fontSize
+    this.tileH = Math.round(opts.fontSize + 9)
+    this.font = FONT_BUILDERS[opts.style](opts.fontSize)
+    this.speed = opts.speed
+    this.targetSpeed = opts.speed
+    this.direction = opts.direction
+
+    const measured = measureCharsInLine(opts.text, this.font)
+    for (const m of measured) {
+      const up = m.char.toUpperCase()
+      this.glyphs.push({
+        ch: m.char,
+        x: m.x,
+        w: m.width,
+        letter: up >= 'A' && up <= 'Z' && up.length === 1 ? up : null,
+        tile: null,
+        taken: false,
+        armed: false,
+        cycle: 0,
+        scale: 1,
+        lift: 0,
+      })
     }
+    const last = measured[measured.length - 1]
+    this.total = last ? last.x + last.width : GAME_WIDTH * 3
+    this.offset = hash01(this.seed, this.index, 991) * this.total
+  }
 
-    if (this.isSafeZone) {
-      // Safe zones are now continuously scrolling icon streams
-      this.font = CANVAS_FONTS.icons(18)
-      this.stream = new TextStream(
-        this.font,
-        config.speed, // Scroll at the specified decorative speed
-        config.direction,
-        0, // No highlight/collectibles
-        'powerup'
-      )
-      this.stream.setPowerUpSpawnScale(config.powerUpSpawnScale)
-    } else {
-      // Build the canvas font string
-      const fontBuilder = {
-        light: CANVAS_FONTS.laneLight,
-        regular: CANVAS_FONTS.laneRegular,
-        medium: CANVAS_FONTS.laneMedium,
-        bold: CANVAS_FONTS.laneBold,
-        italic: CANVAS_FONTS.laneItalic,
-        boldItalic: CANVAS_FONTS.laneBoldItalic,
-      }[config.fontStyle]
+  setSpeed(speed: number, instant = false): void {
+    this.targetSpeed = speed
+    if (instant) this.speed = speed
+  }
 
-      this.font = fontBuilder(config.fontSize)
+  rollAll(): void {
+    for (let i = 0; i < this.glyphs.length; i++) this.roll(i)
+  }
 
-      this.stream = new TextStream(
-        this.font,
-        config.speed,
-        config.direction,
-        config.highlightRate,
-        'text'
-      )
+  private roll(i: number): void {
+    const g = this.glyphs[i]
+    g.tile = null
+    g.taken = false
+    g.scale = 1
+    g.lift = 0
+    g.cycle++
+    if (!g.letter) return
+    const n = this.glyphs.length
+    for (let d = 1; d <= MIN_TILE_GAP; d++) {
+      if (this.glyphs[(i + d) % n].tile || this.glyphs[(i - d + n) % n].tile) return
+    }
+    const chance = this.odds.rate * (LETTER_WEIGHT[g.letter] ?? 1)
+    if (hash01(this.seed, this.index, i, g.cycle) >= chance) return
+    const r = hash01(this.seed, this.index, i, g.cycle, 7)
+    const o = this.odds
+    let kind: TileKind = 'plain'
+    let acc = o.blank
+    if (r < acc) kind = 'blank'
+    else if (r < (acc += o.TW)) kind = 'TW'
+    else if (r < (acc += o.DW)) kind = 'DW'
+    else if (r < (acc += o.TL)) kind = 'TL'
+    else if (r < (acc += o.DL)) kind = 'DL'
+    g.tile = kind
+  }
+
+  /** Stream coordinate of glyph i: 0 ↔ screen x = -PAD. */
+  private streamPos(g: Glyph): number {
+    let p = (g.x + this.offset) % this.total
+    if (p < 0) p += this.total
+    return p
+  }
+
+  /** Visit glyph indices whose stream position lies in [lo, hi). */
+  private forRange(lo: number, hi: number, fn: (i: number) => void): void {
+    const total = this.total
+    let a = (lo - this.offset) % total
+    if (a < 0) a += total
+    const len = hi - lo
+    const b = a + len
+    const visit = (from: number, to: number) => {
+      for (let i = lowerBound(this.glyphs, from); i < this.glyphs.length && this.glyphs[i].x < to; i++) fn(i)
+    }
+    if (b <= total) visit(a, b)
+    else {
+      visit(a, total)
+      visit(0, b - total)
     }
   }
 
-  updateConfig(newConfig: LaneConfig): void {
-    if (this.stream) {
-      this.stream.setSpeed(newConfig.speed)
-      this.stream.setDirection(newConfig.direction)
-      this.stream.setHighlightRate(newConfig.highlightRate)
-      this.stream.setPowerUpSpawnScale(newConfig.powerUpSpawnScale)
+  update(dt: number, timeScale: number, cursorX: number, cursorY: number): void {
+    this.speed += (this.targetSpeed - this.speed) * damp(2.5, dt)
+    this.offset += this.speed * this.direction * dt * timeScale
 
-      if (this.isSafeZone) {
-        this.config = {
-          ...this.config,
-          speed: newConfig.speed,
-          direction: newConfig.direction,
-          highlightRate: newConfig.highlightRate,
-          powerUpSpawnScale: newConfig.powerUpSpawnScale,
+    // Re-roll glyphs about to scroll in.
+    const W = GAME_WIDTH + PAD * 2
+    const [lo, hi] = this.direction > 0 ? [this.total - ENTRY, this.total] : [W, W + ENTRY]
+    this.forRange(lo, hi, i => {
+      if (this.glyphs[i].armed) {
+        this.glyphs[i].armed = false
+        this.roll(i)
+      }
+    })
+
+    // Collect visible glyphs and apply the reading-lens effect near the cursor.
+    this.visibleCount = 0
+    const proximity = Math.max(0, 1 - Math.abs(cursorY - this.y) / 70)
+    const k = damp(16, dt)
+    this.forRange(0, W, i => {
+      const g = this.glyphs[i]
+      g.armed = true
+      const sx = this.streamPos(g) - PAD
+      const n = this.visibleCount++
+      this.visible[n] = i
+      this.visibleX[n] = sx
+      let targetScale = 1
+      let targetLift = 0
+      if (proximity > 0) {
+        const d = Math.abs(sx + g.w / 2 - cursorX)
+        if (d < 130) {
+          const t = smoothstep(1 - d / 130) * proximity
+          targetScale = 1 + t * (g.tile ? 0.62 : 0.36)
+          targetLift = -t * (g.tile ? 5 : 3)
         }
-        return
       }
-    }
-
-    // Preserve the existing measured typography during chapter transitions so
-    // the stream contents and scroll positions continue uninterrupted.
-    this.config = {
-      ...this.config,
-      speed: newConfig.speed,
-      direction: newConfig.direction,
-      highlightRate: newConfig.highlightRate,
-      powerUpSpawnScale: newConfig.powerUpSpawnScale,
-    }
-  }
-
-  setMotionScale(scale: number): void {
-    this.stream?.setMotionScale(scale)
-  }
-
-  setLetterValueResolver(resolver: (letter: string) => number): void {
-    this.resolveLetterValue = resolver
-  }
-
-  setShinyBonusResolver(resolver: (baseBonus: number) => number): void {
-    this.resolveShinyBonus = resolver
-  }
-
-  update(dt: number, playerX: number, playerY: number): void {
-    if (this.stream) {
-      this.stream.update(dt, GAME_WIDTH)
-      const laneCenterY = this.y + this.height / 2
-      const distToLane = Math.abs(playerY - laneCenterY)
-      const isPlayerLane = distToLane < this.height / 2
-      const laneProximity = Math.max(0, 1 - distToLane / 200)
-      const shouldApplyEffects = isPlayerLane || laneProximity > 0.2
-
-      if (shouldApplyEffects) {
-        this.effectsActive = true
-        this.stream.applyPlayerEffects(playerX, playerY, laneCenterY, GAME_WIDTH, isPlayerLane)
-      } else if (this.effectsActive) {
-        this.effectsActive = false
-        this.stream.resetPlayerEffects()
+      if (g.scale !== targetScale || g.lift !== targetLift) {
+        g.scale += (targetScale - g.scale) * k
+        g.lift += (targetLift - g.lift) * k
+        if (Math.abs(g.scale - targetScale) < 0.002) g.scale = targetScale
+        if (Math.abs(g.lift - targetLift) < 0.02) g.lift = targetLift
       }
-    }
+    })
   }
 
-  renderBase(ctx: CanvasRenderingContext2D, playerLane: number, playerX: number): void {
-    const centerY = this.y + this.height / 2
-
-    if (this.isSafeZone) {
-      // Subtle background for safe zones
-      ctx.fillStyle = 'rgba(232, 224, 208, 0.3)'
-      if (this.safeZoneFillPath) ctx.fill(this.safeZoneFillPath)
-
-      // Safe zone rules
-      ctx.strokeStyle = COLORS.rule
-      ctx.lineWidth = 0.5
-      if (this.safeZoneRulePath) ctx.stroke(this.safeZoneRulePath)
-    }
-
-    // Subtle lane background
-    if (this.index === playerLane) {
-      ctx.fillStyle = 'rgba(184, 134, 11, 0.04)'
-      if (this.playerLaneFillPath) ctx.fill(this.playerLaneFillPath)
-    }
-
-    // Lane separator should sit behind lifted/focused letters.
-    ctx.strokeStyle = COLORS.rule
-    ctx.lineWidth = 0.5
-    ctx.stroke(this.separatorPath)
-
-    // Render text stream with full effects
-    if (this.stream) {
-      const visible = this.stream.getVisibleChars(GAME_WIDTH)
-
-      ctx.textBaseline = 'middle'
-      ctx.textAlign = 'center'
-      ctx.font = this.font
-
-      for (const { char: ch, screenX } of visible) {
-        if (ch.alpha <= 0 || ch.isCollected || ch.isHighlighted) continue
-        this.renderNormalChar(ctx, ch, screenX, centerY)
-      }
-
-      // Reset text align
-      ctx.textAlign = 'left'
-    }
-  }
-
-  renderTopLayer(ctx: CanvasRenderingContext2D): void {
-    this.renderTopLayerByFocus(ctx, false)
-  }
-
-  renderFocusedTopLayer(ctx: CanvasRenderingContext2D): void {
-    this.renderTopLayerByFocus(ctx, true)
-  }
-
-  private renderTopLayerByFocus(ctx: CanvasRenderingContext2D, focusedOnly: boolean): void {
-    if (!this.stream) return
-
-    const centerY = this.y + this.height / 2
-    const visible = this.stream.getVisibleChars(GAME_WIDTH)
-    const currentTimeMs = performance.now()
-
-    ctx.textBaseline = 'middle'
-    ctx.textAlign = 'center'
-    ctx.font = this.font
-
-    for (const { char: ch, screenX } of visible) {
-      if (ch.alpha <= 0 || (!ch.isCollected && !ch.isHighlighted)) continue
-      const isFocused = !ch.isCollected && ch.scale > 1.42
-      if (focusedOnly !== isFocused) continue
-      this.renderTopChar(ctx, ch, screenX, centerY, currentTimeMs)
-    }
-
-    ctx.textAlign = 'left'
-  }
-
-
-  // Trigger ripple on this lane
-  triggerRipple(playerX: number, amplitude?: number): void {
-    if (this.stream) {
-      this.stream.triggerRipple(playerX, GAME_WIDTH, amplitude)
-    }
-  }
-
-  // Find collectible character near player position
-  findCollectibleNear(playerX: number): StreamChar | null {
-    if (!this.stream) return null
-    return this.stream.findCollectibleAt(playerX, GAME_WIDTH)
-  }
-
-  private createCurvedLinePath(startX: number, endX: number, y: number): Path2D {
-    const path = new Path2D()
-    for (let x = startX; x <= endX; x += 10) {
-      const offset = getPageCurvatureOffset(x, GAME_WIDTH)
-      if (x === startX) path.moveTo(x, y + offset)
-      else path.lineTo(x, y + offset)
-    }
-    return path
-  }
-
-  private createCurvedFillPath(startX: number, endX: number, topY: number, bottomY: number): Path2D {
-    const path = new Path2D()
-    for (let x = startX; x <= endX; x += 10) {
-      const offset = getPageCurvatureOffset(x, GAME_WIDTH)
-      if (x === startX) path.moveTo(x, topY + offset)
-      else path.lineTo(x, topY + offset)
-    }
-    for (let x = endX; x >= startX; x -= 10) {
-      const offset = getPageCurvatureOffset(x, GAME_WIDTH)
-      path.lineTo(x, bottomY + offset)
-    }
-    path.closePath()
-    return path
-  }
-
-  private createSafeZoneRulePath(): Path2D {
-    const path = new Path2D()
-    path.addPath(this.createCurvedLinePath(30, GAME_WIDTH - 30, this.y + 2))
-    path.addPath(this.createCurvedLinePath(30, GAME_WIDTH - 30, this.y + this.height - 2))
-    return path
-  }
-
-  private renderNormalChar(ctx: CanvasRenderingContext2D, ch: StreamChar, screenX: number, centerY: number): void {
-    if (!this.stream) return
-
-    const undulation = this.stream.getUndulationOffset(ch, screenX)
-    const shimmer = this.stream.getShimmerOffset(ch)
-    const wordPulse = this.stream.getWordPulseOffset(ch)
-    const rippleOffset = this.stream.getRippleOffset(ch)
-    const pageCurvature = this.stream.getPageCurvatureOffset(screenX, GAME_WIDTH)
-    const edgeScale = this.stream.getEdgeScale(screenX, GAME_WIDTH)
-    const inkAlpha = this.stream.getInkAlpha(ch)
-    const edgeFade = this.stream.getEdgeFade(screenX, GAME_WIDTH)
-    const totalScale = ch.scale * edgeScale
-    const charCenterX = screenX + ch.width / 2 + ch.dx + shimmer + wordPulse
-    const charCenterY = centerY + ch.dy + undulation + rippleOffset + pageCurvature
-
-    ctx.save()
-    ctx.translate(charCenterX, charCenterY)
-
-    if (ch.rotation !== 0 || totalScale !== 1) {
-      ctx.rotate(ch.rotation)
-      ctx.scale(totalScale, totalScale)
-    }
-
-    if (ch.scale > 1.05) {
-      const depth = (ch.scale - 1) * 15
-      ctx.shadowColor = COLORS.shadow
-      ctx.shadowBlur = depth * 1.5
-      ctx.shadowOffsetX = 0
-      ctx.shadowOffsetY = depth
-    }
-
-    const isLifted = ch.scale > 1.05
-    const proximityAlpha = isLifted ? 1.0 : (0.55 + (ch.scale - 1) * 1.0)
-    ctx.globalAlpha = Math.min(1, ch.alpha * proximityAlpha * inkAlpha * edgeFade)
-    ctx.fillStyle = this.getNormalTextColor(ch)
-    ctx.fillText(ch.char, 0, 0)
-    ctx.restore()
-  }
-
-  private renderTopChar(
-    ctx: CanvasRenderingContext2D,
-    ch: StreamChar,
-    screenX: number,
-    centerY: number,
-    currentTimeMs: number,
-  ): void {
-    if (!this.stream) return
-
-    const undulation = this.stream.getUndulationOffset(ch, screenX)
-    const shimmer = this.stream.getShimmerOffset(ch)
-    const wordPulse = this.stream.getWordPulseOffset(ch)
-    const rippleOffset = this.stream.getRippleOffset(ch)
-    const pageCurvature = this.stream.getPageCurvatureOffset(screenX, GAME_WIDTH)
-    const edgeScale = this.stream.getEdgeScale(screenX, GAME_WIDTH)
-    const edgeFade = this.stream.getEdgeFade(screenX, GAME_WIDTH)
-    const totalScale = ch.scale * edgeScale
-    const charCenterX = screenX + ch.width / 2 + ch.dx + shimmer + wordPulse
-    const charCenterY = centerY + ch.dy + undulation + rippleOffset + pageCurvature
-
-    if (ch.isCollected) {
-      ctx.save()
-      ctx.globalAlpha = ch.alpha * edgeFade
-      ctx.translate(charCenterX, charCenterY)
-      ctx.rotate(ch.rotation)
-      ctx.scale(totalScale, totalScale)
-      ctx.fillStyle = this.getCollectedTextColor(ch)
-      ctx.fillText(ch.char, -ch.width / 2, 0)
-      ctx.restore()
-      return
-    }
-
-    if (ch.powerUpType !== 'None') {
-      this.renderPowerUpChar(ctx, ch, charCenterX, charCenterY, totalScale, edgeFade)
-      return
-    }
-
-    ctx.save()
-    ctx.translate(charCenterX, charCenterY)
-
-    const isLifted = ch.scale > 1.05
-    const isFocused = ch.scale > 1.42
-    const proximityAlpha = isLifted ? 1.0 : Math.min(1, 0.75 + (ch.scale - 1) * 1.0)
-    const baseAlpha = (isFocused ? 1 : Math.min(1, ch.alpha * proximityAlpha)) * edgeFade
-    ctx.globalAlpha = baseAlpha
-
-    if (ch.rotation !== 0 || totalScale !== 1) {
-      ctx.rotate(ch.rotation)
-      ctx.scale(totalScale, totalScale)
-    }
-
-    if (ch.scale > 1.05) {
-      const depth = (ch.scale - 1) * 15
-      ctx.shadowColor = COLORS.shadow
-      ctx.shadowBlur = depth * 1.5
-      ctx.shadowOffsetX = 0
-      ctx.shadowOffsetY = depth
-    }
-
-    const interactionStrength = Math.min(1, Math.max(0, (ch.scale - 1) / 1.5))
-    const padding = 4 + interactionStrength * 2
-    const tileW = ch.width + padding * 2
-    const tileH = this.config.fontSize + padding * 2
-    const borderRadius = 4
-    const bgAlpha = isFocused ? 1 : Math.min(1, 0.4 + interactionStrength * 0.6)
-    const colorT = Math.min(1, Math.max(0, interactionStrength * 1.2))
-    const textT = isFocused ? 1 : Math.min(1, Math.max(0, (interactionStrength + 0.14) / 0.78))
-    const borderT = isFocused ? 1 : Math.min(1, Math.max(0, (interactionStrength - 0.06) / 0.92))
-    const shinyBeat = ch.isShiny
-      ? ((currentTimeMs * 0.00235 + ch.seed * 0.9) % 1)
-      : 0
-    const shinyPulse = ch.isShiny
-      ? Math.max(
-          0,
-          1 - Math.abs(shinyBeat - 0.16) / 0.1,
-          1 - Math.abs(shinyBeat - 0.3) / 0.08,
-        )
-      : 0
-
-    if (ch.scale > 1.1) {
-      ctx.shadowColor = COLORS.shadow
-      ctx.shadowBlur = 4 + (ch.scale - 1) * 10
-      ctx.shadowOffsetY = 2 + (ch.scale - 1) * 4
-    }
-
-    const colorAlpha = isFocused ? 1 : baseAlpha
-    const colors = this.getHighlightColors(ch.multiplierType, colorAlpha, bgAlpha, colorT, textT, borderT)
-    const shinyAccent = this.getShinyAccentStyle(ch.multiplierType)
-    const displayChar = ch.isBlank ? '' : ch.char
-
-    if (ch.isShiny) {
-      const haloAlpha = baseAlpha * (0.22 + shinyPulse * 0.28 + (1 - interactionStrength) * 0.15)
-      const halo = ctx.createRadialGradient(0, 0, tileW * 0.12, 0, 0, Math.max(tileW, tileH) * 0.98)
-      halo.addColorStop(0, `rgba(${shinyAccent.glow[0]}, ${shinyAccent.glow[1]}, ${shinyAccent.glow[2]}, ${haloAlpha})`)
-      halo.addColorStop(0.58, `rgba(${shinyAccent.glow[0]}, ${shinyAccent.glow[1]}, ${shinyAccent.glow[2]}, ${haloAlpha * 0.68})`)
-      halo.addColorStop(1, `rgba(${shinyAccent.glow[0]}, ${shinyAccent.glow[1]}, ${shinyAccent.glow[2]}, 0)`)
-      ctx.fillStyle = halo
-      ctx.beginPath()
-      ctx.ellipse(0, 0, tileW * 0.72, tileH * 0.78, 0, 0, Math.PI * 2)
-      ctx.fill()
-    }
-
-    ctx.fillStyle = colors.baseColor
-    ctx.beginPath()
-    ctx.roundRect(-tileW / 2, -tileH / 2, tileW, tileH, borderRadius)
-    ctx.fill()
-
-    ctx.shadowBlur = 0
-    ctx.shadowOffsetY = 0
-
-    const visualDepth = 3
-    const depth = visualDepth / totalScale
-    ctx.fillStyle = colors.depthColor
-    ctx.beginPath()
-    ctx.roundRect(-tileW / 2, tileH / 2 - depth, tileW, depth, [0, 0, borderRadius, borderRadius])
-    ctx.fill()
-
-    ctx.strokeStyle = colors.borderColor
-    ctx.lineWidth = 1
-    ctx.beginPath()
-    ctx.roundRect(-tileW / 2, -tileH / 2, tileW, tileH, borderRadius)
-    ctx.stroke()
-
-    ctx.fillStyle = this.getTileShineGradient(ctx, tileW, tileH)
-    ctx.fill()
-
-    if (ch.isShiny) {
-      const shimmerPhase = (currentTimeMs * 0.0016 + ch.seed * 5.3) % 1
-      const shimmerX = -tileW + shimmerPhase * tileW * 2
-      const shimmer = ctx.createLinearGradient(shimmerX - tileW * 0.24, -tileH / 2, shimmerX + tileW * 0.1, tileH / 2)
-      shimmer.addColorStop(0, 'rgba(255, 255, 255, 0)')
-      shimmer.addColorStop(0.38, `rgba(${shinyAccent.bright[0]}, ${shinyAccent.bright[1]}, ${shinyAccent.bright[2]}, ${baseAlpha * 0.38})`)
-      shimmer.addColorStop(0.55, `rgba(${shinyAccent.glow[0]}, ${shinyAccent.glow[1]}, ${shinyAccent.glow[2]}, ${baseAlpha * 0.22})`)
-      shimmer.addColorStop(0.72, 'rgba(255, 255, 255, 0)')
-      ctx.save()
-      ctx.beginPath()
-      ctx.roundRect(-tileW / 2, -tileH / 2, tileW, tileH, borderRadius)
-      ctx.clip()
-      ctx.globalCompositeOperation = 'screen'
-      ctx.fillStyle = shimmer
-      ctx.fillRect(-tileW / 2 - 6, -tileH / 2 - 6, tileW + 12, tileH + 12)
-      ctx.restore()
-
-      if (!isFocused) {
-        ctx.strokeStyle = `rgba(${shinyAccent.bright[0]}, ${shinyAccent.bright[1]}, ${shinyAccent.bright[2]}, ${0.24 + shinyPulse * 0.48})`
-        ctx.lineWidth = 1.1 + shinyPulse * 0.7
-        ctx.beginPath()
-        ctx.roundRect(
-          -tileW / 2 - 1.5,
-          -tileH / 2 - 1.5,
-          tileW + 3,
-          tileH + 3,
-          Math.max(3, borderRadius + 1),
-        )
-        ctx.stroke()
-
-        ctx.strokeStyle = `rgba(${shinyAccent.glow[0]}, ${shinyAccent.glow[1]}, ${shinyAccent.glow[2]}, ${0.12 + shinyPulse * 0.3})`
-        ctx.lineWidth = 1 + shinyPulse * 0.45
-        ctx.beginPath()
-        ctx.roundRect(
-          -tileW / 2 - 3.25,
-          -tileH / 2 - 3.25,
-          tileW + 6.5,
-          tileH + 6.5,
-          Math.max(4, borderRadius + 2),
-        )
-        ctx.stroke()
-      }
-    }
-
-    ctx.font = this.font
-    const textContrastBoost = Math.max(0, 1 - Math.abs(colorT - 0.5) / 0.5)
-    const charIsLight = colors.charColor === COLORS.ivory || colorT > 0.62
-    const underlayAlpha = (0.08 + textContrastBoost * 0.14) * baseAlpha
-    if (displayChar && underlayAlpha > 0.01) {
-      ctx.fillStyle = charIsLight
-        ? `rgba(92, 64, 51, ${underlayAlpha})`
-        : `rgba(245, 241, 232, ${underlayAlpha * 0.8})`
-      ctx.fillText(displayChar, 0, 0)
-    }
-    ctx.fillStyle = colors.charColor
-    if (displayChar) {
-      ctx.fillText(displayChar, 0, -1)
-    }
-
-    const points = ch.isBlank ? 0 : this.resolveLetterValue(ch.char)
-    const isBoostedValue = points > getLetterValue(ch.char)
-    if (points > 0) {
-      ctx.font = this.pointsFont
-      ctx.textAlign = 'right'
-      ctx.textBaseline = 'bottom'
-      ctx.globalAlpha = baseAlpha * Math.min(1, interactionStrength * 2)
-      if (underlayAlpha > 0.01) {
-        ctx.fillStyle = charIsLight
-          ? `rgba(92, 64, 51, ${underlayAlpha})`
-          : `rgba(245, 241, 232, ${underlayAlpha * 0.8})`
-        ctx.fillText(String(points), tileW / 2 - 3, tileH / 2 - 1)
-      }
-      if (isBoostedValue) {
-        ctx.shadowColor = COLORS.boostGreenGlow
-        ctx.shadowBlur = 8
-        ctx.shadowOffsetX = 0
-        ctx.shadowOffsetY = 0
-      }
-      ctx.fillStyle = isBoostedValue ? COLORS.boostGreen : colors.charColor
-      ctx.fillText(String(points), tileW / 2 - 3, tileH / 2 - 2)
-      if (isBoostedValue) {
-        ctx.shadowBlur = 0
-      }
-    }
-
-    if (ch.isShiny) {
-      const badgeText = `+${this.resolveShinyBonus(ch.shinyBonus)}`
-      const badgeFont = '700 9px Georgia, "Times New Roman", serif'
-      ctx.font = badgeFont
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      const badgeWidth = Math.max(20, measureTextWidth(badgeText, badgeFont) + 8)
-      const badgeHeight = 10
-      const badgeX = -badgeWidth / 2
-      const badgeY = -tileH / 2 - 7
-      const badgeCenterX = 0
-      const badgeCenterY = badgeY + badgeHeight / 2
-      ctx.globalAlpha = baseAlpha
-      ctx.fillStyle = `rgba(${shinyAccent.badgeFill[0]}, ${shinyAccent.badgeFill[1]}, ${shinyAccent.badgeFill[2]}, ${0.94 + shinyPulse * 0.04})`
-      ctx.beginPath()
-      ctx.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 999)
-      ctx.fill()
-      ctx.strokeStyle = `rgba(${shinyAccent.border[0]}, ${shinyAccent.border[1]}, ${shinyAccent.border[2]}, ${0.72 + shinyPulse * 0.18})`
-      ctx.lineWidth = 1
-      ctx.beginPath()
-      ctx.roundRect(badgeX, badgeY, badgeWidth, badgeHeight, 999)
-      ctx.stroke()
-      if (underlayAlpha > 0.01) {
-        ctx.fillStyle = charIsLight
-          ? `rgba(92, 64, 51, ${underlayAlpha})`
-          : `rgba(245, 241, 232, ${underlayAlpha * 0.8})`
-        ctx.fillText(badgeText, badgeCenterX, badgeCenterY + 1)
-      }
-      ctx.fillStyle = colors.charColor
-      ctx.fillText(badgeText, badgeCenterX, badgeCenterY)
-    }
-
-    ctx.restore()
-  }
-
-  private renderPowerUpChar(
-    ctx: CanvasRenderingContext2D,
-    ch: StreamChar,
-    charCenterX: number,
-    charCenterY: number,
-    totalScale: number,
-    edgeFade: number,
-  ): void {
-    ctx.save()
-    ctx.translate(charCenterX, charCenterY)
-
-    const interactionStrength = Math.min(1, Math.max(0, (ch.scale - 1) / 1.5))
-    const baseAlpha = Math.min(1, ch.alpha * (0.84 + interactionStrength * 0.3)) * edgeFade
-    const radius = 13 + interactionStrength * 2.4
-    const glowRadius = radius + 7 + interactionStrength * 3
-    const ringColor = this.getPowerUpRingColor(ch.powerUpType)
-
-    ctx.globalAlpha = baseAlpha
-
-    if (ch.rotation !== 0 || totalScale !== 1) {
-      ctx.rotate(ch.rotation)
-      ctx.scale(totalScale, totalScale)
-    }
-
-    if (ch.scale > 1.05) {
-      ctx.shadowColor = COLORS.shadow
-      ctx.shadowBlur = 8 + (ch.scale - 1) * 12
-      ctx.shadowOffsetY = 2 + (ch.scale - 1) * 3
-    }
-
-    const halo = ctx.createRadialGradient(0, 0, radius * 0.2, 0, 0, glowRadius)
-    halo.addColorStop(0, `rgba(240, 201, 108, ${0.16 + interactionStrength * 0.18})`)
-    halo.addColorStop(0.65, `rgba(240, 201, 108, ${0.08 + interactionStrength * 0.12})`)
-    halo.addColorStop(1, 'rgba(240, 201, 108, 0)')
-    ctx.fillStyle = halo
-    ctx.beginPath()
-    ctx.arc(0, 0, glowRadius, 0, Math.PI * 2)
-    ctx.fill()
-
-    ctx.shadowBlur = 0
-    ctx.shadowOffsetY = 0
-
-    const medallion = ctx.createRadialGradient(-radius * 0.25, -radius * 0.35, radius * 0.12, 0, 0, radius * 1.1)
-    medallion.addColorStop(0, 'rgba(255, 254, 250, 0.98)')
-    medallion.addColorStop(0.68, 'rgba(245, 241, 232, 0.96)')
-    medallion.addColorStop(1, 'rgba(232, 224, 208, 0.94)')
-    ctx.fillStyle = medallion
-    ctx.beginPath()
-    ctx.arc(0, 0, radius, 0, Math.PI * 2)
-    ctx.fill()
-
-    ctx.strokeStyle = `rgba(${ringColor[0]}, ${ringColor[1]}, ${ringColor[2]}, ${0.45 + interactionStrength * 0.35})`
-    ctx.lineWidth = 1.7
-    ctx.beginPath()
-    ctx.arc(0, 0, radius, 0, Math.PI * 2)
-    ctx.stroke()
-
-    ctx.strokeStyle = `rgba(92, 64, 51, ${0.14 + interactionStrength * 0.15})`
-    ctx.lineWidth = 1
-    ctx.beginPath()
-    ctx.arc(0, 0, radius - 2.2, 0, Math.PI * 2)
-    ctx.stroke()
-
+  /** Prose text layer (under tiles). */
+  renderText(ctx: CanvasRenderingContext2D, dim = 1): void {
     ctx.font = this.font
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillStyle = COLORS.safeZoneInk
-    ctx.fillText(ch.char, 0, 0)
-    ctx.restore()
-  }
-
-  private getNormalTextColor(ch: StreamChar): string {
-    if (this.isSafeZone) return COLORS.safeZoneInk
-    if (ch.multiplierType === 'DoubleLetter' || ch.multiplierType === 'DoubleWord') return 'rgb(255, 255, 255)'
-    if (ch.multiplierType === 'TripleLetter') return 'rgb(23, 124, 114)'
-    if (ch.multiplierType === 'TripleWord') return 'rgb(115, 45, 145)'
-    return COLORS.sepia
-  }
-
-  private getCollectedTextColor(ch: StreamChar): string {
-    if (ch.multiplierType === 'DoubleLetter') return COLORS.dlLight
-    if (ch.multiplierType === 'TripleLetter') return COLORS.tlBlue
-    if (ch.multiplierType === 'DoubleWord') return COLORS.dwCoral
-    if (ch.multiplierType === 'TripleWord') return COLORS.twPurple
-    return COLORS.tileGold
-  }
-
-  private getShinyAccentStyle(multiplierType: StreamChar['multiplierType']): {
-    glow: [number, number, number]
-    bright: [number, number, number]
-    border: [number, number, number]
-    badgeFill: [number, number, number]
-  } {
-    switch (multiplierType) {
-      case 'DoubleLetter':
-        return { glow: [91, 155, 213], bright: [228, 242, 255], border: [141, 188, 233], badgeFill: [202, 226, 249] }
-      case 'TripleLetter':
-        return { glow: [34, 166, 153], bright: [222, 249, 244], border: [107, 230, 217], badgeFill: [184, 232, 226] }
-      case 'DoubleWord':
-        return { glow: [231, 76, 60], bright: [255, 233, 228], border: [241, 154, 142], badgeFill: [248, 200, 191] }
-      case 'TripleWord':
-        return { glow: [142, 68, 173], bright: [244, 231, 251], border: [200, 157, 226], badgeFill: [223, 193, 237] }
-      default:
-        return { glow: [240, 201, 108], bright: [250, 242, 220], border: [214, 164, 66], badgeFill: [238, 212, 140] }
+    ctx.fillStyle = COLORS.sepia
+    const kk = view.k
+    let lastAlpha = -1
+    for (let n = 0; n < this.visibleCount; n++) {
+      const g = this.glyphs[this.visible[n]]
+      if (g.ch === ' ') continue
+      if (g.tile && !g.taken) continue
+      const cx = this.visibleX[n] + g.w / 2
+      if (cx < BOARD_LEFT - 20 || cx > BOARD_RIGHT + 20) continue
+      const lens = g.scale - 1
+      let alpha = (g.taken ? 0.12 : 0.46 + Math.min(0.5, lens * 1.6)) * edgeFade(cx) * dim
+      alpha = Math.round(alpha * 32) / 32
+      if (alpha <= 0) continue
+      if (alpha !== lastAlpha) {
+        ctx.globalAlpha = alpha
+        lastAlpha = alpha
+      }
+      const cy = this.y + curveY(cx) + g.lift
+      if (g.scale > 1.004) {
+        const s = g.scale * kk
+        ctx.setTransform(s, 0, 0, s, cx * kk, cy * kk)
+        ctx.fillText(g.ch, 0, 0)
+        ctx.setTransform(kk, 0, 0, kk, 0, 0)
+      } else {
+        ctx.fillText(g.ch, cx, cy)
+      }
     }
+    ctx.globalAlpha = 1
   }
 
-  private getPowerUpRingColor(powerUpType: PowerUpType): [number, number, number] {
-    if (powerUpType === 'Wisdom') return [184, 134, 11]
-    if (powerUpType === 'Knowledge') return [201, 133, 31]
-    if (powerUpType === 'Radiance') return [240, 201, 108]
-    return [184, 134, 11]
-  }
-
-  private getHighlightColors(multiplierType: StreamChar['multiplierType'], baseAlpha: number, bgAlpha: number, colorT: number, textT: number, borderT: number): {
-    baseColor: string
-    borderColor: string
-    depthColor: string
-    charColor: string
-  } {
-    let baseColor: string = `rgba(${REGULAR_TILE_STYLE.fillRgb[0]}, ${REGULAR_TILE_STYLE.fillRgb[1]}, ${REGULAR_TILE_STYLE.fillRgb[2]}, ${bgAlpha * baseAlpha})`
-    let borderColor: string = `rgba(${REGULAR_TILE_STYLE.borderRgb[0]}, ${REGULAR_TILE_STYLE.borderRgb[1]}, ${REGULAR_TILE_STYLE.borderRgb[2]}, ${baseAlpha * (0.35 + borderT * 0.65)})`
-    let depthColor: string = REGULAR_TILE_STYLE.depth
-    let startR: number = REGULAR_TILE_STYLE.darkTextRgb[0]
-    let startG: number = REGULAR_TILE_STYLE.darkTextRgb[1]
-    let startB: number = REGULAR_TILE_STYLE.darkTextRgb[2]
-    let endR: number = REGULAR_TILE_STYLE.lightTextRgb[0]
-    let endG: number = REGULAR_TILE_STYLE.lightTextRgb[1]
-    let endB: number = REGULAR_TILE_STYLE.lightTextRgb[2]
-
-    if (multiplierType === 'DoubleLetter') {
-      baseColor = `rgba(91, 155, 213, ${bgAlpha * baseAlpha})`
-      borderColor = `rgba(63, 107, 168, ${baseAlpha * (0.35 + borderT * 0.65)})`
-      depthColor = 'rgba(50, 85, 140, 0.4)'
-      startR = 63
-      startG = 107
-      startB = 168
-      endR = 255
-      endG = 255
-      endB = 255
-    } else if (multiplierType === 'TripleLetter') {
-      baseColor = `rgba(34, 166, 153, ${bgAlpha * baseAlpha})`
-      borderColor = `rgba(23, 124, 114, ${baseAlpha * (0.35 + borderT * 0.65)})`
-      depthColor = 'rgba(20, 100, 95, 0.4)'
-      startR = 23
-      startG = 124
-      startB = 114
-      endR = 245
-      endG = 241
-      endB = 232
-    } else if (multiplierType === 'DoubleWord') {
-      baseColor = `rgba(231, 76, 60, ${bgAlpha * baseAlpha})`
-      borderColor = `rgba(184, 61, 47, ${baseAlpha * (0.35 + borderT * 0.65)})`
-      depthColor = 'rgba(150, 50, 40, 0.4)'
-      startR = 184
-      startG = 61
-      startB = 47
-      endR = 255
-      endG = 255
-      endB = 255
-    } else if (multiplierType === 'TripleWord') {
-      baseColor = `rgba(142, 68, 173, ${bgAlpha * baseAlpha})`
-      borderColor = `rgba(115, 45, 145, ${baseAlpha * (0.35 + borderT * 0.65)})`
-      depthColor = 'rgba(90, 30, 120, 0.4)'
-      startR = 115
-      startG = 45
-      startB = 145
-      endR = 245
-      endG = 241
-      endB = 232
+  /** Tile layer. */
+  renderTiles(ctx: CanvasRenderingContext2D, dim = 1): void {
+    for (let n = 0; n < this.visibleCount; n++) {
+      const g = this.glyphs[this.visible[n]]
+      if (!g.tile || g.taken) continue
+      const cx = this.visibleX[n] + g.w / 2
+      if (cx < BOARD_LEFT - 30 || cx > BOARD_RIGHT + 30) continue
+      const fade = edgeFade(cx) * dim
+      if (fade <= 0.01) continue
+      ctx.globalAlpha = fade
+      const cy = this.y + curveY(cx) + g.lift
+      tileArt.draw(ctx, g.letter!, g.tile, this.tileH, cx, cy, g.scale * 0.92)
     }
+    ctx.globalAlpha = 1
+  }
 
-    const r = Math.round(startR + (endR - startR) * textT)
-    const g = Math.round(startG + (endG - startG) * textT)
-    const b = Math.round(startB + (endB - startB) * textT)
-
-    return {
-      baseColor,
-      borderColor,
-      depthColor,
-      charColor: `rgb(${r}, ${g}, ${b})`,
+  /** Nearest untaken tile whose centre is within `reach` of x. */
+  findTile(x: number, reach: number): TileRef | null {
+    let best: TileRef | null = null
+    let bestD = reach
+    for (let n = 0; n < this.visibleCount; n++) {
+      const i = this.visible[n]
+      const g = this.glyphs[i]
+      if (!g.tile || g.taken) continue
+      const cx = this.visibleX[n] + g.w / 2
+      if (cx < BOARD_LEFT || cx > BOARD_RIGHT) continue
+      const d = Math.abs(cx - x)
+      if (d <= bestD) {
+        bestD = d
+        best = { lane: this, index: i }
+      }
     }
+    return best
   }
 
-  private getTileShineGradient(ctx: CanvasRenderingContext2D, tileW: number, tileH: number): CanvasGradient {
-    const roundedW = Math.max(1, Math.round(tileW))
-    const roundedH = Math.max(1, Math.round(tileH))
-    const key = `${roundedW}x${roundedH}`
-    const cached = this.tileShineGradientCache.get(key)
-    if (cached) return cached
-
-    const gradient = ctx.createLinearGradient(-roundedW / 2, -roundedH / 2, roundedW / 2, roundedH / 2)
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.15)')
-    gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0)')
-    gradient.addColorStop(1, 'rgba(0, 0, 0, 0.05)')
-    this.tileShineGradientCache.set(key, gradient)
-    return gradient
+  /** Screen position of a tile, or null if it's gone/off screen. */
+  tilePosition(index: number): { x: number; y: number; scale: number } | null {
+    const g = this.glyphs[index]
+    if (!g || !g.tile || g.taken) return null
+    const sx = this.streamPos(g) - PAD
+    const cx = sx + g.w / 2
+    if (cx < BOARD_LEFT - 10 || cx > BOARD_RIGHT + 10) return null
+    return { x: cx, y: this.y + curveY(cx) + g.lift, scale: g.scale * 0.92 }
   }
 
-  private buildPointsFont(fontSize: number): string {
-    return `800 ${Math.max(8, fontSize * 0.32)}px Georgia, "Times New Roman", serif`
+  tileInfo(index: number): { letter: string; kind: TileKind } | null {
+    const g = this.glyphs[index]
+    if (!g || !g.tile || g.taken || !g.letter) return null
+    return { letter: g.letter, kind: g.tile }
   }
+
+  take(index: number): void {
+    const g = this.glyphs[index]
+    if (g) g.taken = true
+  }
+
+  get tileWidthPx(): number {
+    return tileWidth(this.tileH)
+  }
+}
+
+export function edgeFade(x: number): number {
+  const fadeW = 36
+  if (x < BOARD_LEFT + fadeW) return Math.max(0, (x - BOARD_LEFT + 6) / (fadeW + 6))
+  if (x > BOARD_RIGHT - fadeW) return Math.max(0, (BOARD_RIGHT + 6 - x) / (fadeW + 6))
+  return 1
 }

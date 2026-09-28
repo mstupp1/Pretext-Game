@@ -1,9 +1,9 @@
 // ── ParticleSystem — Typographic particle effects ──
 // Creates firework-like explosions where each particle is a character
 
-import { COLORS, CANVAS_FONTS, GAME_WIDTH, GAME_HEIGHT } from '../utils/constants'
+import { COLORS, CANVAS_FONTS, GAME_HEIGHT } from '../utils/constants'
 import { measureCharsInLine } from '../text/TextEngine'
-import { getPageCurvatureOffset } from '../text/TextStream'
+import { curveY } from '../utils/curve'
 
 export interface TypoParticle {
   char: string
@@ -88,7 +88,7 @@ export class ParticleSystem {
 
       ctx.save()
       ctx.globalAlpha = p.alpha
-      const offset = getPageCurvatureOffset(p.x, GAME_WIDTH) * (p.curvatureScale ?? 1)
+      const offset = curveY(p.x) * (p.curvatureScale ?? 1)
       ctx.translate(p.x, p.y + offset)
       ctx.rotate(p.rotation)
       ctx.scale(p.scale, p.scale)

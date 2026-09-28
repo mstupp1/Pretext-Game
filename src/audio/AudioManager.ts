@@ -1,648 +1,312 @@
+// ── AudioManager — low-latency SFX via Web Audio, streamed music with crossfades ──
+
+import { save, persist } from '../core/storage'
+
+type SfxName =
+  | 'grab' | 'remove' | 'invalid' | 'move' | 'menu' | 'pages1' | 'pages2' | 'chapter'
+  | 'score1' | 'score2' | 'score3' | 'warn1' | 'warn2' | 'count3' | 'count2' | 'count1' | 'go'
+  | 'restart' | 'camera' | 'applause1' | 'applause2' | 'applause3' | 'applause4' | 'applause5'
+  | 'ambience'
+
+const SFX_FILES: Record<SfxName, string> = {
+  grab: 'sfx/selectletter_1.wav',
+  remove: 'sfx/backspace_1.wav',
+  invalid: 'sfx/nosubmit_1.wav',
+  move: 'sfx/movement_1.wav',
+  menu: 'sfx/menus_1.wav',
+  pages1: 'sfx/pages_1.wav',
+  pages2: 'sfx/pages_2.wav',
+  chapter: 'sfx/chapter_1.wav',
+  score1: 'sfx/score_1.wav',
+  score2: 'sfx/score_2.wav',
+  score3: 'sfx/score_3.wav',
+  warn1: 'sfx/timewarning_1.wav',
+  warn2: 'sfx/timewarning_2.wav',
+  count3: 'sfx/countdown_3.wav',
+  count2: 'sfx/countdown_2.wav',
+  count1: 'sfx/countdown_1.wav',
+  go: 'sfx/countdown_go.wav',
+  restart: 'sfx/restart_1.wav',
+  camera: 'sfx/camera_1.wav',
+  applause1: 'sfx/applause_1.wav',
+  applause2: 'sfx/applause_2.wav',
+  applause3: 'sfx/applause_3.wav',
+  applause4: 'sfx/applause_4.wav',
+  applause5: 'sfx/applause_5.wav',
+  ambience: 'sfx/Ambiance_2.mp3',
+}
+
+const GAME_TRACKS = Array.from({ length: 10 }, (_, i) => `music/Game_${i + 1}.mp3`)
+const MUSIC_VOLUME = 0.42
+const FADE_RATE = 1.6 // volume units per second
+
+type MusicMode = 'title' | 'game' | 'none'
+
 export class AudioManager {
-  private titleAudio: HTMLAudioElement;
-  private titleAmbienceAudio: HTMLAudioElement;
-  private gamePlaylist: HTMLAudioElement[] = [];
-  
-  private currentGameTrackIndex: number = 0;
-  
-  private gameAmbienceAudioA: HTMLAudioElement;
-  private gameAmbienceAudioB: HTMLAudioElement;
-  private currentAmbienceInstance: 'A' | 'B' = 'A';
-  private ambienceFadeFactor: number = 0;
-  private isAmbienceCrossfading: boolean = false;
-  private ambienceFadeInVolume: number = 0;
-  private ambienceLoopInterval: number | null = null;
-  private gameAmbienceVolume: number = 0;
-  private targetGameAmbienceVolume: number = 0;
-  private fadeFromGameAmbienceVolume: number = 0;
-  private gameAmbiencePlaybackRate: number = 1;
-  private wasGameAmbienceActiveBeforePause: boolean = false;
-  
-  private titleVolume: number = 0;
-  private gameVolume: number = 0;
+  private ctx: AudioContext | null = null
+  private sfxGain: GainNode | null = null
+  private ambienceGain: GainNode | null = null
+  private ambienceSource: AudioBufferSourceNode | null = null
+  private buffers = new Map<SfxName, AudioBuffer>()
+  private loading = new Map<SfxName, Promise<AudioBuffer | null>>()
+  private lastPlayed = new Map<SfxName, number>()
 
-  private applauseSfx: HTMLAudioElement[] = [];
-  private scoreSfx: HTMLAudioElement[] = [];
-  private pages1Sfx: HTMLAudioElement;
-  private pages2Sfx: HTMLAudioElement;
-  private chapterSfx: HTMLAudioElement;
-  private movementSfx: HTMLAudioElement;
-  private nosubmitSfx: HTMLAudioElement;
-  private timewarning1Sfx: HTMLAudioElement;
-  private timewarning2Sfx: HTMLAudioElement;
+  private titleTrack: HTMLAudioElement
+  private gameTrack: HTMLAudioElement | null = null
+  private trackOrder: string[] = []
+  private musicMode: MusicMode = 'none'
+  private duck = 1
+  private unlocked = false
 
-  private menus1Sfx: HTMLAudioElement;
-  private camera1Sfx: HTMLAudioElement;
-  private restart1Sfx: HTMLAudioElement;
-  private countdown3Sfx: HTMLAudioElement;
-  private countdown2Sfx: HTMLAudioElement;
-  private countdown1Sfx: HTMLAudioElement;
-  private countdownGoSfx: HTMLAudioElement;
-  private selectLetterSfx: HTMLAudioElement;
-  private backspaceSfx: HTMLAudioElement;
-
-  private isMusicMuted: boolean = false;
-  private isSfxMuted: boolean = false;
-
-  private targetTitleVolume: number = 0;
-  private targetGameVolume: number = 0;
-  
-  private initialized: boolean = false;
-  private fadeInterval: number | null = null;
-  private isFading: boolean = false;
-  private fadeStartTime: number = 0;
-  private fadeFromTitleVolume: number = 0;
-  private fadeFromGameVolume: number = 0;
-  
-  private MAX_VOLUME = 0.5;
-  private TITLE_AMBIENCE_MIX = 0.15;
-  private GAME_AMBIENCE_MIX = 0.15; // Very soft ambiance
-  private MUSIC_CROSSFADE_MS = 1200;
-  
-  private AMBIENCE_TRIM_START = 5.0;
-  private AMBIENCE_TRIM_END_OFFSET = 8.0;
-  private AMBIENCE_CROSSFADE_DURATION = 2.0;
-  
   constructor() {
-    this.titleAudio = new Audio(`${import.meta.env.BASE_URL}music/Title_1.mp3`);
-    this.titleAudio.loop = true;
-    this.titleAudio.volume = 0;
+    this.titleTrack = this.createTrack('music/Title_1.mp3')
+    this.titleTrack.loop = true
+    this.shuffleTracks()
 
-    this.titleAmbienceAudio = new Audio(`${import.meta.env.BASE_URL}sfx/Ambiance_1.wav`);
-    this.titleAmbienceAudio.loop = true;
-    this.titleAmbienceAudio.volume = 0;
-
-    for (const trackName of ['Game_1.mp3', 'Game_2.mp3', 'Game_3.mp3', 'Game_4.mp3', 'Game_5.mp3', 'Game_6.mp3', 'Game_7.mp3', 'Game_8.mp3', 'Game_9.mp3', 'Game_10.mp3']) {
-      const track = new Audio(`${import.meta.env.BASE_URL}music/${trackName}`);
-      track.volume = 0;
-      this.gamePlaylist.push(track);
+    const unlock = () => {
+      this.unlock()
+      window.removeEventListener('pointerdown', unlock)
+      window.removeEventListener('keydown', unlock)
     }
-
-    this.gameAmbienceAudioA = new Audio(`${import.meta.env.BASE_URL}sfx/Ambiance_2.mp3`);
-    this.gameAmbienceAudioB = new Audio(`${import.meta.env.BASE_URL}sfx/Ambiance_2.mp3`);
-    this.applyGameAmbiencePlaybackRate();
-
-    this.currentGameTrackIndex = Math.floor(Math.random() * this.gamePlaylist.length);
-    
-    // Setup playlist looping
-    this.gamePlaylist.forEach((track) => {
-      track.addEventListener('ended', () => {
-        this.playNextGameTrack();
-      });
-    });
-    
-    this.setupInteractionListeners();
-
-    // Load SFX
-    for (let i = 1; i <= 5; i++) {
-      const audio = new Audio(`${import.meta.env.BASE_URL}sfx/applause_${i}.wav`);
-      audio.volume = 0.6;
-      this.applauseSfx.push(audio);
-    }
-
-    for (let i = 1; i <= 3; i++) {
-      const audio = new Audio(`${import.meta.env.BASE_URL}sfx/score_${i}.wav`);
-      audio.volume = 0.3;
-      this.scoreSfx.push(audio);
-    }
-
-    this.pages1Sfx = new Audio(`${import.meta.env.BASE_URL}sfx/pages_1.wav`);
-    this.pages1Sfx.volume = 0.6;
-
-    this.pages2Sfx = new Audio(`${import.meta.env.BASE_URL}sfx/pages_2.wav`);
-    this.pages2Sfx.volume = 0.6;
-
-    this.chapterSfx = new Audio(`${import.meta.env.BASE_URL}sfx/chapter_1.wav`);
-    this.chapterSfx.volume = 0.3;
-
-    this.movementSfx = new Audio(`${import.meta.env.BASE_URL}sfx/movement_1.wav`);
-    this.movementSfx.volume = 0.15;
-
-    this.nosubmitSfx = new Audio(`${import.meta.env.BASE_URL}sfx/nosubmit_1.wav`);
-    this.nosubmitSfx.volume = 0.3;
-
-    this.timewarning1Sfx = new Audio(`${import.meta.env.BASE_URL}sfx/timewarning_1.wav`);
-    this.timewarning1Sfx.volume = 0.3;
-
-    this.timewarning2Sfx = new Audio(`${import.meta.env.BASE_URL}sfx/timewarning_2.wav`);
-    this.timewarning2Sfx.volume = 0.3;
-
-    this.menus1Sfx = new Audio(`${import.meta.env.BASE_URL}sfx/menus_1.wav`);
-    this.menus1Sfx.volume = 0.15; // Soft UI sound effect volume
-
-    this.camera1Sfx = new Audio(`${import.meta.env.BASE_URL}sfx/camera_1.wav`);
-    this.camera1Sfx.volume = 0.4;
-
-    this.restart1Sfx = new Audio(`${import.meta.env.BASE_URL}sfx/restart_1.wav`);
-    this.restart1Sfx.volume = 0.4;
-
-    this.countdown3Sfx = new Audio(`${import.meta.env.BASE_URL}sfx/countdown_3.wav`);
-    this.countdown3Sfx.volume = 0.3;
-
-    this.countdown2Sfx = new Audio(`${import.meta.env.BASE_URL}sfx/countdown_2.wav`);
-    this.countdown2Sfx.volume = 0.3;
-
-    this.countdown1Sfx = new Audio(`${import.meta.env.BASE_URL}sfx/countdown_1.wav`);
-    this.countdown1Sfx.volume = 0.3;
-
-    this.countdownGoSfx = new Audio(`${import.meta.env.BASE_URL}sfx/countdown_go.wav`);
-    this.countdownGoSfx.volume = 0.32;
-
-    this.selectLetterSfx = new Audio(`${import.meta.env.BASE_URL}sfx/selectletter_1.wav`);
-    this.selectLetterSfx.volume = 1.0; // Full volume
-
-    this.backspaceSfx = new Audio(`${import.meta.env.BASE_URL}sfx/backspace_1.wav`);
-    this.backspaceSfx.volume = 0.2; // Soft UI sound effect volume
-  }
-  
-  private setupInteractionListeners() {
-    const handleFirstInteraction = () => {
-      if (this.initialized) return;
-      this.initialized = true;
-
-      // If a track was requested to play before interaction, start it now
-      if (this.targetTitleVolume > 0 && this.titleAudio.paused) {
-        this.titleVolume = 0;
-        this.titleAudio.volume = 0;
-        this.titleAudio.play().catch(e => console.warn('Title audio autoplay prevented:', e));
-        this.titleAmbienceAudio.volume = 0;
-        this.titleAmbienceAudio.play().catch(e => console.warn('Title ambience autoplay prevented:', e));
-      }
-
-      if (this.targetGameVolume > 0) {
-        const gameTrack = this.getCurrentGameTrack();
-        if (gameTrack && gameTrack.paused) {
-          this.gameVolume = 0;
-          gameTrack.volume = 0;
-          gameTrack.play().catch(e => console.warn('Game audio autoplay prevented:', e));
-        }
-      }
-
-      if (this.targetGameAmbienceVolume > 0) {
-        this.ensureGameAmbiencePlaying();
-      }
-
-      if (this.targetTitleVolume > 0 || this.targetGameVolume > 0 || this.targetGameAmbienceVolume > 0) {
-        this.startFader();
-      }
-
-      document.removeEventListener('click', handleFirstInteraction);
-      document.removeEventListener('keydown', handleFirstInteraction);
-    };
-    
-    document.addEventListener('click', handleFirstInteraction);
-    document.addEventListener('keydown', handleFirstInteraction);
-  }
-  
-  private getCurrentGameTrack(): HTMLAudioElement | null {
-    if (this.gamePlaylist.length === 0) return null;
-    return this.gamePlaylist[this.currentGameTrackIndex];
-  }
-  
-  private playNextGameTrack() {
-    if (this.gamePlaylist.length === 0) return;
-    
-    const currentTrack = this.getCurrentGameTrack();
-    if (currentTrack) {
-      currentTrack.pause();
-      currentTrack.currentTime = 0;
-    }
-    
-    this.currentGameTrackIndex = (this.currentGameTrackIndex + 1) % this.gamePlaylist.length;
-    
-    const nextTrack = this.getCurrentGameTrack();
-    if (nextTrack) {
-      nextTrack.volume = this.gameVolume;
-      if (this.initialized && this.targetGameVolume > 0) {
-        nextTrack.play().catch(e => console.warn('Next track playback prevented:', e));
-      }
-    }
-  }
-  
-  public playTitleMusic() {
-    this.targetTitleVolume = this.MAX_VOLUME;
-    this.targetGameVolume = 0;
-    this.targetGameAmbienceVolume = 0;
-    this.startFader();
+    window.addEventListener('pointerdown', unlock)
+    window.addEventListener('keydown', unlock)
   }
 
-  public restartTitleMusic() {
-    this.titleAudio.currentTime = 0;
-    this.titleAmbienceAudio.currentTime = 0;
-    this.playTitleMusic();
-  }
+  get musicOn(): boolean { return save.settings.music }
+  get sfxOn(): boolean { return save.settings.sfx }
 
-  public fadeOutTitleMusic() {
-    this.targetTitleVolume = 0;
-    this.startFader();
-  }
-  
-  public playGameMusic() {
-    this.targetTitleVolume = 0;
-    this.targetGameVolume = this.MAX_VOLUME;
-    this.targetGameAmbienceVolume = this.MAX_VOLUME;
-    if (!this.isCurrentGameTrackActive()) {
-      this.startGameMusicTrack();
-    }
-    this.ensureGameAmbiencePlaying();
-    this.startFader();
-  }
-
-  public playGameAmbience() {
-    this.targetTitleVolume = 0;
-    this.targetGameAmbienceVolume = this.MAX_VOLUME;
-    this.ensureGameAmbiencePlaying();
-    this.startFader();
-  }
-
-  public setGameAmbiencePlaybackRate(rate: number) {
-    this.gameAmbiencePlaybackRate = Math.max(0.85, Math.min(1.35, rate));
-    this.applyGameAmbiencePlaybackRate();
-  }
-
-  public pauseGameAmbience() {
-    this.wasGameAmbienceActiveBeforePause =
-      this.targetGameAmbienceVolume > 0 &&
-      (!this.gameAmbienceAudioA.paused || !this.gameAmbienceAudioB.paused || this.ambienceLoopInterval !== null);
-
-    if (!this.wasGameAmbienceActiveBeforePause) return;
-
-    this.gameAmbienceAudioA.pause();
-    this.gameAmbienceAudioB.pause();
-    if (this.ambienceLoopInterval) {
-      clearInterval(this.ambienceLoopInterval);
-      this.ambienceLoopInterval = null;
-    }
-  }
-
-  public resumeGameAmbience() {
-    if (!this.wasGameAmbienceActiveBeforePause || !this.initialized || this.targetGameAmbienceVolume <= 0) {
-      this.wasGameAmbienceActiveBeforePause = false;
-      return;
-    }
-
-    const main = this.currentAmbienceInstance === 'A' ? this.gameAmbienceAudioA : this.gameAmbienceAudioB;
-    const secondary = this.currentAmbienceInstance === 'A' ? this.gameAmbienceAudioB : this.gameAmbienceAudioA;
-
-    this.applyGameAmbiencePlaybackRate();
-
-    if (this.isAmbienceCrossfading) {
-      secondary.play().catch(e => console.warn('Game ambiance resume secondary play prevented:', e));
-    }
-    main.play().catch(e => console.warn('Game ambiance resume prevented:', e));
-
-    if (this.ambienceLoopInterval) clearInterval(this.ambienceLoopInterval);
-    this.ambienceLoopInterval = window.setInterval(() => this.updateAmbienceLoop(), 100);
-    this.applyMusicVolumes();
-    this.wasGameAmbienceActiveBeforePause = false;
-  }
-  
-  public stopAllMusic() {
-    this.targetTitleVolume = 0;
-    this.targetGameVolume = 0;
-    this.targetGameAmbienceVolume = 0;
-    this.startFader();
-  }
-
-  private playSfx(audio: HTMLAudioElement) {
-    if (!this.initialized || this.isSfxMuted) return;
-    audio.currentTime = 0;
-    audio.play().catch(e => console.warn('SFX play prevented:', e));
-  }
-
-  public toggleMusic(): boolean {
-    this.isMusicMuted = !this.isMusicMuted;
-    if (this.isMusicMuted) {
-      this.titleAudio.volume = 0;
-      this.titleAmbienceAudio.volume = 0;
-      this.gamePlaylist.forEach(track => track.volume = 0);
+  toggleMusic(): boolean {
+    save.settings.music = !save.settings.music
+    persist()
+    if (!save.settings.music) {
+      this.titleTrack.pause()
+      this.gameTrack?.pause()
     } else {
-      this.applyMusicVolumes();
+      this.setMusic(this.musicMode, true)
     }
-    return this.isMusicMuted;
+    return save.settings.music
   }
 
-  public toggleSfx(): boolean {
-    this.isSfxMuted = !this.isSfxMuted;
-    this.applyMusicVolumes();
-    return this.isSfxMuted;
+  toggleSfx(): boolean {
+    save.settings.sfx = !save.settings.sfx
+    persist()
+    if (this.sfxGain && this.ctx) this.sfxGain.gain.setTargetAtTime(save.settings.sfx ? 1 : 0, this.ctx.currentTime, 0.02)
+    return save.settings.sfx
   }
 
-  public getMusicMuted(): boolean {
-    return this.isMusicMuted;
-  }
-
-  public getSfxMuted(): boolean {
-    return this.isSfxMuted;
-  }
-
-  public playMenuNav() {
-    this.playSfx(this.menus1Sfx);
-  }
-
-  public playPause() {
-    this.playSfx(this.camera1Sfx);
-  }
-
-  public playRestart() {
-    this.playSfx(this.restart1Sfx);
-  }
-
-  public playCountdown(value: 3 | 2 | 1 | 0) {
-    if (value === 3) {
-      this.playSfx(this.countdown3Sfx);
-      return;
+  private unlock(): void {
+    if (this.unlocked) return
+    this.unlocked = true
+    try {
+      const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      this.ctx = new Ctor({ latencyHint: 'interactive' })
+      this.sfxGain = this.ctx.createGain()
+      this.sfxGain.gain.value = save.settings.sfx ? 1 : 0
+      this.sfxGain.connect(this.ctx.destination)
+      this.ambienceGain = this.ctx.createGain()
+      this.ambienceGain.gain.value = 0
+      this.ambienceGain.connect(this.sfxGain)
+      void this.ctx.resume()
+    } catch {
+      this.ctx = null
     }
-
-    if (value === 2) {
-      this.playSfx(this.countdown2Sfx);
-      return;
+    // Warm the cache with the sounds used every few seconds.
+    for (const name of ['grab', 'remove', 'invalid', 'move', 'menu', 'score1', 'score2', 'score3', 'count3', 'count2', 'count1', 'go', 'pages1'] as SfxName[]) {
+      void this.load(name)
     }
-
-    if (value === 1) {
-      this.playSfx(this.countdown1Sfx);
-      return;
-    }
-
-    this.playSfx(this.countdownGoSfx);
+    this.setMusic(this.musicMode, true)
   }
 
-  public playSelectLetter() {
-    this.playSfx(this.selectLetterSfx);
+  private createTrack(path: string): HTMLAudioElement {
+    const audio = new Audio(`${import.meta.env.BASE_URL}${path}`)
+    audio.preload = 'none'
+    audio.volume = 0
+    return audio
   }
 
-  public playBackspace() {
-    this.playSfx(this.backspaceSfx);
-  }
-
-  public playApplause(chapter: number) {
-    const index = Math.min(Math.max(chapter - 1, 0), 4);
-    this.playSfx(this.applauseSfx[index]);
-  }
-
-  public playPagesFromTitle() {
-    this.playSfx(this.pages1Sfx);
-  }
-
-  public playPagesFromGameOver() {
-    this.playSfx(this.pages2Sfx);
-  }
-
-  public playChapterUnlock() {
-    this.playSfx(this.chapterSfx);
-  }
-
-  public playMovement() {
-    this.playSfx(this.movementSfx);
-  }
-
-  public playNoSubmit() {
-    this.playSfx(this.nosubmitSfx);
-  }
-
-  public playScore(scoreValue: number) {
-    let index = 0;
-    if (scoreValue >= 30) index = 2;
-    else if (scoreValue >= 15) index = 1;
-    this.playSfx(this.scoreSfx[index]);
-  }
-
-  public playTimeWarning1() {
-    this.playSfx(this.timewarning1Sfx);
-  }
-
-  public playTimeWarning2() {
-    this.playSfx(this.timewarning2Sfx);
-  }
-
-  private chooseRandomGameTrack() {
-    if (this.gamePlaylist.length === 0) return;
-
-    const previousIndex = this.currentGameTrackIndex;
-    if (this.gamePlaylist.length === 1) {
-      this.currentGameTrackIndex = 0;
-      return;
-    }
-
-    let nextIndex = previousIndex;
-    while (nextIndex === previousIndex) {
-      nextIndex = Math.floor(Math.random() * this.gamePlaylist.length);
-    }
-
-    this.currentGameTrackIndex = nextIndex;
-  }
-
-  private isCurrentGameTrackActive(): boolean {
-    const gameTrack = this.getCurrentGameTrack();
-    return gameTrack !== null && !gameTrack.paused && gameTrack.currentTime > 0;
-  }
-
-  private startGameMusicTrack() {
-    this.gamePlaylist.forEach(track => {
-      track.pause();
-      track.currentTime = 0;
-    });
-
-    this.chooseRandomGameTrack();
-
-    const gameTrack = this.getCurrentGameTrack();
-    if (this.initialized && gameTrack) {
-      gameTrack.volume = 0;
-      gameTrack.play().catch(e => console.warn('Game audio play prevented:', e));
+  private shuffleTracks(): void {
+    this.trackOrder = [...GAME_TRACKS]
+    for (let i = this.trackOrder.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[this.trackOrder[i], this.trackOrder[j]] = [this.trackOrder[j], this.trackOrder[i]]
     }
   }
 
-  private startGameAmbience() {
-    if (!this.initialized) return;
-    
-    this.currentAmbienceInstance = 'A';
-    this.isAmbienceCrossfading = false;
-    this.ambienceFadeFactor = 0;
-    this.ambienceFadeInVolume = 0; // Reset for intro fade
-    
-    this.gameAmbienceAudioA.currentTime = this.AMBIENCE_TRIM_START;
-    this.gameAmbienceAudioA.volume = 0;
-    this.gameAmbienceAudioA.play().catch(e => console.warn('Game ambiance A play prevented:', e));
-    this.gameAmbienceAudioB.pause();
-    this.gameAmbienceAudioB.currentTime = 0;
-    this.gameAmbienceAudioB.volume = 0;
-    this.applyGameAmbiencePlaybackRate();
-    
-    if (this.ambienceLoopInterval) clearInterval(this.ambienceLoopInterval);
-    this.ambienceLoopInterval = window.setInterval(() => this.updateAmbienceLoop(), 100);
-  }
-
-  private updateAmbienceLoop() {
-    // Handle initial fade-in independent of music
-    if (this.ambienceFadeInVolume < 1) {
-      this.ambienceFadeInVolume = Math.min(1, this.ambienceFadeInVolume + 0.08); // Approx 1.2s fade-in
-    }
-
-    const main = this.currentAmbienceInstance === 'A' ? this.gameAmbienceAudioA : this.gameAmbienceAudioB;
-    const secondary = this.currentAmbienceInstance === 'A' ? this.gameAmbienceAudioB : this.gameAmbienceAudioA;
-    
-    if (main.duration > 0) {
-      const loopEndPoint = main.duration - this.AMBIENCE_TRIM_END_OFFSET;
-      const crossfadeStartPoint = loopEndPoint - this.AMBIENCE_CROSSFADE_DURATION;
-      
-      // Start secondary track when approaching end
-      if (main.currentTime >= crossfadeStartPoint && !this.isAmbienceCrossfading) {
-        this.isAmbienceCrossfading = true;
-        secondary.currentTime = this.AMBIENCE_TRIM_START;
-        secondary.volume = 0;
-        secondary.play().catch(e => console.warn('Ambience loop secondary play prevented:', e));
+  private nextGameTrack(): HTMLAudioElement {
+    if (this.trackOrder.length === 0) this.shuffleTracks()
+    const track = this.createTrack(this.trackOrder.pop()!)
+    track.addEventListener('ended', () => {
+      if (this.gameTrack === track) {
+        this.gameTrack = this.nextGameTrack()
+        if (this.musicMode === 'game') this.safePlay(this.gameTrack)
       }
-      
-      // Handle crossfade progress
-      if (this.isAmbienceCrossfading) {
-        const fadeProgress = (main.currentTime - crossfadeStartPoint) / this.AMBIENCE_CROSSFADE_DURATION;
-        this.ambienceFadeFactor = Math.max(0, Math.min(1, fadeProgress));
-        
-        if (main.currentTime >= loopEndPoint) {
-          main.pause();
-          this.currentAmbienceInstance = this.currentAmbienceInstance === 'A' ? 'B' : 'A';
-          this.isAmbienceCrossfading = false;
-          this.ambienceFadeFactor = 0;
-        }
-      }
-    }
-    
-    // Always sync volumes while active
-    this.applyMusicVolumes();
+    })
+    return track
   }
 
-  private startFader() {
-    if (this.initialized) {
-      if (this.targetTitleVolume > 0) {
-        if (this.titleAudio.paused) {
-          this.titleAudio.play().catch(e => console.warn('Title audio play prevented:', e));
-        }
-        if (this.titleAmbienceAudio.paused) {
-          this.titleAmbienceAudio.play().catch(e => console.warn('Title ambience play prevented:', e));
-        }
-      }
-
-      const gameTrack = this.getCurrentGameTrack();
-      if (this.targetGameVolume > 0 && gameTrack && gameTrack.paused) {
-        gameTrack.play().catch(e => console.warn('Game audio play prevented:', e));
-      }
-
-      if (this.targetGameAmbienceVolume > 0) {
-        this.ensureGameAmbiencePlaying();
-      }
-    }
-
-    this.fadeFromTitleVolume = this.titleVolume;
-    this.fadeFromGameVolume = this.gameVolume;
-    this.fadeFromGameAmbienceVolume = this.gameAmbienceVolume;
-    this.fadeStartTime = performance.now();
-
-    if (this.fadeInterval !== null) {
-      window.cancelAnimationFrame(this.fadeInterval);
-    }
-
-    this.isFading = true;
-
-    const step = (now: number) => {
-      const elapsed = now - this.fadeStartTime;
-      const progress = Math.min(1, elapsed / this.MUSIC_CROSSFADE_MS);
-      const eased = this.easeInOutSine(progress);
-
-      this.titleVolume = this.lerp(this.fadeFromTitleVolume, this.targetTitleVolume, eased);
-      this.gameVolume = this.lerp(this.fadeFromGameVolume, this.targetGameVolume, eased);
-      this.gameAmbienceVolume = this.lerp(this.fadeFromGameAmbienceVolume, this.targetGameAmbienceVolume, eased);
-
-      this.applyMusicVolumes();
-
-      if (progress >= 1) {
-        this.titleVolume = this.targetTitleVolume;
-        this.gameVolume = this.targetGameVolume;
-        this.gameAmbienceVolume = this.targetGameAmbienceVolume;
-        this.applyMusicVolumes();
-        this.pauseSilentTracks();
-        this.fadeInterval = null;
-        this.isFading = false;
-        return;
-      }
-
-      this.fadeInterval = window.requestAnimationFrame(step);
-    };
-
-    this.fadeInterval = window.requestAnimationFrame(step);
+  private safePlay(audio: HTMLAudioElement): void {
+    if (!this.unlocked || !save.settings.music) return
+    audio.play().catch(() => undefined)
   }
 
-  private applyMusicVolumes() {
-    this.titleVolume = Math.max(0, Math.min(1, this.titleVolume));
-    this.gameVolume = Math.max(0, Math.min(1, this.gameVolume));
-
-    this.titleAudio.volume = this.isMusicMuted ? 0 : this.titleVolume;
-    this.titleAmbienceAudio.volume = this.isMusicMuted ? 0 : this.titleVolume * this.TITLE_AMBIENCE_MIX;
-
-    const gameTrack = this.getCurrentGameTrack();
-    if (gameTrack) {
-      gameTrack.volume = this.isMusicMuted ? 0 : this.gameVolume;
-    }
-
-    // Apply ambiance volumes (tied to SFX mute, includes its own fade and can run before music starts)
-    const masterAmbVolume = (this.isSfxMuted ? 0 : this.gameAmbienceVolume) * this.GAME_AMBIENCE_MIX * this.ambienceFadeInVolume;
-    if (this.isAmbienceCrossfading) {
-      if (this.currentAmbienceInstance === 'A') {
-        this.gameAmbienceAudioA.volume = masterAmbVolume * (1 - this.ambienceFadeFactor);
-        this.gameAmbienceAudioB.volume = masterAmbVolume * this.ambienceFadeFactor;
-      } else {
-        this.gameAmbienceAudioB.volume = masterAmbVolume * (1 - this.ambienceFadeFactor);
-        this.gameAmbienceAudioA.volume = masterAmbVolume * this.ambienceFadeFactor;
-      }
-    } else {
-      this.gameAmbienceAudioA.volume = this.currentAmbienceInstance === 'A' ? masterAmbVolume : 0;
-      this.gameAmbienceAudioB.volume = this.currentAmbienceInstance === 'B' ? masterAmbVolume : 0;
+  setMusic(mode: MusicMode, force = false): void {
+    if (mode === this.musicMode && !force) return
+    this.musicMode = mode
+    if (mode === 'title') {
+      this.safePlay(this.titleTrack)
+    } else if (mode === 'game') {
+      if (!this.gameTrack) this.gameTrack = this.nextGameTrack()
+      this.safePlay(this.gameTrack)
     }
   }
 
-  private pauseSilentTracks() {
-    if (this.titleVolume === 0 && !this.titleAudio.paused) {
-      this.titleAudio.pause();
-    }
-    if (this.titleVolume === 0 && !this.titleAmbienceAudio.paused) {
-      this.titleAmbienceAudio.pause();
-    }
+  /** Lower music while paused / on overlays (0..1). */
+  setDuck(amount: number): void {
+    this.duck = amount
+  }
 
-    const gameTrack = this.getCurrentGameTrack();
-    if (this.gameVolume === 0 && gameTrack && !gameTrack.paused) {
-      gameTrack.pause();
-    }
+  /** Called every frame: smooth music crossfades and ambience level. */
+  update(dt: number): void {
+    const step = FADE_RATE * dt * MUSIC_VOLUME
+    const titleTarget = this.musicMode === 'title' ? MUSIC_VOLUME * this.duck : 0
+    const gameTarget = this.musicMode === 'game' ? MUSIC_VOLUME * this.duck : 0
+    this.fadeTrack(this.titleTrack, titleTarget, step)
+    if (this.gameTrack) this.fadeTrack(this.gameTrack, gameTarget, step)
+  }
 
-    if (this.gameAmbienceVolume === 0) {
-      this.gameAmbienceAudioA.pause();
-      this.gameAmbienceAudioB.pause();
-      this.gameAmbienceAudioA.currentTime = 0;
-      this.gameAmbienceAudioB.currentTime = 0;
-      if (this.ambienceLoopInterval) {
-        clearInterval(this.ambienceLoopInterval);
-        this.ambienceLoopInterval = null;
-      }
+  private fadeTrack(track: HTMLAudioElement, target: number, step: number): void {
+    const v = track.volume
+    if (Math.abs(v - target) > 0.0005) {
+      track.volume = Math.min(1, Math.max(0, v < target ? Math.min(target, v + step) : Math.max(target, v - step)))
+    }
+    if (track.volume <= 0.001 && target === 0 && !track.paused) track.pause()
+  }
+
+  private load(name: SfxName): Promise<AudioBuffer | null> {
+    const cached = this.buffers.get(name)
+    if (cached) return Promise.resolve(cached)
+    const pending = this.loading.get(name)
+    if (pending) return pending
+    const ctx = this.ctx
+    if (!ctx) return Promise.resolve(null)
+    const promise = fetch(`${import.meta.env.BASE_URL}${SFX_FILES[name]}`)
+      .then(r => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+      .then(data => ctx.decodeAudioData(data))
+      .then(buffer => {
+        this.buffers.set(name, buffer)
+        return buffer
+      })
+      .catch(() => null)
+    this.loading.set(name, promise)
+    return promise
+  }
+
+  play(name: SfxName, volume = 1, rate = 1, minGapMs = 30): void {
+    if (!this.ctx || !this.sfxGain || !save.settings.sfx) return
+    const now = performance.now()
+    if (now - (this.lastPlayed.get(name) ?? -1e9) < minGapMs) return
+    this.lastPlayed.set(name, now)
+    const buffer = this.buffers.get(name)
+    if (!buffer) {
+      void this.load(name)
+      return
+    }
+    const src = this.ctx.createBufferSource()
+    src.buffer = buffer
+    src.playbackRate.value = rate
+    const gain = this.ctx.createGain()
+    gain.gain.value = volume
+    src.connect(gain).connect(this.sfxGain)
+    src.start()
+  }
+
+  /** A soft synthesized bell — used for score ticks and the final countdown. */
+  chime(freq: number, volume = 0.12, duration = 0.35): void {
+    if (!this.ctx || !this.sfxGain || !save.settings.sfx) return
+    const t = this.ctx.currentTime
+    const osc = this.ctx.createOscillator()
+    const osc2 = this.ctx.createOscillator()
+    const gain = this.ctx.createGain()
+    osc.type = 'sine'
+    osc2.type = 'triangle'
+    osc.frequency.value = freq
+    osc2.frequency.value = freq * 2
+    gain.gain.setValueAtTime(0.0001, t)
+    gain.gain.exponentialRampToValueAtTime(volume, t + 0.008)
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + duration)
+    const g2 = this.ctx.createGain()
+    g2.gain.value = 0.25
+    osc.connect(gain)
+    osc2.connect(g2).connect(gain)
+    gain.connect(this.sfxGain)
+    osc.start(t)
+    osc2.start(t)
+    osc.stop(t + duration + 0.05)
+    osc2.stop(t + duration + 0.05)
+  }
+
+  // ── Semantic helpers ──
+
+  grab(trayLength: number): void {
+    // Each successive letter rises a little in pitch — a satisfying build-up.
+    this.play('grab', 0.75, 1 + Math.min(trayLength, 10) * 0.045, 0)
+  }
+
+  move(): void {
+    this.play('move', 0.35, 0.95 + Math.random() * 0.1, 40)
+  }
+
+  score(total: number, letters: number): void {
+    const name: SfxName = total >= 120 ? 'score3' : total >= 40 ? 'score2' : 'score1'
+    this.play(name, 0.8)
+    // Rising arpeggio, one note per letter.
+    const scale = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66, 1318.51, 1567.98, 1760]
+    for (let i = 0; i < Math.min(letters, scale.length); i++) {
+      window.setTimeout(() => this.chime(scale[i], 0.07, 0.3), i * 55)
     }
   }
 
-  private ensureGameAmbiencePlaying() {
-    if (!this.initialized) return;
-    if (!this.gameAmbienceAudioA.paused || !this.gameAmbienceAudioB.paused) return;
-    this.startGameAmbience();
+  countdown(value: number): void {
+    const map: Record<number, SfxName> = { 3: 'count3', 2: 'count2', 1: 'count1', 0: 'go' }
+    this.play(map[value] ?? 'go', 0.8)
   }
 
-  private applyGameAmbiencePlaybackRate() {
-    this.gameAmbienceAudioA.playbackRate = this.gameAmbiencePlaybackRate;
-    this.gameAmbienceAudioB.playbackRate = this.gameAmbiencePlaybackRate;
+  applause(chapter: number): void {
+    const idx = Math.max(1, Math.min(5, chapter))
+    this.play(`applause${idx}` as SfxName, 0.7)
   }
 
-  private lerp(start: number, end: number, t: number): number {
-    return start + (end - start) * t;
+  async startAmbience(): Promise<void> {
+    if (!this.ctx || !this.ambienceGain) return
+    const buffer = await this.load('ambience')
+    if (!buffer || !this.ctx || !this.ambienceGain || this.ambienceSource) return
+    const src = this.ctx.createBufferSource()
+    src.buffer = buffer
+    src.loop = true
+    src.connect(this.ambienceGain)
+    src.start()
+    this.ambienceSource = src
+    this.ambienceGain.gain.setTargetAtTime(0.16, this.ctx.currentTime, 0.8)
   }
 
-  private easeInOutSine(t: number): number {
-    const clamped = Math.max(0, Math.min(1, t));
-    return -(Math.cos(Math.PI * clamped) - 1) / 2;
+  stopAmbience(): void {
+    if (!this.ctx || !this.ambienceGain || !this.ambienceSource) return
+    const src = this.ambienceSource
+    this.ambienceSource = null
+    this.ambienceGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.4)
+    window.setTimeout(() => src.stop(), 1600)
+  }
+
+  suspend(): void {
+    void this.ctx?.suspend()
+    this.titleTrack.pause()
+    this.gameTrack?.pause()
+  }
+
+  resume(): void {
+    void this.ctx?.resume()
+    this.setMusic(this.musicMode, true)
   }
 }
 
-export const audioManager = new AudioManager();
+export const audio = new AudioManager()
