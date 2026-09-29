@@ -1,169 +1,109 @@
-// ── Player — The typographic cursor entity ──
+// ── Cursor — the reader's caret that glides across the page ──
 
-import {
-  GAME_WIDTH,
-  PLAYER_SIZE,
-  LANE_COUNT,
-  LANE_HEIGHT,
-  LANE_Y_START,
-  SAFE_ZONE_INDICES,
-  COLORS,
-  PLAYER_GRID_MAX_OFFSET,
-  getPlayerGridX,
-} from '../utils/constants'
-import { getPageCurvatureOffset } from '../text/TextStream'
-export class Player {
-  public x: number
-  public y: number
-  public targetX: number
-  public targetY: number
-  public laneIndex: number
-  public lives: number = 3
-  public isMoving: boolean = false
-  private columnOffset: number = 0
+import { BOARD_LEFT, BOARD_RIGHT, COLORS, LANE_COUNT, laneCenterY } from '../utils/constants'
+import { curveY } from '../utils/curve'
+import { clamp, damp, easeOutCubic } from '../utils/math'
 
-  // Visual state
-  private blinkTimer: number = 0
-  private blinkOn: boolean = true
-  private trailPositions: { x: number; y: number; alpha: number }[] = []
-  private trailPool: { x: number; y: number; alpha: number }[] = []
+const MAX_SPEED = 430
+const POINTER_SPEED = 1100
+const HOP_TIME = 0.1
 
-  constructor() {
-    // Start at middle row
-    this.laneIndex = Math.floor(LANE_COUNT / 2)
-    this.columnOffset = 0
-    this.x = getPlayerGridX(this.columnOffset)
-    this.y = this.laneToY(this.laneIndex)
-    this.targetX = this.x
-    this.targetY = this.y
-  }
+export class Cursor {
+  lane = Math.floor(LANE_COUNT / 2)
+  x = (BOARD_LEFT + BOARD_RIGHT) / 2
+  vx = 0
+  /** Visual y (animated between lanes). */
+  y = laneCenterY(this.lane)
+  private hopFromY = this.y
+  private hopT = 1
+  private blink = 0
+  private squash = 0
+  /** Pointer-driven destination x (null when keyboard-driven). */
+  targetX: number | null = null
 
   reset(): void {
-    this.laneIndex = Math.floor(LANE_COUNT / 2)
-    this.columnOffset = 0
-    this.x = getPlayerGridX(this.columnOffset)
-    this.y = this.laneToY(this.laneIndex)
-    this.targetX = this.x
-    this.targetY = this.y
-    this.trailPositions = []
-    this.trailPool = []
+    this.lane = Math.floor(LANE_COUNT / 2)
+    this.x = (BOARD_LEFT + BOARD_RIGHT) / 2
+    this.vx = 0
+    this.y = laneCenterY(this.lane)
+    this.hopT = 1
+    this.targetX = null
   }
 
-  laneToY(lane: number): number {
-    return LANE_Y_START + lane * LANE_HEIGHT + LANE_HEIGHT / 2
+  hop(delta: number): boolean {
+    return this.setLane(this.lane + delta)
   }
 
-  moveUp(): void {
-    if (this.laneIndex > 0) {
-      this.laneIndex--
-      this.targetY = this.laneToY(this.laneIndex)
+  setLane(lane: number): boolean {
+    const next = clamp(lane, 0, LANE_COUNT - 1)
+    if (next === this.lane) return false
+    this.hopFromY = this.y
+    this.hopT = 0
+    this.lane = next
+    this.squash = 1
+    this.blink = 0
+    return true
+  }
+
+  update(dt: number, axis: number): void {
+    if (axis !== 0) this.targetX = null
+    let targetV = axis * MAX_SPEED
+    if (this.targetX !== null) {
+      const d = this.targetX - this.x
+      targetV = clamp(d * 14, -POINTER_SPEED, POINTER_SPEED)
+      if (Math.abs(d) < 0.5) {
+        this.x = this.targetX
+        targetV = 0
+      }
     }
-  }
+    // Snappy acceleration, even snappier braking.
+    const rate = targetV === 0 ? 30 : Math.sign(targetV) !== Math.sign(this.vx) ? 34 : 20
+    this.vx += (targetV - this.vx) * damp(rate, dt)
+    if (Math.abs(this.vx) < 1 && targetV === 0) this.vx = 0
+    this.x = clamp(this.x + this.vx * dt, BOARD_LEFT + 8, BOARD_RIGHT - 8)
 
-  moveDown(): void {
-    if (this.laneIndex < LANE_COUNT - 1) {
-      this.laneIndex++
-      this.targetY = this.laneToY(this.laneIndex)
+    const ty = laneCenterY(this.lane)
+    if (this.hopT < 1) {
+      this.hopT = Math.min(1, this.hopT + dt / HOP_TIME)
+      this.y = this.hopFromY + (ty - this.hopFromY) * easeOutCubic(this.hopT)
+    } else {
+      this.y = ty
     }
+    this.squash = Math.max(0, this.squash - dt * 7)
+    this.blink += dt
   }
 
-  moveLeft(): void {
-    if (this.columnOffset > -PLAYER_GRID_MAX_OFFSET) {
-      this.columnOffset--
-      this.targetX = getPlayerGridX(this.columnOffset)
-    }
-  }
+  render(ctx: CanvasRenderingContext2D, laneFlash: number): void {
+    const cy = this.y + curveY(this.x)
+    const moving = Math.abs(this.vx) > 20 || this.hopT < 1
+    const on = moving || (this.blink % 1.06) < 0.7
 
-  moveRight(): void {
-    if (this.columnOffset < PLAYER_GRID_MAX_OFFSET) {
-      this.columnOffset++
-      this.targetX = getPlayerGridX(this.columnOffset)
-    }
-  }
+    // Soft reading glow on the page
+    const glow = ctx.createRadialGradient(this.x, cy, 2, this.x, cy, 40)
+    glow.addColorStop(0, `rgba(212, 168, 67, ${0.22 + laneFlash * 0.2})`)
+    glow.addColorStop(1, 'rgba(212, 168, 67, 0)')
+    ctx.fillStyle = glow
+    ctx.fillRect(this.x - 40, cy - 40, 80, 80)
 
-  private drawCursor(ctx: CanvasRenderingContext2D, x: number, y: number): void {
-    const cursorWidth = 6
-    const cursorHeight = PLAYER_SIZE - 2
+    if (!on) return
+    const stretch = 1 + this.squash * 0.25
+    const h = 30 * stretch
+    const w = 3.5 / Math.sqrt(stretch)
+    const lean = clamp(this.vx / MAX_SPEED, -1, 1) * 0.12
+    ctx.save()
+    ctx.translate(this.x, cy)
+    ctx.transform(1, 0, -lean, 1, 0, 0)
+    ctx.fillStyle = COLORS.goldGlow
     ctx.beginPath()
-    ctx.roundRect(x - cursorWidth / 2, y - cursorHeight / 2, cursorWidth, cursorHeight, 2)
+    ctx.roundRect(-w / 2 - 2, -h / 2 - 2, w + 4, h + 4, 3)
     ctx.fill()
-  }
-
-  isInSafeZone(): boolean {
-    return SAFE_ZONE_INDICES.includes(this.laneIndex)
-  }
-
-  update(dt: number): void {
-    // Smooth movement
-    const lerpSpeed = 12 * dt
-    this.x += (this.targetX - this.x) * Math.min(1, lerpSpeed)
-    this.y += (this.targetY - this.y) * Math.min(1, lerpSpeed)
-
-    this.isMoving = Math.abs(this.targetX - this.x) > 1 || Math.abs(this.targetY - this.y) > 1
-
-    // Blink cursor
-    this.blinkTimer += dt
-    if (this.blinkTimer > 0.53) {
-      this.blinkTimer = 0
-      this.blinkOn = !this.blinkOn
-    }
-
-    // Trail management
-    if (this.isMoving) {
-      const trail = this.trailPool.pop() ?? { x: 0, y: 0, alpha: 0 }
-      trail.x = this.x
-      trail.y = this.y
-      trail.alpha = 0.4
-      this.trailPositions.push(trail)
-
-      if (this.trailPositions.length > 8) {
-        const removed = this.trailPositions.shift()
-        if (removed) this.trailPool.push(removed)
-      }
-    }
-    let writeIndex = 0
-    for (let i = 0; i < this.trailPositions.length; i++) {
-      const t = this.trailPositions[i]
-      t.alpha -= dt * 1.5
-      if (t.alpha > 0) {
-        this.trailPositions[writeIndex] = t
-        writeIndex++
-      } else {
-        this.trailPool.push(t)
-      }
-    }
-    this.trailPositions.length = writeIndex
-  }
-
-  render(ctx: CanvasRenderingContext2D): void {
-    // Trail
-    for (const trail of this.trailPositions) {
-      ctx.globalAlpha = trail.alpha * 0.3
-      ctx.fillStyle = COLORS.gold
-      const offset = getPageCurvatureOffset(trail.x, GAME_WIDTH)
-      this.drawCursor(ctx, trail.x, trail.y + offset)
-    }
-    ctx.globalAlpha = 1
-
-    // Player cursor
-    if (this.blinkOn || this.isMoving) {
-      const offset = getPageCurvatureOffset(this.x, GAME_WIDTH)
-      // Glow
-      ctx.save()
-      ctx.shadowColor = COLORS.goldGlow
-      ctx.shadowBlur = 12
-      ctx.fillStyle = COLORS.gold
-      this.drawCursor(ctx, this.x, this.y + offset)
-      ctx.restore()
-
-      // Solid
-      ctx.fillStyle = COLORS.espresso
-      this.drawCursor(ctx, this.x, this.y + offset)
-    }
-  }
-
-  // Check if player has reached the top (crossed all lanes)
-  hasReachedTop(): boolean {
-    return this.laneIndex === 0 && Math.abs(this.y - this.targetY) < 2
+    ctx.fillStyle = COLORS.espresso
+    ctx.beginPath()
+    ctx.roundRect(-w / 2, -h / 2, w, h, 1.5)
+    ctx.fill()
+    // Serifs — it's a typographic caret after all
+    ctx.fillRect(-4, -h / 2, 8, 1.6)
+    ctx.fillRect(-4, h / 2 - 1.6, 8, 1.6)
+    ctx.restore()
   }
 }

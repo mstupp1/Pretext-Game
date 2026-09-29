@@ -1,82 +1,63 @@
-// ── Levels — Level configuration ──
+// ── Levels — board generation and chapter difficulty ──
 
-import { type LaneConfig } from './Lane'
-import { LANE_COUNT, SAFE_ZONE_INDICES, LEVEL_TIME } from '../utils/constants'
+import { createRng } from '../core/rng'
+import { PASSAGES } from '../text/passages'
+import { LANE_COUNT, isMarginLane } from '../utils/constants'
+import type { LaneFontStyle, LaneOptions, TileOdds } from './Lane'
 
-export interface LevelConfig {
-  chapter: number
-  timeLimit: number
-  laneConfigs: LaneConfig[]
+const STYLES: LaneFontStyle[] = ['regular', 'italic', 'medium', 'light', 'boldItalic', 'regular', 'bold']
+const BASE_SPEEDS = [0, 48, 64, 80, 92, 78, 60, 46, 0]
+
+export function speedMultiplier(chapter: number): number {
+  return Math.min(1.9, 1 + (chapter - 1) * 0.075)
 }
 
-const FONT_STYLES = ['light', 'regular', 'medium', 'bold', 'italic', 'boldItalic'] as const
-const AMBIENCE_PLAYBACK_BASE_SPEED = 88
-const AMBIENCE_PLAYBACK_SPEED_FACTOR = 0.0035
-const AMBIENCE_PLAYBACK_MIN = 0.92
-const AMBIENCE_PLAYBACK_MAX = 1.22
+export function laneSpeed(index: number, chapter: number, jitter: number): number {
+  if (isMarginLane(index)) return (index === 0 ? 150 : 165) * Math.min(1.5, speedMultiplier(chapter))
+  return (BASE_SPEEDS[index] + jitter) * speedMultiplier(chapter)
+}
 
-export function generateLevel(chapter: number): LevelConfig {
-  const speedMultiplier = 1 + (chapter - 1) * 0.05
-  const baseHighlightRate = Math.max(0.05, 0.08 - (chapter - 1) * 0.002)
-  const powerUpSpawnScale = Math.min(1.9, 0.7 + (chapter - 1) * 0.15)
-  const timeLimit = LEVEL_TIME + (chapter - 1) * 5 // More time as chapters get harder
+export function tileOdds(chapter: number): TileOdds {
+  const c = chapter - 1
+  return {
+    rate: Math.max(0.065, 0.088 - c * 0.003),
+    blank: 0.02,
+    DL: 0.065 + c * 0.004,
+    TL: 0.032 + c * 0.003,
+    DW: 0.026 + c * 0.003,
+    TW: 0.01 + c * 0.0018,
+  }
+}
 
-  const laneConfigs: LaneConfig[] = []
+export interface BoardPlan {
+  lanes: (LaneOptions & { jitter: number })[]
+}
 
+export function planBoard(seed: number): BoardPlan {
+  const rng = createRng(seed)
+  const order = PASSAGES.map((_, i) => i)
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1))
+    ;[order[i], order[j]] = [order[j], order[i]]
+  }
+  let cursor = 0
+  const lanes: BoardPlan['lanes'] = []
+  const styleShift = Math.floor(rng() * STYLES.length)
   for (let i = 0; i < LANE_COUNT; i++) {
-    if (SAFE_ZONE_INDICES.includes(i)) {
-      // Power-up lanes should outrun the regular text lanes.
-      const safeSpeed = (i === 0 ? 150 : 162) * speedMultiplier
-      laneConfigs.push({
-        index: i,
-        speed: safeSpeed,
-        direction: i === 0 ? 1 : -1, // Alternate directions for variety
-        fontSize: 18,
-        fontStyle: 'regular',
-        highlightRate: 0,
-        powerUpSpawnScale,
-      })
-      continue
-    }
-
-    // Alternate directions
-    const direction: 1 | -1 = i % 2 === 0 ? 1 : -1
-
-    // Vary speeds — middle lanes are faster, but add a guaranteed lane-specific offset 
-    // so that every lane is distinctly different even at the same distance from center
-    const distFromCenter = Math.abs(i - LANE_COUNT / 2)
-    const speedVariance = (LANE_COUNT / 2 - distFromCenter) / (LANE_COUNT / 2)
-
-    // Base speed + curve + per-lane jitter + small random factor
-    const laneOffset = i * 2.5
-    const speed = (45 + speedVariance * 55 + laneOffset + Math.random() * 10) * speedMultiplier
-
-    // Vary font sizes and styles
-    const fontSizeBase = 16 + Math.floor(Math.random() * 6)
-    const styleIndex = (i + chapter) % FONT_STYLES.length
-    const fontStyle = FONT_STYLES[styleIndex]
-
-    laneConfigs.push({
+    if (isMarginLane(i)) continue
+    const parts: string[] = []
+    for (let p = 0; p < 5; p++) parts.push(PASSAGES[order[cursor++ % order.length]])
+    const jitter = Math.round((rng() - 0.5) * 14)
+    lanes.push({
       index: i,
-      speed,
-      direction,
-      fontSize: fontSizeBase,
-      fontStyle,
-      highlightRate: baseHighlightRate + Math.random() * 0.02,
-      powerUpSpawnScale,
+      seed,
+      text: parts.join('   ·   ') + '   ·   ',
+      fontSize: 17 + Math.floor(rng() * 4),
+      style: STYLES[(i + styleShift) % STYLES.length],
+      speed: laneSpeed(i, 1, jitter),
+      direction: i % 2 === 0 ? 1 : -1,
+      jitter,
     })
   }
-
-  return { chapter, timeLimit, laneConfigs }
-}
-
-export function getLevelAmbiencePlaybackRate(level: LevelConfig): number {
-  const activeLaneConfigs = level.laneConfigs.filter((config) => !SAFE_ZONE_INDICES.includes(config.index))
-
-  if (activeLaneConfigs.length === 0) return 1
-
-  const averageLaneSpeed = activeLaneConfigs.reduce((sum, config) => sum + config.speed, 0) / activeLaneConfigs.length
-  const rate = 1 + (averageLaneSpeed - AMBIENCE_PLAYBACK_BASE_SPEED) * AMBIENCE_PLAYBACK_SPEED_FACTOR
-
-  return Math.max(AMBIENCE_PLAYBACK_MIN, Math.min(AMBIENCE_PLAYBACK_MAX, rate))
+  return { lanes }
 }

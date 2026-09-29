@@ -6,3 +6,4 @@ release/
 .npm-cache/
 *.local
 .DS_Store
+.DS_Store

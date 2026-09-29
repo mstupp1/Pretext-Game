@@ -1,171 +1,71 @@
-// ── Scoring — Scrabble-style word scoring ──
+// ── Scoring — word values, bonuses, and the Flow combo ──
 
-import { LETTER_VALUES, MultiplierType } from '../utils/constants'
-import { resolveWordPattern } from '../utils/dictionary'
+import { letterValue, type TileKind } from './Tiles'
 
-const MIN_LENGTH_BONUS_WORD_LENGTH = 3
-const LENGTH_BONUS_BY_WORD_LENGTH: Record<number, number> = {
-  3: 0,
-  4: 2,
-  5: 4,
-  6: 7,
-  7: 12,
-  8: 18,
-  9: 24,
-  10: 30,
+export interface TrayLetter {
+  letter: string // '' for an unfilled blank
+  kind: TileKind
 }
 
-export interface ScoreResult {
-  valid: boolean
-  word: string
-  letterScore: number
-  lengthBonus: number
-  totalScore: number
-  message: string
-}
-
-export interface ScorePreview {
-  word: string
-  letterScore: number
+export interface ScoreBreakdown {
+  letters: number
   lengthBonus: number
   wordMultiplier: number
-  totalScore: number
+  flow: number
+  lens: number
+  total: number
   timeBonus: number
 }
 
-export interface ScoredLetter {
-  letter: string
-  value: number
-  isBlank: boolean
-  multiplierType: MultiplierType
-  isShiny: boolean
-  shinyBonus: number
+const LENGTH_BONUS = [0, 0, 0, 0, 2, 5, 9, 14, 20, 27, 35]
+const TIME_BONUS = [0, 0, 0, 2, 4, 6, 8, 11, 14, 16, 18]
+
+export const FLOW_LEVELS = [1, 1.25, 1.5, 2, 2.5, 3]
+
+/** Seconds a flow level lasts before it slips down a level. */
+export function flowWindow(level: number): number {
+  return Math.max(7, 13 - level * 1.2)
 }
 
-export interface ScoreModifiers {
-  baseWordBonus: number
-  multiplierBonus: number
+export function lengthBonus(length: number): number {
+  return LENGTH_BONUS[Math.min(length, LENGTH_BONUS.length - 1)]
 }
 
-function roundScoreValue(value: number): number {
-  return Math.round(value)
+export function timeBonus(length: number): number {
+  return TIME_BONUS[Math.min(length, TIME_BONUS.length - 1)]
 }
 
-function roundMultiplierValue(value: number): number {
-  return Math.round(value * 100) / 100
-}
-
-function getSubmittedWordPattern(letters: ScoredLetter[]): string {
-  return letters.map(letter => letter.isBlank ? '?' : letter.letter).join('').toUpperCase()
-}
-
-export async function scoreWord(
-  letters: ScoredLetter[],
-  modifiers: ScoreModifiers = { baseWordBonus: 0, multiplierBonus: 0 },
-  usedWords?: ReadonlySet<string>,
-): Promise<ScoreResult> {
-  const preview = getScorePreview(letters, modifiers)
-  const { letterScore, lengthBonus, totalScore } = preview
-  const submittedWord = getSubmittedWordPattern(letters)
-
-  if (submittedWord.length < 3) {
-    return {
-      valid: false,
-      word: submittedWord,
-      letterScore: 0,
-      lengthBonus: 0,
-      totalScore: 0,
-      message: 'Too short — 3 letters minimum',
-    }
-  }
-
-  const resolved = await resolveWordPattern(submittedWord, usedWords)
-  if (!resolved.word) {
-    const hasBlank = letters.some(letter => letter.isBlank)
-    return {
-      valid: false,
-      word: resolved.blockedWord ?? submittedWord,
-      letterScore: 0,
-      lengthBonus: 0,
-      totalScore: 0,
-      message: resolved.blockedWord
-        ? `"${resolved.blockedWord}" already used this run`
-        : hasBlank
-          ? 'No lexicon match for that blank pattern'
-          : `"${submittedWord}" — not in lexicon`,
-    }
-  }
-
-  // Generate flavor message
-  const messages = getFlavorMessage(resolved.word.length, totalScore)
-
-  return {
-    valid: true,
-    word: resolved.word,
-    letterScore,
-    lengthBonus,
-    totalScore,
-    message: messages,
-  }
-}
-
-export function getScorePreview(letters: ScoredLetter[], modifiers: ScoreModifiers = { baseWordBonus: 0, multiplierBonus: 0 }): ScorePreview {
-  const word = getSubmittedWordPattern(letters)
-
-  let letterScore = 0
+export function scoreLetters(letters: TrayLetter[], flowLevel: number, lens: boolean): ScoreBreakdown {
+  let sum = 0
   let wordMultiplier = 1
-  for (const item of letters) {
-    let val = item.value
-    if (item.multiplierType === 'DoubleLetter') {
-      val *= 2
-    } else if (item.multiplierType === 'TripleLetter') {
-      val *= 3
-    } else if (item.multiplierType === 'DoubleWord') {
-      wordMultiplier *= 2
-    } else if (item.multiplierType === 'TripleWord') {
-      wordMultiplier *= 3
-    }
-    letterScore += val
+  for (const l of letters) {
+    const v = l.kind === 'blank' ? 0 : letterValue(l.letter)
+    if (l.kind === 'DL') sum += v * 2
+    else if (l.kind === 'TL') sum += v * 3
+    else sum += v
+    if (l.kind === 'DW') wordMultiplier *= 2
+    if (l.kind === 'TW') wordMultiplier *= 3
   }
-
-  letterScore += modifiers.baseWordBonus
-  const lengthBonus = getLengthBonusForWordLength(word.length)
-  wordMultiplier = roundMultiplierValue(wordMultiplier + modifiers.multiplierBonus)
-
+  const bonus = lengthBonus(letters.length)
+  const flow = FLOW_LEVELS[Math.min(flowLevel, FLOW_LEVELS.length - 1)]
+  const lensMult = lens ? 2 : 1
   return {
-    word,
-    letterScore,
-    lengthBonus,
+    letters: sum,
+    lengthBonus: bonus,
     wordMultiplier,
-    totalScore: roundScoreValue((letterScore + lengthBonus) * wordMultiplier),
-    timeBonus: getTimeBonusForWordLength(word.length),
+    flow,
+    lens: lensMult,
+    total: Math.round((sum + bonus) * wordMultiplier * flow * lensMult),
+    timeBonus: timeBonus(letters.length),
   }
 }
 
-export function getTimeBonusForWordLength(length: number): number {
-  if (length >= 6) return 15
-  if (length === 5) return 8
-  if (length === 4) return 5
-  if (length === 3) return 3
-  return 0
-}
-
-export function getLengthBonusForWordLength(length: number): number {
-  if (length <= MIN_LENGTH_BONUS_WORD_LENGTH) return 0
-
-  return LENGTH_BONUS_BY_WORD_LENGTH[Math.min(length, 10)] ?? 50
-}
-
-function getFlavorMessage(length: number, score: number): string {
-  if (length >= 8) return 'Magnificent!'
-  if (length >= 7) return 'Extraordinary!'
-  if (length >= 6) return 'Splendid!'
-  if (length >= 5) return 'Well done!'
-  if (score >= 15) return 'Excellent.'
-  if (length >= 4) return 'Good word.'
-  return 'Noted.'
-}
-
-export function getLetterValue(letter: string): number {
-  return LETTER_VALUES[letter.toUpperCase()] || 0
+export function praise(length: number, total: number): string {
+  if (length >= 9 || total >= 300) return 'Legendary!'
+  if (length >= 8 || total >= 200) return 'Magnificent!'
+  if (length >= 7 || total >= 120) return 'Extraordinary!'
+  if (length >= 6 || total >= 70) return 'Splendid!'
+  if (length >= 5 || total >= 35) return 'Well penned!'
+  if (length >= 4) return 'Nice.'
+  return ''
 }
